@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
@@ -12,6 +13,11 @@ export default async function Home() {
       <p className="text-sm text-zinc-500">
         {user ? `Signed in as ${user.email}` : "Not signed in"}
       </p>
+      {!user && (
+        <Link href="/register" className="text-sm underline">
+          Register
+        </Link>
+      )}
     </main>
   );
 }
