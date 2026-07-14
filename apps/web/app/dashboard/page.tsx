@@ -1,9 +1,12 @@
-import { students } from "@attendance/db";
-import { eq } from "drizzle-orm";
+import { attendanceSessions, events, payments, penalties, semesters, students } from "@attendance/db";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { isSessionAbsent } from "@/lib/scan";
 import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -16,11 +19,49 @@ export default async function DashboardPage() {
   const student = await db.query.students.findFirst({
     where: eq(students.authUserId, user.id),
   });
-
   if (!student) redirect("/register");
 
+  const attendanceHistory = await db
+    .select({
+      sessionId: attendanceSessions.id,
+      eventName: events.name,
+      half: attendanceSessions.half,
+      timeIn: attendanceSessions.timeIn,
+      timeOut: attendanceSessions.timeOut,
+    })
+    .from(attendanceSessions)
+    .innerJoin(events, eq(attendanceSessions.eventId, events.id))
+    .where(eq(attendanceSessions.studentId, student.id))
+    .orderBy(desc(attendanceSessions.createdAt));
+
+  const openSemester = await db.query.semesters.findFirst({
+    where: isNull(semesters.closedAt),
+  });
+
+  const semesterPenalties = openSemester
+    ? await db
+        .select({ amount: penalties.amount, paymentId: payments.id })
+        .from(penalties)
+        .innerJoin(attendanceSessions, eq(penalties.attendanceSessionId, attendanceSessions.id))
+        .innerJoin(events, eq(attendanceSessions.eventId, events.id))
+        .leftJoin(payments, eq(payments.penaltyId, penalties.id))
+        .where(and(eq(penalties.studentId, student.id), eq(events.semesterId, openSemester.id)))
+    : [];
+
+  const totalPenalty = semesterPenalties.reduce((sum, p) => sum + Number(p.amount), 0);
+  const outstanding = semesterPenalties
+    .filter((p) => !p.paymentId)
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const paymentHistory = await db
+    .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })
+    .from(payments)
+    .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
+    .where(eq(penalties.studentId, student.id))
+    .orderBy(desc(payments.paidAt));
+
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-2">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center gap-6 p-8">
       <h1 className="text-xl font-medium">Welcome, {student.name}</h1>
       <dl className="text-sm text-zinc-500">
         <div>Email: {student.email}</div>
@@ -42,6 +83,58 @@ export default async function DashboardPage() {
           My Events
         </Link>
       )}
+
+      <section className="w-full">
+        <h2 className="font-medium">This Semester</h2>
+        {openSemester ? (
+          <p className="text-sm text-zinc-500">
+            Total penalties: ₱{totalPenalty.toFixed(2)} — Outstanding: ₱
+            {outstanding.toFixed(2)}
+          </p>
+        ) : (
+          <p className="text-sm text-zinc-500">No open Semester.</p>
+        )}
+      </section>
+
+      <section className="w-full">
+        <h2 className="font-medium">Attendance history</h2>
+        {attendanceHistory.length === 0 ? (
+          <p className="text-sm text-zinc-500">No attendance recorded yet.</p>
+        ) : (
+          <ul className="text-sm">
+            {attendanceHistory.map((row) => (
+              <li key={row.sessionId} className="flex justify-between border-t py-1">
+                <span>
+                  {row.eventName} ({row.half.toUpperCase()})
+                </span>
+                <span
+                  className={
+                    isSessionAbsent(row) ? "text-red-600" : "text-green-700"
+                  }
+                >
+                  {isSessionAbsent(row) ? "Absent" : "Present"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="w-full">
+        <h2 className="font-medium">Payment history</h2>
+        {paymentHistory.length === 0 ? (
+          <p className="text-sm text-zinc-500">No payments yet.</p>
+        ) : (
+          <ul className="text-sm">
+            {paymentHistory.map((payment) => (
+              <li key={payment.id} className="flex justify-between border-t py-1">
+                <span>{new Date(payment.paidAt).toLocaleDateString()}</span>
+                <span>₱{payment.amount}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }
