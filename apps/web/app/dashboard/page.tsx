@@ -1,8 +1,9 @@
 import { attendanceSessions, events, payments, penalties, semesters, students } from "@attendance/db";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { desc, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { getSemesterPenaltySummary } from "@/lib/penalties";
 import { isSessionAbsent } from "@/lib/scan";
 import { createClient } from "@/lib/supabase/server";
 
@@ -38,20 +39,9 @@ export default async function DashboardPage() {
     where: isNull(semesters.closedAt),
   });
 
-  const semesterPenalties = openSemester
-    ? await db
-        .select({ amount: penalties.amount, paymentId: payments.id })
-        .from(penalties)
-        .innerJoin(attendanceSessions, eq(penalties.attendanceSessionId, attendanceSessions.id))
-        .innerJoin(events, eq(attendanceSessions.eventId, events.id))
-        .leftJoin(payments, eq(payments.penaltyId, penalties.id))
-        .where(and(eq(penalties.studentId, student.id), eq(events.semesterId, openSemester.id)))
-    : [];
-
-  const totalPenalty = semesterPenalties.reduce((sum, p) => sum + Number(p.amount), 0);
-  const outstanding = semesterPenalties
-    .filter((p) => !p.paymentId)
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const { total: totalPenalty, outstanding } = openSemester
+    ? await getSemesterPenaltySummary(student.id, openSemester.id)
+    : { total: 0, outstanding: 0 };
 
   const paymentHistory = await db
     .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })
@@ -79,9 +69,14 @@ export default async function DashboardPage() {
         </Link>
       )}
       {(student.role === "officer" || student.role === "governor") && (
-        <Link href="/events" className="text-sm underline">
-          My Events
-        </Link>
+        <>
+          <Link href="/events" className="text-sm underline">
+            My Events
+          </Link>
+          <Link href="/clearance" className="text-sm underline">
+            Clearance lookup
+          </Link>
+        </>
       )}
 
       <section className="w-full">
