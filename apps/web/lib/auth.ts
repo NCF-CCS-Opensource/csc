@@ -1,10 +1,11 @@
 import { students } from "@attendance/db";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { db } from "./db";
 import { createClient } from "./supabase/server";
 
-export async function getCurrentStudent() {
+export const getCurrentStudent = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -15,7 +16,12 @@ export async function getCurrentStudent() {
   return (await db.query.students.findFirst({
     where: eq(students.authUserId, user.id),
   })) ?? null;
-}
+});
+
+export type Identity = Pick<
+  NonNullable<Awaited<ReturnType<typeof getCurrentStudent>>>,
+  "name" | "email" | "role"
+>;
 
 export async function requireGovernor() {
   const student = await getCurrentStudent();
