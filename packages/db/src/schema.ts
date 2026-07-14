@@ -139,3 +139,21 @@ export const penalties = pgTable("penalties", {
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// One Payment per Penalty (unique on penaltyId — a Penalty is paid in full,
+// not partially) — see CONTEXT.md's Payment entry. Insert-only: there is no
+// update/delete path anywhere in the app. A correction is a new row, not an
+// edit to this one. amount is snapshotted at payment time rather than
+// re-read from the Penalty, so the transaction record can't drift later.
+export const payments = pgTable("payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  penaltyId: uuid("penalty_id")
+    .notNull()
+    .unique()
+    .references(() => penalties.id),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  officerId: uuid("officer_id")
+    .notNull()
+    .references(() => students.id),
+  paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -24,6 +24,15 @@ CREATE TABLE "events" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "payments" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"penalty_id" uuid NOT NULL,
+	"amount" numeric(10, 2) NOT NULL,
+	"officer_id" uuid NOT NULL,
+	"paid_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "payments_penalty_id_unique" UNIQUE("penalty_id")
+);
+--> statement-breakpoint
 CREATE TABLE "penalties" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"attendance_session_id" uuid NOT NULL,
@@ -78,6 +87,8 @@ ALTER TABLE "attendance_sessions" ADD CONSTRAINT "attendance_sessions_event_id_e
 ALTER TABLE "attendance_sessions" ADD CONSTRAINT "attendance_sessions_student_id_students_id_fk" FOREIGN KEY ("student_id") REFERENCES "public"."students"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "events" ADD CONSTRAINT "events_semester_id_semesters_id_fk" FOREIGN KEY ("semester_id") REFERENCES "public"."semesters"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "events" ADD CONSTRAINT "events_officer_id_students_id_fk" FOREIGN KEY ("officer_id") REFERENCES "public"."students"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "payments" ADD CONSTRAINT "payments_penalty_id_penalties_id_fk" FOREIGN KEY ("penalty_id") REFERENCES "public"."penalties"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "payments" ADD CONSTRAINT "payments_officer_id_students_id_fk" FOREIGN KEY ("officer_id") REFERENCES "public"."students"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "penalties" ADD CONSTRAINT "penalties_attendance_session_id_attendance_sessions_id_fk" FOREIGN KEY ("attendance_session_id") REFERENCES "public"."attendance_sessions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "penalties" ADD CONSTRAINT "penalties_student_id_students_id_fk" FOREIGN KEY ("student_id") REFERENCES "public"."students"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "scans" ADD CONSTRAINT "scans_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."events"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

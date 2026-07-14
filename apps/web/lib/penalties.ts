@@ -1,4 +1,4 @@
-import { attendanceSessions, events, penalties } from "@attendance/db";
+import { attendanceSessions, events, payments, penalties } from "@attendance/db";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
 import { isSessionAbsent } from "./scan";
@@ -26,14 +26,23 @@ export async function syncPenaltyForSession(sessionId: string): Promise<void> {
 
   const amount = computeSessionPenalty(session, event.halfDayPenaltyAmount);
 
-  if (amount === null) {
-    await db.delete(penalties).where(eq(penalties.attendanceSessionId, sessionId));
-    return;
-  }
-
   const existing = await db.query.penalties.findFirst({
     where: eq(penalties.attendanceSessionId, sessionId),
   });
+
+  if (amount === null) {
+    if (!existing) return;
+    // Payments are immutable — a Penalty that's already been paid stays on
+    // the books even if a later attendance correction would otherwise clear
+    // it, so the payment always references a real row.
+    const paid = await db.query.payments.findFirst({
+      where: eq(payments.penaltyId, existing.id),
+    });
+    if (!paid) {
+      await db.delete(penalties).where(eq(penalties.id, existing.id));
+    }
+    return;
+  }
   if (existing) {
     await db.update(penalties).set({ amount }).where(eq(penalties.id, existing.id));
   } else {

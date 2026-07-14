@@ -1,6 +1,6 @@
 "use server";
 
-import { attendanceSessions, events } from "@attendance/db";
+import { attendanceSessions, events, payments, penalties } from "@attendance/db";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { requireOfficerOrGovernor } from "@/lib/auth";
@@ -35,6 +35,34 @@ export async function updateSession(formData: FormData) {
     .where(eq(attendanceSessions.id, sessionId));
 
   await syncPenaltyForSession(sessionId);
+
+  redirect(`/events/${event.id}/attendance`);
+}
+
+export async function recordPayment(formData: FormData) {
+  const officer = await requireOfficerOrGovernor();
+
+  const penaltyId = String(formData.get("penaltyId") ?? "");
+
+  const penalty = await db.query.penalties.findFirst({ where: eq(penalties.id, penaltyId) });
+  if (!penalty) redirect("/events");
+
+  const session = await db.query.attendanceSessions.findFirst({
+    where: eq(attendanceSessions.id, penalty.attendanceSessionId),
+  });
+  const event = session
+    ? await db.query.events.findFirst({ where: eq(events.id, session.eventId) })
+    : null;
+  if (!event || (event.officerId !== officer.id && officer.role !== "governor")) {
+    redirect("/events");
+  }
+
+  // Insert-only, guarded by payments.penaltyId's unique constraint — a
+  // double-submit upserts to nothing rather than creating a second Payment.
+  await db
+    .insert(payments)
+    .values({ penaltyId, amount: penalty.amount, officerId: officer.id })
+    .onConflictDoNothing({ target: payments.penaltyId });
 
   redirect(`/events/${event.id}/attendance`);
 }
