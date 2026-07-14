@@ -8,6 +8,7 @@ export type EventInput = {
   type: EventType;
   halfDayPenaltyAmount: string;
   date: string;
+  venue?: string;
 };
 
 export type SemesterRange = {
@@ -48,6 +49,15 @@ export function validateEventInput(
   }
 
   return errors;
+}
+
+// Same rules as creation — an Event can be edited freely up until it's
+// removed from the open Semester, so there's nothing update-specific to check.
+export function validateEventUpdate(
+  input: EventInput,
+  semesterRange: SemesterRange,
+): ValidationError[] {
+  return validateEventInput(input, semesterRange);
 }
 
 // Whole-day absence penalty derives as 2x the half-day amount — never stored,

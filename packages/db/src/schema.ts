@@ -47,7 +47,10 @@ export const eventTypeEnum = pgEnum("event_type", ["whole_day", "half_day"]);
 
 // Owned by the Officer who created it, scoped to one Semester — see
 // CONTEXT.md's Event entry. Whole-day penalty is derived (2x half-day),
-// never stored — see lib/events.ts's deriveWholeDayPenalty().
+// never stored — see lib/events.ts's deriveWholeDayPenalty(). Deletion is a
+// confirmed hard delete (no soft-delete/undo) that cascades through scans,
+// attendanceSessions, penalties, and payments — deleting an Event wipes its
+// entire attendance and billing trail, not just the top-level row.
 export const events = pgTable("events", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -55,6 +58,8 @@ export const events = pgTable("events", {
     .notNull()
     .references(() => semesters.id),
   date: date("date").notNull(),
+  // Free-form, e.g. "ST Quad" — nullable, no venue concept enforced.
+  venue: text("venue"),
   type: eventTypeEnum("type").notNull(),
   halfDayPenaltyAmount: numeric("half_day_penalty_amount", {
     precision: 10,
@@ -78,7 +83,7 @@ export const attendanceSessions = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     eventId: uuid("event_id")
       .notNull()
-      .references(() => events.id),
+      .references(() => events.id, { onDelete: "cascade" }),
     studentId: uuid("student_id")
       .notNull()
       .references(() => students.id),
@@ -109,7 +114,7 @@ export const scans = pgTable("scans", {
   id: uuid("id").primaryKey(),
   eventId: uuid("event_id")
     .notNull()
-    .references(() => events.id),
+    .references(() => events.id, { onDelete: "cascade" }),
   studentId: uuid("student_id").references(() => students.id),
   qrPayload: text("qr_payload").notNull(),
   result: scanResultEnum("result").notNull(),
@@ -133,7 +138,7 @@ export const penalties = pgTable("penalties", {
   attendanceSessionId: uuid("attendance_session_id")
     .notNull()
     .unique()
-    .references(() => attendanceSessions.id),
+    .references(() => attendanceSessions.id, { onDelete: "cascade" }),
   studentId: uuid("student_id")
     .notNull()
     .references(() => students.id),
@@ -151,7 +156,7 @@ export const payments = pgTable("payments", {
   penaltyId: uuid("penalty_id")
     .notNull()
     .unique()
-    .references(() => penalties.id),
+    .references(() => penalties.id, { onDelete: "cascade" }),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   officerId: uuid("officer_id")
     .notNull()

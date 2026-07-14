@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveWholeDayPenalty, validateEventInput } from "./events";
+import { deriveWholeDayPenalty, validateEventInput, validateEventUpdate } from "./events";
 
 describe("validateEventInput", () => {
   const semesterRange = { startDate: "2026-06-01", endDate: "2026-10-31" };
@@ -62,6 +62,40 @@ describe("validateEventInput", () => {
 
   it("rejects a date after the open Semester", () => {
     expect(validateEventInput({ ...valid, date: "2026-11-01" }, semesterRange)).toEqual([
+      { field: "date", message: "Date must fall within the open Semester" },
+    ]);
+  });
+
+  it("accepts an Event with a venue", () => {
+    expect(validateEventInput({ ...valid, venue: "ST Quad" }, semesterRange)).toEqual([]);
+  });
+
+  it("accepts an Event without a venue — free-form and optional", () => {
+    expect(validateEventInput(valid, semesterRange)).toEqual([]);
+  });
+});
+
+describe("validateEventUpdate", () => {
+  const semesterRange = { startDate: "2026-06-01", endDate: "2026-10-31" };
+  const valid = {
+    name: "Freshman Orientation",
+    type: "half_day" as const,
+    halfDayPenaltyAmount: "50.00",
+    date: "2026-07-15",
+  };
+
+  it("accepts a well-formed update, same rules as creation", () => {
+    expect(validateEventUpdate(valid, semesterRange)).toEqual([]);
+  });
+
+  it("rejects a blank name", () => {
+    expect(validateEventUpdate({ ...valid, name: "" }, semesterRange)).toEqual([
+      { field: "name", message: "Name is required" },
+    ]);
+  });
+
+  it("rejects a date outside the open Semester", () => {
+    expect(validateEventUpdate({ ...valid, date: "2026-11-01" }, semesterRange)).toEqual([
       { field: "date", message: "Date must fall within the open Semester" },
     ]);
   });

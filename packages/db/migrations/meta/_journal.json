@@ -15,6 +15,20 @@
       "when": 1784006241061,
       "tag": "0001_nervous_black_bird",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784014770316,
+      "tag": "0002_shiny_meggan",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784015521785,
+      "tag": "0003_white_human_fly",
+      "breakpoints": true
     }
   ]
 }
