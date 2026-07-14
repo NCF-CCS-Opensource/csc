@@ -1,4 +1,4 @@
-import { attendanceSessions, events, students } from "@attendance/db";
+import { attendanceSessions, events, scans, students } from "@attendance/db";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { requireOfficerFromRequest } from "@/lib/api-auth";
@@ -10,14 +10,16 @@ export async function POST(request: Request) {
   if (!officer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = (await request.json()) as {
+    scanId?: string;
     eventId?: string;
     mode?: string;
     qrPayload?: string;
     scannedAt?: string;
   };
-  const { eventId, mode, qrPayload, scannedAt } = body;
+  const { scanId, eventId, mode, qrPayload, scannedAt } = body;
 
   if (
+    !scanId ||
     !eventId ||
     !qrPayload ||
     !scannedAt ||
@@ -39,29 +41,48 @@ export async function POST(request: Request) {
   });
   if (!student) return NextResponse.json({ error: "Unknown student" }, { status: 404 });
 
-  const { half, field } = modeToHalfAndField(mode as BoothMode);
-  // Capture-time truth: the Officer's device timestamp, not server receipt time.
-  const capturedAt = new Date(scannedAt);
+  // Idempotent on scanId: a retried offline-sync of the same scan is a no-op
+  // past this point, so it can never double-apply or duplicate-log.
+  const [inserted] = await db
+    .insert(scans)
+    .values({
+      id: scanId,
+      eventId: event.id,
+      studentId: student.id,
+      qrPayload,
+      result: "approved",
+      mode: mode as BoothMode,
+      officerId: officer.id,
+      scannedAt: new Date(scannedAt),
+    })
+    .onConflictDoNothing({ target: scans.id })
+    .returning();
 
-  const existing = await db.query.attendanceSessions.findFirst({
-    where: and(
-      eq(attendanceSessions.eventId, event.id),
-      eq(attendanceSessions.studentId, student.id),
-      eq(attendanceSessions.half, half),
-    ),
-  });
+  if (inserted) {
+    const { half, field } = modeToHalfAndField(mode as BoothMode);
+    // Capture-time truth: the Officer's device timestamp, not server receipt time.
+    const capturedAt = new Date(scannedAt);
 
-  if (existing) {
-    await db
-      .update(attendanceSessions)
-      .set(field === "timeIn" ? { timeIn: capturedAt } : { timeOut: capturedAt })
-      .where(eq(attendanceSessions.id, existing.id));
-  } else {
-    await db.insert(attendanceSessions).values(
-      field === "timeIn"
-        ? { eventId: event.id, studentId: student.id, half, timeIn: capturedAt }
-        : { eventId: event.id, studentId: student.id, half, timeOut: capturedAt },
-    );
+    const existingSession = await db.query.attendanceSessions.findFirst({
+      where: and(
+        eq(attendanceSessions.eventId, event.id),
+        eq(attendanceSessions.studentId, student.id),
+        eq(attendanceSessions.half, half),
+      ),
+    });
+
+    if (existingSession) {
+      await db
+        .update(attendanceSessions)
+        .set(field === "timeIn" ? { timeIn: capturedAt } : { timeOut: capturedAt })
+        .where(eq(attendanceSessions.id, existingSession.id));
+    } else {
+      await db.insert(attendanceSessions).values(
+        field === "timeIn"
+          ? { eventId: event.id, studentId: student.id, half, timeIn: capturedAt }
+          : { eventId: event.id, studentId: student.id, half, timeOut: capturedAt },
+      );
+    }
   }
 
   return NextResponse.json({

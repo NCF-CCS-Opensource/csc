@@ -1,5 +1,6 @@
 import { Picker } from "@react-native-picker/picker";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as Crypto from "expo-crypto";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -9,7 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { apiFetch } from "../lib/api";
+import { enqueue } from "../lib/scanQueue";
+import { flushQueue } from "../lib/syncScans";
 import type { EventRow } from "./EventsScreen";
 
 const BOOTH_MODES = [
@@ -22,7 +24,17 @@ type BoothMode = (typeof BOOTH_MODES)[number]["value"];
 
 type ScannedStudent = { name: string; studentId: string; program: string };
 
-export function BoothScreen({ event, onBack }: { event: EventRow; onBack: () => void }) {
+export function BoothScreen({
+  event,
+  onBack,
+  pendingCount,
+  onScanQueued,
+}: {
+  event: EventRow;
+  onBack: () => void;
+  pendingCount: number;
+  onScanQueued: () => void;
+}) {
   const [permission, requestPermission] = useCameraPermissions();
   const [mode, setMode] = useState<BoothMode>("time_in_am");
   const [scanned, setScanned] = useState<{ raw: string; student: ScannedStudent } | null>(
@@ -49,47 +61,43 @@ export function BoothScreen({ event, onBack }: { event: EventRow; onBack: () => 
     setMessage("Unreadable QR code");
   }
 
+  // Approve/reject always queue locally first, then attempt an immediate
+  // sync — so the flow works the same whether online or offline, and a scan
+  // is never lost to a dropped connection mid-request. Each scan is tagged
+  // with a client UUID so a retried sync upserts instead of duplicating.
   async function approve() {
     if (!scanned) return;
     setSubmitting(true);
-    try {
-      await apiFetch("/api/scan/approve", {
-        method: "POST",
-        body: JSON.stringify({
-          eventId: event.id,
-          mode,
-          qrPayload: scanned.raw,
-          scannedAt: new Date().toISOString(),
-        }),
-      });
-      setMessage(`Recorded ${scanned.student.name}`);
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Failed to record scan");
-    } finally {
-      setSubmitting(false);
-      setScanned(null);
-    }
+    await enqueue({
+      id: Crypto.randomUUID(),
+      type: "approve",
+      eventId: event.id,
+      mode,
+      qrPayload: scanned.raw,
+      scannedAt: new Date().toISOString(),
+    });
+    onScanQueued();
+    setMessage(`Queued ${scanned.student.name}`);
+    setSubmitting(false);
+    setScanned(null);
+    flushQueue(onScanQueued).catch(() => {});
   }
 
   async function reject() {
     if (!scanned) return;
     setSubmitting(true);
-    try {
-      await apiFetch("/api/scan/reject", {
-        method: "POST",
-        body: JSON.stringify({
-          eventId: event.id,
-          qrPayload: scanned.raw,
-          scannedAt: new Date().toISOString(),
-        }),
-      });
-      setMessage(`Rejected ${scanned.student.name}`);
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Failed to log rejection");
-    } finally {
-      setSubmitting(false);
-      setScanned(null);
-    }
+    await enqueue({
+      id: Crypto.randomUUID(),
+      type: "reject",
+      eventId: event.id,
+      qrPayload: scanned.raw,
+      scannedAt: new Date().toISOString(),
+    });
+    onScanQueued();
+    setMessage(`Queued rejection of ${scanned.student.name}`);
+    setSubmitting(false);
+    setScanned(null);
+    flushQueue(onScanQueued).catch(() => {});
   }
 
   if (!permission) return null;
@@ -110,6 +118,12 @@ export function BoothScreen({ event, onBack }: { event: EventRow; onBack: () => 
       <TouchableOpacity onPress={onBack}>
         <Text style={styles.back}>{"< " + event.name}</Text>
       </TouchableOpacity>
+
+      {pendingCount > 0 && (
+        <Text style={styles.pending}>
+          {pendingCount} scan{pendingCount === 1 ? "" : "s"} pending sync
+        </Text>
+      )}
 
       <Picker selectedValue={mode} onValueChange={(value) => setMode(value)}>
         {BOOTH_MODES.map((m) => (
@@ -155,6 +169,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
   back: { fontSize: 14, marginBottom: 4 },
   hint: { fontSize: 13, color: "#666" },
+  pending: { fontSize: 13, color: "#b45309", fontWeight: "600" },
   camera: { flex: 1, borderRadius: 8, overflow: "hidden" },
   button: {
     backgroundColor: "#000",

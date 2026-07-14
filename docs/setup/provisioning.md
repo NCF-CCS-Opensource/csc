@@ -15,7 +15,7 @@ pnpm --filter @attendance/db db:generate   # writes packages/db/migrations from 
 pnpm --filter @attendance/db db:migrate    # applies migrations against DATABASE_URL
 ```
 
-`students`, `programs` (seeded with the 4 defaults), `semesters`, `events`, `attendance_sessions`, and `scan_rejections` exist so far. Re-run `db:generate` after schema changes and `db:migrate` to apply.
+`students`, `programs` (seeded with the 4 defaults), `semesters`, `events`, `attendance_sessions`, and `scans` exist so far. Re-run `db:generate` after schema changes and `db:migrate` to apply.
 
 ## 1b. Bootstrap the Governor account
 

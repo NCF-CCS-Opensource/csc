@@ -1,4 +1,4 @@
-import { events, scanRejections, students } from "@attendance/db";
+import { events, scans, students } from "@attendance/db";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { requireOfficerFromRequest } from "@/lib/api-auth";
@@ -10,13 +10,14 @@ export async function POST(request: Request) {
   if (!officer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = (await request.json()) as {
+    scanId?: string;
     eventId?: string;
     qrPayload?: string;
     scannedAt?: string;
   };
-  const { eventId, qrPayload, scannedAt } = body;
+  const { scanId, eventId, qrPayload, scannedAt } = body;
 
-  if (!eventId || !qrPayload || !scannedAt) {
+  if (!scanId || !eventId || !qrPayload || !scannedAt) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
@@ -30,13 +31,20 @@ export async function POST(request: Request) {
     ? await db.query.students.findFirst({ where: eq(students.studentId, decoded.studentId) })
     : null;
 
-  await db.insert(scanRejections).values({
-    eventId: event.id,
-    studentId: student?.id ?? null,
-    qrPayload,
-    officerId: officer.id,
-    scannedAt: new Date(scannedAt),
-  });
+  // Idempotent on scanId — a retried offline-sync of the same rejection
+  // never inserts a second log row.
+  await db
+    .insert(scans)
+    .values({
+      id: scanId,
+      eventId: event.id,
+      studentId: student?.id ?? null,
+      qrPayload,
+      result: "rejected",
+      officerId: officer.id,
+      scannedAt: new Date(scannedAt),
+    })
+    .onConflictDoNothing({ target: scans.id });
 
   return NextResponse.json({ ok: true });
 }

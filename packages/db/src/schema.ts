@@ -69,7 +69,7 @@ export const halfEnum = pgEnum("half", ["am", "pm"]);
 
 // One half (AM/PM) of an Event's day for one Student — see CONTEXT.md's
 // Attendance Session entry. Absent unless both timeIn and timeOut are set;
-// see lib/attendance.ts's isSessionAbsent(). Timestamps are the Officer's
+// see lib/scan.ts's isSessionAbsent(). Timestamps are the Officer's
 // device capture time, not server receipt time — set by the caller.
 export const attendanceSessions = pgTable(
   "attendance_sessions",
@@ -89,18 +89,35 @@ export const attendanceSessions = pgTable(
   (table) => [unique().on(table.eventId, table.studentId, table.half)],
 );
 
-// A rejected Scan Approval — logged for fraud pattern detection, never
-// written to an Attendance Session. studentId is null when the QR payload
-// doesn't resolve to a registered Student (e.g. tampered/forged QR).
-export const scanRejections = pgTable("scan_rejections", {
-  id: uuid("id").primaryKey().defaultRandom(),
+export const scanResultEnum = pgEnum("scan_result", ["approved", "rejected"]);
+export const boothModeEnum = pgEnum("booth_mode", [
+  "time_in_am",
+  "time_out_am",
+  "time_in_pm",
+  "time_out_pm",
+]);
+
+// One Scan Approval decision (approve or reject) — see CONTEXT.md's Scan
+// Approval entry. `id` is CLIENT-generated (not defaultRandom): the mobile
+// booth app tags every scan with a UUID when it's taken, offline or not, and
+// resyncs by that id, so a retried sync upserts instead of duplicating.
+// Rejections are logged here but never touch an Attendance Session.
+// studentId is null when the QR payload doesn't resolve to a registered
+// Student (e.g. tampered/forged QR).
+export const scans = pgTable("scans", {
+  id: uuid("id").primaryKey(),
   eventId: uuid("event_id")
     .notNull()
     .references(() => events.id),
   studentId: uuid("student_id").references(() => students.id),
   qrPayload: text("qr_payload").notNull(),
+  result: scanResultEnum("result").notNull(),
+  // Which booth mode was selected — null for rejects, which don't target a half.
+  mode: boothModeEnum("mode"),
   officerId: uuid("officer_id")
     .notNull()
     .references(() => students.id),
+  // The Officer's device capture time — not server receipt time.
   scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

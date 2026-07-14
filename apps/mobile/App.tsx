@@ -1,15 +1,24 @@
+import NetInfo from "@react-native-community/netinfo";
 import type { Session } from "@supabase/supabase-js";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { BoothScreen } from "./screens/BoothScreen";
 import { EventsScreen, type EventRow } from "./screens/EventsScreen";
 import { LoginScreen } from "./screens/LoginScreen";
+import { loadQueue } from "./lib/scanQueue";
 import { supabase } from "./lib/supabase";
+import { flushQueue } from "./lib/syncScans";
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [activeEvent, setActiveEvent] = useState<EventRow | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const refreshPendingCount = useCallback(async () => {
+    const queue = await loadQueue();
+    setPendingCount(queue.length);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -19,12 +28,27 @@ export default function App() {
     return () => subscription.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    refreshPendingCount();
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected) {
+        flushQueue(setPendingCount).catch(() => {});
+      }
+    });
+    return () => unsubscribe();
+  }, [refreshPendingCount]);
+
   return (
     <View style={styles.container}>
       {session === undefined ? null : !session ? (
         <LoginScreen />
       ) : activeEvent ? (
-        <BoothScreen event={activeEvent} onBack={() => setActiveEvent(null)} />
+        <BoothScreen
+          event={activeEvent}
+          onBack={() => setActiveEvent(null)}
+          pendingCount={pendingCount}
+          onScanQueued={refreshPendingCount}
+        />
       ) : (
         <EventsScreen onSelect={setActiveEvent} />
       )}
