@@ -1,6 +1,7 @@
 import { attendanceSessions, events, payments, penalties, students } from "@attendance/db";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -123,12 +124,18 @@ export default async function AttendancePage({
                         (row.paidAt ? (
                           <Badge variant="default">Paid</Badge>
                         ) : (
-                          <form action={recordPayment}>
-                            <input type="hidden" name="penaltyId" value={row.penaltyId} />
-                            <Button type="submit" variant="link" size="sm">
-                              Mark paid
-                            </Button>
-                          </form>
+                          <>
+                            <form id={`record-payment-${row.penaltyId}`} action={recordPayment}>
+                              <input type="hidden" name="penaltyId" value={row.penaltyId} />
+                            </form>
+                            <ConfirmSubmitButton
+                              formId={`record-payment-${row.penaltyId}`}
+                              title={`Mark ₱${row.penaltyAmount} as paid?`}
+                              description={`Confirms ${row.studentName} settled this Penalty. There's no "unmark paid" action — undoing this means editing the database directly.`}
+                              confirmLabel="Mark paid"
+                              triggerLabel="Mark paid"
+                            />
+                          </>
                         ))}
                     </TableCell>
                   </TableRow>

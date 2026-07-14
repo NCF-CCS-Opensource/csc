@@ -1,6 +1,7 @@
 import { programs, semesters, students } from "@attendance/db";
 import { asc, desc, ilike, or } from "drizzle-orm";
 import Link from "next/link";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,19 +109,31 @@ export default async function AdminPage({
                       {semester.closedAt ? (
                         <Badge variant="secondary">Closed</Badge>
                       ) : (
-                        <form action={closeSemester} className="inline">
-                          <input type="hidden" name="id" value={semester.id} />
-                          <Button type="submit" variant="link" size="sm">
-                            Close
-                          </Button>
-                        </form>
+                        <>
+                          <form id={`close-semester-${semester.id}`} action={closeSemester}>
+                            <input type="hidden" name="id" value={semester.id} />
+                          </form>
+                          <ConfirmSubmitButton
+                            formId={`close-semester-${semester.id}`}
+                            title="Close this Semester?"
+                            description="Officers won't be able to create new Events under it, and you can't reopen it afterward — dates stay editable, but the Semester itself stays closed."
+                            confirmLabel="Close"
+                            triggerLabel="Close"
+                          />
+                        </>
                       )}
-                      <form action={deleteSemester} className="inline">
+                      <form id={`delete-semester-${semester.id}`} action={deleteSemester}>
                         <input type="hidden" name="id" value={semester.id} />
-                        <Button type="submit" variant="link" size="sm" className="text-destructive">
-                          Delete
-                        </Button>
                       </form>
+                      <ConfirmSubmitButton
+                        formId={`delete-semester-${semester.id}`}
+                        title="Delete this Semester?"
+                        description="This can't be undone. It only succeeds if no Events reference it yet."
+                        confirmLabel="Delete"
+                        triggerLabel="Delete"
+                        triggerClassName="text-destructive"
+                        actionVariant="destructive"
+                      />
                     </div>
                   </TableCell>
                 </TableRow>
@@ -156,12 +169,18 @@ export default async function AdminPage({
                 <TableRow key={program.id}>
                   <TableCell>{program.name}</TableCell>
                   <TableCell className="text-right">
-                    <form action={removeProgram} className="inline">
+                    <form id={`remove-program-${program.id}`} action={removeProgram}>
                       <input type="hidden" name="id" value={program.id} />
-                      <Button type="submit" variant="link" size="sm">
-                        Remove
-                      </Button>
                     </form>
+                    <ConfirmSubmitButton
+                      formId={`remove-program-${program.id}`}
+                      title={`Remove ${program.name}?`}
+                      description="Students already registered under this Program are unaffected, but no one can select it going forward."
+                      confirmLabel="Remove"
+                      triggerLabel="Remove"
+                      triggerClassName="text-destructive"
+                      actionVariant="destructive"
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -198,12 +217,18 @@ export default async function AdminPage({
                     </TableCell>
                     <TableCell className="text-right">
                       {student.role === "student" && (
-                        <form action={promoteToOfficer} className="inline">
-                          <input type="hidden" name="id" value={student.id} />
-                          <Button type="submit" variant="link" size="sm">
-                            Promote to Officer
-                          </Button>
-                        </form>
+                        <>
+                          <form id={`promote-${student.id}`} action={promoteToOfficer}>
+                            <input type="hidden" name="id" value={student.id} />
+                          </form>
+                          <ConfirmSubmitButton
+                            formId={`promote-${student.id}`}
+                            title={`Promote ${student.name} to Officer?`}
+                            description="They'll be able to create Events, scan attendance, and mark Payments received. There's no demote action yet — undoing this means editing the database directly."
+                            confirmLabel="Promote"
+                            triggerLabel="Promote to Officer"
+                          />
+                        </>
                       )}
                     </TableCell>
                   </TableRow>
