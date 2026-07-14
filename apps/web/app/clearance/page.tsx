@@ -1,5 +1,17 @@
 import { semesters, students } from "@attendance/db";
 import { ilike, isNull, or } from "drizzle-orm";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getSemesterPenaltySummary } from "@/lib/penalties";
@@ -45,38 +57,54 @@ export default async function ClearancePage({
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-8">
       <h1 className="text-xl font-medium">Clearance lookup</h1>
       {!openSemester && (
-        <p className="text-sm text-zinc-500">No open Semester — nothing to clear.</p>
+        <p className="text-muted-foreground text-sm">No open Semester — nothing to clear.</p>
       )}
 
       <form className="flex gap-2">
-        <input
+        <Input
           name="q"
           defaultValue={q ?? ""}
           placeholder="Search name, email, or student ID"
-          className="flex-1 rounded border px-2 py-1 text-sm"
+          className="flex-1"
         />
-        <button type="submit" className="rounded bg-black px-3 py-1 text-sm text-white">
-          Search
-        </button>
+        <Button type="submit">Search</Button>
       </form>
 
-      <ul className="flex flex-col gap-1 text-sm">
-        {results.map(({ student, outstanding }) => (
-          <li key={student.id} className="flex items-center justify-between border-t py-2">
-            <span>
-              {student.name} ({student.studentId})
-            </span>
-            <span className="flex items-center gap-3">
-              <span>₱{outstanding.toFixed(2)} outstanding</span>
-              {outstanding === 0 ? (
-                <span className="font-medium text-green-700">Clearance-ready</span>
-              ) : (
-                <span className="font-medium text-red-600">Not ready</span>
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <Card>
+        <CardHeader>
+          <CardTitle>Results</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {results.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No results yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Outstanding</TableHead>
+                  <TableHead className="text-right">Clearance</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {results.map(({ student, outstanding }) => (
+                  <TableRow key={student.id}>
+                    <TableCell>
+                      {student.name} ({student.studentId})
+                    </TableCell>
+                    <TableCell>₱{outstanding.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant={outstanding === 0 ? "default" : "destructive"}>
+                        {outstanding === 0 ? "Clearance-ready" : "Not ready"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
 }

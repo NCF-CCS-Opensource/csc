@@ -2,6 +2,17 @@ import { scans, students } from "@attendance/db";
 import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { requireGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -50,50 +61,71 @@ export default async function RejectionsPage({
       <h1 className="text-xl font-medium">Rejected scans</h1>
 
       <form className="flex gap-2">
-        <input
+        <Input
           name="q"
           defaultValue={q ?? ""}
           placeholder="Filter by Student or QR reference"
-          className="flex-1 rounded border px-2 py-1 text-sm"
+          className="flex-1"
         />
         <input type="hidden" name="sort" value={sort ?? ""} />
-        <button type="submit" className="rounded bg-black px-3 py-1 text-sm text-white">
-          Filter
-        </button>
+        <Button type="submit">Filter</Button>
       </form>
 
-      <div className="flex gap-4 text-xs">
-        <Link
-          href={`/admin/rejections?${q ? `q=${encodeURIComponent(q)}&` : ""}sort=student`}
-          className="underline"
-        >
-          Sort by Student
-        </Link>
-        <Link
-          href={`/admin/rejections?${q ? `q=${encodeURIComponent(q)}&` : ""}sort=time`}
-          className="underline"
-        >
-          Sort by time
-        </Link>
+      <div className="flex gap-4">
+        <Button asChild variant="link" size="sm">
+          <Link href={`/admin/rejections?${q ? `q=${encodeURIComponent(q)}&` : ""}sort=student`}>
+            Sort by Student
+          </Link>
+        </Button>
+        <Button asChild variant="link" size="sm">
+          <Link href={`/admin/rejections?${q ? `q=${encodeURIComponent(q)}&` : ""}sort=time`}>
+            Sort by time
+          </Link>
+        </Button>
       </div>
 
-      <div className="flex flex-col gap-1 text-sm">
-        {rows.length === 0 && (
-          <p className="text-sm text-zinc-500">No rejected scans.</p>
-        )}
-        {rows.map((row) => (
-          <div key={row.scanId} className="grid grid-cols-4 gap-2 border-t py-2">
-            <span>
-              {row.studentName ? `${row.studentName} (${row.studentIdText})` : "Unresolved QR"}
-            </span>
-            <span className="truncate text-xs text-zinc-500" title={row.qrPayload}>
-              {row.qrPayload}
-            </span>
-            <span>{row.officerName}</span>
-            <span>{new Date(row.scannedAt).toLocaleString()}</span>
-          </div>
-        ))}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Rejected scans</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {rows.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No rejected scans.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>QR payload</TableHead>
+                  <TableHead>Officer</TableHead>
+                  <TableHead className="text-right">Scanned at</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.scanId}>
+                    <TableCell>
+                      {row.studentName
+                        ? `${row.studentName} (${row.studentIdText})`
+                        : "Unresolved QR"}
+                    </TableCell>
+                    <TableCell
+                      className="text-muted-foreground max-w-40 truncate font-mono text-xs"
+                      title={row.qrPayload}
+                    >
+                      {row.qrPayload}
+                    </TableCell>
+                    <TableCell>{row.officerName}</TableCell>
+                    <TableCell className="text-right">
+                      {new Date(row.scannedAt).toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
 }

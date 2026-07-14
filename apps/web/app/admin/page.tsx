@@ -1,6 +1,19 @@
 import { programs, semesters, students } from "@attendance/db";
 import { asc, desc, ilike, or } from "drizzle-orm";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { requireGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -40,125 +53,161 @@ export default async function AdminPage({
     : [];
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 p-8">
-      <h1 className="text-xl font-medium">Governor admin</h1>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <Link href="/admin/rejections" className="text-sm underline">
-        Rejected scans log
-      </Link>
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-medium">Governor admin</h1>
+        <Button asChild variant="link" size="sm">
+          <Link href="/admin/rejections">Rejected scans log</Link>
+        </Button>
+      </div>
+      {error && <p className="text-destructive text-sm">{error}</p>}
 
-      <section className="flex flex-col gap-2">
-        <h2 className="font-medium">Semesters</h2>
-        <ul className="flex flex-col gap-1 text-sm">
-          {allSemesters.map((semester) => (
-            <li key={semester.id} className="flex items-center gap-2">
-              <form action={editSemester} className="flex items-center gap-2">
-                <input type="hidden" name="id" value={semester.id} />
-                <input
-                  type="date"
-                  name="startDate"
-                  defaultValue={semester.startDate}
-                  disabled={!!semester.closedAt}
-                  className="rounded border px-1 text-xs"
-                />
-                <input
-                  type="date"
-                  name="endDate"
-                  defaultValue={semester.endDate}
-                  disabled={!!semester.closedAt}
-                  className="rounded border px-1 text-xs"
-                />
-                {!semester.closedAt && (
-                  <button type="submit" className="text-xs underline">
-                    Save
-                  </button>
-                )}
-              </form>
-              {semester.closedAt ? (
-                <span className="text-xs text-zinc-500">closed</span>
-              ) : (
-                <form action={closeSemester}>
-                  <input type="hidden" name="id" value={semester.id} />
-                  <button type="submit" className="text-xs underline">
-                    Close
-                  </button>
-                </form>
-              )}
-            </li>
-          ))}
-        </ul>
-        <form action={createSemester} className="flex items-end gap-2">
-          <label className="flex flex-col text-xs">
-            Start
-            <input type="date" name="startDate" required className="rounded border px-1" />
-          </label>
-          <label className="flex flex-col text-xs">
-            End
-            <input type="date" name="endDate" required className="rounded border px-1" />
-          </label>
-          <button type="submit" className="rounded bg-black px-2 py-1 text-xs text-white">
-            Create
-          </button>
-        </form>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Semesters</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Start</TableHead>
+                <TableHead>End</TableHead>
+                <TableHead></TableHead>
+                <TableHead className="text-right">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allSemesters.map((semester) => (
+                <TableRow key={semester.id}>
+                  <TableCell colSpan={3} className="p-0">
+                    <form
+                      action={editSemester}
+                      className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 p-2"
+                    >
+                      <input type="hidden" name="id" value={semester.id} />
+                      <Input
+                        type="date"
+                        name="startDate"
+                        defaultValue={semester.startDate}
+                        disabled={!!semester.closedAt}
+                        className="text-xs"
+                      />
+                      <Input
+                        type="date"
+                        name="endDate"
+                        defaultValue={semester.endDate}
+                        disabled={!!semester.closedAt}
+                        className="text-xs"
+                      />
+                      {!semester.closedAt && (
+                        <Button type="submit" variant="ghost" size="sm">
+                          Save
+                        </Button>
+                      )}
+                    </form>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {semester.closedAt ? (
+                      <Badge variant="secondary">Closed</Badge>
+                    ) : (
+                      <form action={closeSemester} className="inline">
+                        <input type="hidden" name="id" value={semester.id} />
+                        <Button type="submit" variant="link" size="sm">
+                          Close
+                        </Button>
+                      </form>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <form action={createSemester} className="flex items-end gap-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="startDate" className="text-xs">
+                Start
+              </Label>
+              <Input id="startDate" type="date" name="startDate" required />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="endDate" className="text-xs">
+                End
+              </Label>
+              <Input id="endDate" type="date" name="endDate" required />
+            </div>
+            <Button type="submit">Create</Button>
+          </form>
+        </CardContent>
+      </Card>
 
-      <section className="flex flex-col gap-2">
-        <h2 className="font-medium">Programs</h2>
-        <ul className="flex flex-col gap-1 text-sm">
-          {allPrograms.map((program) => (
-            <li key={program.id} className="flex items-center gap-2">
-              {program.name}
-              <form action={removeProgram}>
-                <input type="hidden" name="id" value={program.id} />
-                <button type="submit" className="text-xs underline">
-                  Remove
-                </button>
-              </form>
-            </li>
-          ))}
-        </ul>
-        <form action={addProgram} className="flex gap-2">
-          <input
-            name="name"
-            placeholder="Program name"
-            required
-            className="rounded border px-1 text-sm"
-          />
-          <button type="submit" className="rounded bg-black px-2 py-1 text-xs text-white">
-            Add
-          </button>
-        </form>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Programs</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <Table>
+            <TableBody>
+              {allPrograms.map((program) => (
+                <TableRow key={program.id}>
+                  <TableCell>{program.name}</TableCell>
+                  <TableCell className="text-right">
+                    <form action={removeProgram} className="inline">
+                      <input type="hidden" name="id" value={program.id} />
+                      <Button type="submit" variant="link" size="sm">
+                        Remove
+                      </Button>
+                    </form>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <form action={addProgram} className="flex gap-2">
+            <Input name="name" placeholder="Program name" required />
+            <Button type="submit">Add</Button>
+          </form>
+        </CardContent>
+      </Card>
 
-      <section className="flex flex-col gap-2">
-        <h2 className="font-medium">Promote a Student to Officer</h2>
-        <form className="flex gap-2">
-          <input
-            name="q"
-            defaultValue={q ?? ""}
-            placeholder="Search name, email, or student ID"
-            className="flex-1 rounded border px-1 text-sm"
-          />
-          <button type="submit" className="rounded bg-black px-2 py-1 text-xs text-white">
-            Search
-          </button>
-        </form>
-        <ul className="flex flex-col gap-1 text-sm">
-          {searchResults.map((student) => (
-            <li key={student.id} className="flex items-center gap-2">
-              {student.name} — {student.email} ({student.role})
-              {student.role === "student" && (
-                <form action={promoteToOfficer}>
-                  <input type="hidden" name="id" value={student.id} />
-                  <button type="submit" className="text-xs underline">
-                    Promote to Officer
-                  </button>
-                </form>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Promote a Student to Officer</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <form className="flex gap-2">
+            <Input
+              name="q"
+              defaultValue={q ?? ""}
+              placeholder="Search name, email, or student ID"
+              className="flex-1"
+            />
+            <Button type="submit">Search</Button>
+          </form>
+          {searchResults.length > 0 && (
+            <Table>
+              <TableBody>
+                {searchResults.map((student) => (
+                  <TableRow key={student.id}>
+                    <TableCell>
+                      {student.name} — {student.email} ({student.role})
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {student.role === "student" && (
+                        <form action={promoteToOfficer} className="inline">
+                          <input type="hidden" name="id" value={student.id} />
+                          <Button type="submit" variant="link" size="sm">
+                            Promote to Officer
+                          </Button>
+                        </form>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
 }

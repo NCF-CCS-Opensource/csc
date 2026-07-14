@@ -2,6 +2,17 @@ import { attendanceSessions, events, payments, penalties, semesters, students } 
 import { desc, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { db } from "@/lib/db";
 import { getSemesterPenaltySummary } from "@/lib/penalties";
 import { isSessionAbsent } from "@/lib/scan";
@@ -51,88 +62,128 @@ export default async function DashboardPage() {
     .orderBy(desc(payments.paidAt));
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center gap-6 p-8">
-      <h1 className="text-xl font-medium">Welcome, {student.name}</h1>
-      <dl className="text-sm text-zinc-500">
-        <div>Email: {student.email}</div>
-        <div>Program: {student.program}</div>
-        <div>Student ID: {student.studentId}</div>
-      </dl>
-      {/* eslint-disable-next-line @next/next/no-img-element -- generated PNG, not an optimizable static asset */}
-      <img src="/qr" alt="Your attendance QR code" width={200} height={200} />
-      <a href="/qr" download="attendance-qr.png" className="text-sm underline">
-        Download QR code
-      </a>
-      {student.role === "governor" && (
-        <Link href="/admin" className="text-sm underline">
-          Governor admin
-        </Link>
-      )}
-      {(student.role === "officer" || student.role === "governor") && (
-        <>
-          <Link href="/events" className="text-sm underline">
-            My Events
-          </Link>
-          <Link href="/clearance" className="text-sm underline">
-            Clearance lookup
-          </Link>
-          <Link href="/analytics" className="text-sm underline">
-            Analytics
-          </Link>
-        </>
-      )}
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Welcome, {student.name}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center gap-4">
+          <dl className="text-muted-foreground w-full text-sm">
+            <div>Email: {student.email}</div>
+            <div>Program: {student.program}</div>
+            <div>Student ID: {student.studentId}</div>
+          </dl>
+          {/* eslint-disable-next-line @next/next/no-img-element -- generated PNG, not an optimizable static asset */}
+          <img
+            src="/qr"
+            alt="Your attendance QR code"
+            width={200}
+            height={200}
+            className="rounded-lg border"
+          />
+          <Button asChild variant="outline">
+            <a href="/qr" download="attendance-qr.png">
+              Download QR code
+            </a>
+          </Button>
+          {(student.role === "officer" || student.role === "governor") && (
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button asChild variant="secondary" size="sm">
+                <Link href="/events">My Events</Link>
+              </Button>
+              <Button asChild variant="secondary" size="sm">
+                <Link href="/clearance">Clearance lookup</Link>
+              </Button>
+              <Button asChild variant="secondary" size="sm">
+                <Link href="/analytics">Analytics</Link>
+              </Button>
+              {student.role === "governor" && (
+                <Button asChild variant="secondary" size="sm">
+                  <Link href="/admin">Governor admin</Link>
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      <section className="w-full">
-        <h2 className="font-medium">This Semester</h2>
-        {openSemester ? (
-          <p className="text-sm text-zinc-500">
-            Total penalties: ₱{totalPenalty.toFixed(2)} — Outstanding: ₱
-            {outstanding.toFixed(2)}
-          </p>
-        ) : (
-          <p className="text-sm text-zinc-500">No open Semester.</p>
-        )}
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>This Semester</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {openSemester ? (
+            <p className="text-muted-foreground text-sm">
+              Total penalties: ₱{totalPenalty.toFixed(2)} — Outstanding: ₱
+              {outstanding.toFixed(2)}
+            </p>
+          ) : (
+            <p className="text-muted-foreground text-sm">No open Semester.</p>
+          )}
+        </CardContent>
+      </Card>
 
-      <section className="w-full">
-        <h2 className="font-medium">Attendance history</h2>
-        {attendanceHistory.length === 0 ? (
-          <p className="text-sm text-zinc-500">No attendance recorded yet.</p>
-        ) : (
-          <ul className="text-sm">
-            {attendanceHistory.map((row) => (
-              <li key={row.sessionId} className="flex justify-between border-t py-1">
-                <span>
-                  {row.eventName} ({row.half.toUpperCase()})
-                </span>
-                <span
-                  className={
-                    isSessionAbsent(row) ? "text-red-600" : "text-green-700"
-                  }
-                >
-                  {isSessionAbsent(row) ? "Absent" : "Present"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Attendance history</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {attendanceHistory.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No attendance recorded yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Event</TableHead>
+                  <TableHead className="text-right">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {attendanceHistory.map((row) => (
+                  <TableRow key={row.sessionId}>
+                    <TableCell>
+                      {row.eventName} ({row.half.toUpperCase()})
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant={isSessionAbsent(row) ? "destructive" : "default"}>
+                        {isSessionAbsent(row) ? "Absent" : "Present"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
-      <section className="w-full">
-        <h2 className="font-medium">Payment history</h2>
-        {paymentHistory.length === 0 ? (
-          <p className="text-sm text-zinc-500">No payments yet.</p>
-        ) : (
-          <ul className="text-sm">
-            {paymentHistory.map((payment) => (
-              <li key={payment.id} className="flex justify-between border-t py-1">
-                <span>{new Date(payment.paidAt).toLocaleDateString()}</span>
-                <span>₱{payment.amount}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment history</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {paymentHistory.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No payments yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paymentHistory.map((payment) => (
+                  <TableRow key={payment.id}>
+                    <TableCell>{new Date(payment.paidAt).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-right">₱{payment.amount}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
 }

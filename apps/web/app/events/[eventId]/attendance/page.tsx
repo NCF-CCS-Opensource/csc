@@ -1,6 +1,18 @@
 import { attendanceSessions, events, payments, penalties, students } from "@attendance/db";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { recordPayment, updateSession } from "./actions";
@@ -47,60 +59,85 @@ export default async function AttendancePage({
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 p-8">
       <h1 className="text-xl font-medium">{event.name} — Attendance</h1>
-      <p className="text-sm text-zinc-500">
+      <p className="text-muted-foreground text-sm">
         Half-day penalty: ₱{event.halfDayPenaltyAmount}
       </p>
 
-      <div className="flex flex-col gap-1">
-        {rows.length === 0 && (
-          <p className="text-sm text-zinc-500">No scans recorded yet.</p>
-        )}
-        {rows.map((row) => (
-          <div
-            key={row.sessionId}
-            className="grid grid-cols-8 items-center gap-2 border-t py-2 text-sm"
-          >
-            <div className="col-span-2">
-              {row.studentName} ({row.studentIdText})
-            </div>
-            <div>{row.half.toUpperCase()}</div>
-            <form action={updateSession} className="col-span-3 grid grid-cols-3 items-center gap-2">
-              <input type="hidden" name="sessionId" value={row.sessionId} />
-              <input
-                type="datetime-local"
-                name="timeIn"
-                defaultValue={toLocalInputValue(row.timeIn)}
-                className="rounded border px-1 text-xs"
-              />
-              <input
-                type="datetime-local"
-                name="timeOut"
-                defaultValue={toLocalInputValue(row.timeOut)}
-                className="rounded border px-1 text-xs"
-              />
-              <button type="submit" className="text-xs underline">
-                Save
-              </button>
-            </form>
-            <div className={row.penaltyAmount ? "text-red-600" : "text-zinc-500"}>
-              {row.penaltyAmount ? `Absent — ₱${row.penaltyAmount}` : "Present"}
-            </div>
-            <div>
-              {row.penaltyId &&
-                (row.paidAt ? (
-                  <span className="text-xs text-green-700">Paid</span>
-                ) : (
-                  <form action={recordPayment}>
-                    <input type="hidden" name="penaltyId" value={row.penaltyId} />
-                    <button type="submit" className="text-xs underline">
-                      Mark paid
-                    </button>
-                  </form>
+      <Card>
+        <CardHeader>
+          <CardTitle>Sessions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {rows.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No scans recorded yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Half</TableHead>
+                  <TableHead>Time in</TableHead>
+                  <TableHead>Time out</TableHead>
+                  <TableHead></TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Payment</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.sessionId}>
+                    <TableCell>
+                      {row.studentName} ({row.studentIdText})
+                    </TableCell>
+                    <TableCell>{row.half.toUpperCase()}</TableCell>
+                    <TableCell colSpan={3} className="p-0">
+                      <form
+                        action={updateSession}
+                        className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 p-2"
+                      >
+                        <input type="hidden" name="sessionId" value={row.sessionId} />
+                        <Input
+                          type="datetime-local"
+                          name="timeIn"
+                          defaultValue={toLocalInputValue(row.timeIn)}
+                          className="text-xs"
+                        />
+                        <Input
+                          type="datetime-local"
+                          name="timeOut"
+                          defaultValue={toLocalInputValue(row.timeOut)}
+                          className="text-xs"
+                        />
+                        <Button type="submit" variant="ghost" size="sm">
+                          Save
+                        </Button>
+                      </form>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={row.penaltyAmount ? "destructive" : "secondary"}>
+                        {row.penaltyAmount ? `Absent — ₱${row.penaltyAmount}` : "Present"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {row.penaltyId &&
+                        (row.paidAt ? (
+                          <Badge variant="default">Paid</Badge>
+                        ) : (
+                          <form action={recordPayment}>
+                            <input type="hidden" name="penaltyId" value={row.penaltyId} />
+                            <Button type="submit" variant="link" size="sm">
+                              Mark paid
+                            </Button>
+                          </form>
+                        ))}
+                    </TableCell>
+                  </TableRow>
                 ))}
-            </div>
-          </div>
-        ))}
-      </div>
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
 }

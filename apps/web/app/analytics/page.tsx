@@ -1,5 +1,14 @@
 import { attendanceSessions, events, payments, penalties, semesters } from "@attendance/db";
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isSessionAbsent } from "@/lib/scan";
@@ -17,7 +26,7 @@ export default async function AnalyticsPage() {
     return (
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-8">
         <h1 className="text-xl font-medium">Analytics</h1>
-        <p className="text-sm text-zinc-500">No open Semester.</p>
+        <p className="text-muted-foreground text-sm">No open Semester.</p>
       </main>
     );
   }
@@ -74,38 +83,70 @@ export default async function AnalyticsPage() {
         {officer.role === "governor" ? "Analytics — all Officers" : "Analytics — my Events"}
       </h1>
 
-      <div className="grid grid-cols-3 gap-4 rounded border p-4 text-sm">
-        <div>
-          <div className="text-zinc-500">Present / Absent</div>
-          <div className="text-lg font-medium">
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-normal">
+              Present / Absent
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-lg font-medium">
             {totalPresent} / {totalAbsent}
-          </div>
-        </div>
-        <div>
-          <div className="text-zinc-500">Attendance rate</div>
-          <div className="text-lg font-medium">{totalRate.toFixed(1)}%</div>
-        </div>
-        <div>
-          <div className="text-zinc-500">Collected</div>
-          <div className="text-lg font-medium">₱{totalCollected.toFixed(2)}</div>
-        </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-normal">
+              Attendance rate
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-lg font-medium">{totalRate.toFixed(1)}%</CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-normal">
+              Collected
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-lg font-medium">
+            ₱{totalCollected.toFixed(2)}
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="flex flex-col gap-1 text-sm">
-        {stats.length === 0 && (
-          <p className="text-sm text-zinc-500">No Events this Semester.</p>
-        )}
-        {stats.map(({ event, present, absent, rate, collected }) => (
-          <div key={event.id} className="grid grid-cols-4 gap-2 border-t py-2">
-            <span>{event.name}</span>
-            <span>
-              {present} / {absent}
-            </span>
-            <span>{rate.toFixed(1)}%</span>
-            <span>₱{collected.toFixed(2)}</span>
-          </div>
-        ))}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Events</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stats.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No Events this Semester.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Event</TableHead>
+                  <TableHead>Present / Absent</TableHead>
+                  <TableHead>Rate</TableHead>
+                  <TableHead className="text-right">Collected</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stats.map(({ event, present, absent, rate, collected }) => (
+                  <TableRow key={event.id}>
+                    <TableCell>{event.name}</TableCell>
+                    <TableCell>
+                      {present} / {absent}
+                    </TableCell>
+                    <TableCell>{rate.toFixed(1)}%</TableCell>
+                    <TableCell className="text-right">₱{collected.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
 }
