@@ -1,7 +1,6 @@
-import { Picker } from "@react-native-picker/picker";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Crypto from "expo-crypto";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -10,6 +9,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Dropdown } from "../components/Dropdown";
+import { apiFetch } from "../lib/api";
+import { colorOf, initialsOf } from "../lib/avatar";
 import { enqueue } from "../lib/scanQueue";
 import { flushQueue } from "../lib/syncScans";
 import type { EventRow } from "./EventsScreen";
@@ -25,26 +27,38 @@ type BoothMode = (typeof BOOTH_MODES)[number]["value"];
 type ScannedStudent = { name: string; studentId: string; program: string };
 
 export function BoothScreen({
-  event,
-  onBack,
   pendingCount,
   onScanQueued,
 }: {
-  event: EventRow;
-  onBack: () => void;
   pendingCount: number;
   onScanQueued: () => void;
 }) {
   const [permission, requestPermission] = useCameraPermissions();
-  const [mode, setMode] = useState<BoothMode>("time_in_am");
-  const [scanned, setScanned] = useState<{ raw: string; student: ScannedStudent } | null>(
-    null,
-  );
+  const [torch, setTorch] = useState(false);
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [eventId, setEventId] = useState<string | null>(null);
+  const [mode, setMode] = useState<BoothMode | null>(null);
+  const [scanned, setScanned] = useState<
+    { raw: string; student: ScannedStudent; scannedAt: string } | null
+  >(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    apiFetch<{ events: EventRow[] }>("/api/events/mine")
+      .then((data) => setEvents(data.events))
+      .catch(() => {});
+  }, []);
+
+  const activeEvent = events.find((e) => e.id === eventId) ?? null;
+  const ready = !!activeEvent && !!mode;
+
   function onBarcodeScanned(result: { data: string }) {
     if (scanned) return; // modal already open — ignore repeat scans
+    if (!ready) {
+      setMessage("Select an event and time first");
+      return;
+    }
     try {
       const parsed = JSON.parse(result.data);
       if (
@@ -52,7 +66,7 @@ export function BoothScreen({
         typeof parsed?.studentId === "string" &&
         typeof parsed?.program === "string"
       ) {
-        setScanned({ raw: result.data, student: parsed });
+        setScanned({ raw: result.data, student: parsed, scannedAt: new Date().toISOString() });
         return;
       }
     } catch {
@@ -66,15 +80,15 @@ export function BoothScreen({
   // is never lost to a dropped connection mid-request. Each scan is tagged
   // with a client UUID so a retried sync upserts instead of duplicating.
   async function approve() {
-    if (!scanned) return;
+    if (!scanned || !activeEvent || !mode) return;
     setSubmitting(true);
     await enqueue({
       id: Crypto.randomUUID(),
       type: "approve",
-      eventId: event.id,
+      eventId: activeEvent.id,
       mode,
       qrPayload: scanned.raw,
-      scannedAt: new Date().toISOString(),
+      scannedAt: scanned.scannedAt,
     });
     onScanQueued();
     setMessage(`Queued ${scanned.student.name}`);
@@ -84,14 +98,14 @@ export function BoothScreen({
   }
 
   async function reject() {
-    if (!scanned) return;
+    if (!scanned || !activeEvent) return;
     setSubmitting(true);
     await enqueue({
       id: Crypto.randomUUID(),
       type: "reject",
-      eventId: event.id,
+      eventId: activeEvent.id,
       qrPayload: scanned.raw,
-      scannedAt: new Date().toISOString(),
+      scannedAt: scanned.scannedAt,
     });
     onScanQueued();
     setMessage(`Queued rejection of ${scanned.student.name}`);
@@ -115,47 +129,97 @@ export function BoothScreen({
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={onBack}>
-        <Text style={styles.back}>{"< " + event.name}</Text>
-      </TouchableOpacity>
+      <View style={styles.cameraWrap}>
+        <CameraView
+          style={styles.camera}
+          enableTorch={torch}
+          barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+          onBarcodeScanned={onBarcodeScanned}
+        />
+        <Text style={styles.cameraHint}>Align QR code within the frame</Text>
+        <TouchableOpacity style={styles.torchButton} onPress={() => setTorch((t) => !t)}>
+          <Text style={styles.torchIcon}>{torch ? "●" : "○"}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.statusBar, ready ? styles.statusReady : styles.statusNotReady]}>
+        <View style={[styles.statusDot, { backgroundColor: ready ? "#16a34a" : "#d97706" }]} />
+        <Text style={styles.statusText}>{ready ? "Ready to scan" : "Select event & time"}</Text>
+        <Text style={styles.statusHint}>Tap QR to begin</Text>
+      </View>
 
       {pendingCount > 0 && (
         <Text style={styles.pending}>
           {pendingCount} scan{pendingCount === 1 ? "" : "s"} pending sync
         </Text>
       )}
-
-      <Picker selectedValue={mode} onValueChange={(value) => setMode(value)}>
-        {BOOTH_MODES.map((m) => (
-          <Picker.Item key={m.value} label={m.label} value={m.value} />
-        ))}
-      </Picker>
-
       {message && <Text style={styles.hint}>{message}</Text>}
 
-      <CameraView
-        style={styles.camera}
-        barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-        onBarcodeScanned={onBarcodeScanned}
-      />
+      <View style={styles.dropdownRow}>
+        <Dropdown
+          label="Event"
+          placeholder="Select event"
+          value={eventId}
+          options={events.map((e) => ({ label: e.name, value: e.id }))}
+          onChange={setEventId}
+        />
+        <Dropdown
+          label="Time"
+          placeholder="Select options"
+          value={mode}
+          options={BOOTH_MODES.map((m) => ({ label: m.label, value: m.value }))}
+          onChange={setMode}
+        />
+      </View>
 
       <Modal visible={!!scanned} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{scanned?.student.name}</Text>
-            <Text>Student ID: {scanned?.student.studentId}</Text>
-            <Text>Program: {scanned?.student.program}</Text>
-            {submitting ? (
-              <ActivityIndicator style={{ marginTop: 12 }} />
-            ) : (
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={[styles.button, styles.reject]} onPress={reject}>
-                  <Text style={styles.buttonText}>Reject</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.button} onPress={approve}>
-                  <Text style={styles.buttonText}>Approve</Text>
-                </TouchableOpacity>
-              </View>
+            <View style={styles.modalHandle} />
+            {scanned && (
+              <>
+                <View style={styles.modalHeader}>
+                  <View style={[styles.avatar, { backgroundColor: colorOf(scanned.student.name) }]}>
+                    <Text style={styles.avatarText}>{initialsOf(scanned.student.name)}</Text>
+                  </View>
+                  <View style={styles.modalHeaderText}>
+                    <Text style={styles.modalTitle}>{scanned.student.name}</Text>
+                    <Text style={styles.modalSubtitle}>Student | {scanned.student.program}</Text>
+                  </View>
+                  <View style={styles.validBadge}>
+                    <Text style={styles.validBadgeText}>Valid</Text>
+                  </View>
+                </View>
+
+                <View style={styles.detailRows}>
+                  <DetailRow label="Student ID" value={scanned.student.studentId} />
+                  <DetailRow label="Event" value={activeEvent?.name ?? "—"} />
+                  <DetailRow
+                    label="Log type"
+                    value={BOOTH_MODES.find((m) => m.value === mode)?.label ?? "—"}
+                  />
+                  <DetailRow
+                    label="Scanned at"
+                    value={new Date(scanned.scannedAt).toLocaleTimeString([], {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  />
+                </View>
+
+                {submitting ? (
+                  <ActivityIndicator style={{ marginTop: 12 }} />
+                ) : (
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity style={[styles.actionButton, styles.reject]} onPress={reject}>
+                      <Text style={styles.rejectText}>✕ Reject</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.actionButton, styles.accept]} onPress={approve}>
+                      <Text style={styles.acceptText}>✓ Accept</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
             )}
           </View>
         </View>
@@ -164,13 +228,61 @@ export function BoothScreen({
   );
 }
 
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 16, gap: 8 },
+  container: { flex: 1, backgroundColor: "#fff" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
-  back: { fontSize: 14, marginBottom: 4 },
-  hint: { fontSize: 13, color: "#666" },
-  pending: { fontSize: 13, color: "#b45309", fontWeight: "600" },
-  camera: { flex: 1, borderRadius: 8, overflow: "hidden" },
+  hint: { fontSize: 13, color: "#666", paddingHorizontal: 16 },
+  cameraWrap: { flex: 1, backgroundColor: "#000" },
+  camera: { flex: 1 },
+  cameraHint: {
+    position: "absolute",
+    top: 16,
+    alignSelf: "center",
+    color: "#fff",
+    fontSize: 13,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  torchButton: {
+    position: "absolute",
+    bottom: 16,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  torchIcon: { color: "#fff", fontSize: 16 },
+  statusBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  statusReady: { backgroundColor: "#dcfce7" },
+  statusNotReady: { backgroundColor: "#fef3c7" },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusText: { fontSize: 13, fontWeight: "600", color: "#166534" },
+  statusHint: { fontSize: 12, color: "#666", marginLeft: "auto" },
+  pending: { fontSize: 13, color: "#b45309", fontWeight: "600", paddingHorizontal: 16, marginTop: 8 },
+  dropdownRow: { flexDirection: "row", gap: 12, padding: 16 },
   button: {
     backgroundColor: "#000",
     borderRadius: 6,
@@ -178,21 +290,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: "center",
   },
-  reject: { backgroundColor: "#c00" },
   buttonText: { color: "#fff", fontWeight: "600" },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
-    alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-end",
   },
   modalCard: {
     backgroundColor: "#fff",
-    borderRadius: 12,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
-    width: "85%",
-    gap: 6,
+    gap: 12,
   },
-  modalTitle: { fontSize: 18, fontWeight: "600", marginBottom: 4 },
-  modalActions: { flexDirection: "row", gap: 12, marginTop: 16 },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#ddd",
+    alignSelf: "center",
+    marginBottom: 4,
+  },
+  modalHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+  avatarText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  modalHeaderText: { flex: 1 },
+  modalTitle: { fontSize: 16, fontWeight: "700" },
+  modalSubtitle: { fontSize: 12, color: "#888" },
+  validBadge: { backgroundColor: "#dcfce7", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  validBadgeText: { fontSize: 12, fontWeight: "600", color: "#15803d" },
+  detailRows: { gap: 8 },
+  detailRow: { flexDirection: "row", justifyContent: "space-between" },
+  detailLabel: { fontSize: 13, color: "#888" },
+  detailValue: { fontSize: 13, fontWeight: "600" },
+  modalActions: { flexDirection: "row", gap: 12, marginTop: 4 },
+  actionButton: { flex: 1, borderRadius: 8, paddingVertical: 14, alignItems: "center" },
+  reject: { backgroundColor: "#fee2e2" },
+  rejectText: { color: "#dc2626", fontWeight: "600" },
+  accept: { backgroundColor: "#000" },
+  acceptText: { color: "#fff", fontWeight: "600" },
 });

@@ -1,18 +1,59 @@
+import { NavigationContainer } from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import NetInfo from "@react-native-community/netinfo";
 import type { Session } from "@supabase/supabase-js";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { BoothScreen } from "./screens/BoothScreen";
-import { EventsScreen, type EventRow } from "./screens/EventsScreen";
+import { EventsScreen } from "./screens/EventsScreen";
 import { LoginScreen } from "./screens/LoginScreen";
+import { SettingsScreen } from "./screens/SettingsScreen";
 import { loadQueue } from "./lib/scanQueue";
 import { supabase } from "./lib/supabase";
 import { flushQueue } from "./lib/syncScans";
 
+const Tab = createBottomTabNavigator();
+
+const TAB_ICONS: Record<string, string> = {
+  Scanner: "▦",
+  Events: "▤",
+  Settings: "⚙",
+};
+
+function TabIcon({ route, color }: { route: string; color: string }) {
+  return <Text style={{ fontSize: 20, color }}>{TAB_ICONS[route]}</Text>;
+}
+
+function AuthenticatedApp({
+  pendingCount,
+  refreshPendingCount,
+}: {
+  pendingCount: number;
+  refreshPendingCount: () => void;
+}) {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: "#000",
+        tabBarInactiveTintColor: "#999",
+        tabBarIcon: ({ color }) => <TabIcon route={route.name} color={color} />,
+      })}
+    >
+      <Tab.Screen name="Scanner">
+        {() => <BoothScreen pendingCount={pendingCount} onScanQueued={refreshPendingCount} />}
+      </Tab.Screen>
+      <Tab.Screen name="Events" component={EventsScreen} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
+    </Tab.Navigator>
+  );
+}
+
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
-  const [activeEvent, setActiveEvent] = useState<EventRow | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
 
   const refreshPendingCount = useCallback(async () => {
@@ -39,21 +80,23 @@ export default function App() {
   }, [refreshPendingCount]);
 
   return (
-    <View style={styles.container}>
-      {session === undefined ? null : !session ? (
-        <LoginScreen />
-      ) : activeEvent ? (
-        <BoothScreen
-          event={activeEvent}
-          onBack={() => setActiveEvent(null)}
-          pendingCount={pendingCount}
-          onScanQueued={refreshPendingCount}
-        />
-      ) : (
-        <EventsScreen onSelect={setActiveEvent} />
-      )}
-      <StatusBar style="auto" />
-    </View>
+    <GestureHandlerRootView style={styles.container}>
+      <SafeAreaProvider>
+        <View style={styles.container}>
+          {session === undefined ? null : !session ? (
+            <LoginScreen />
+          ) : (
+            <NavigationContainer>
+              <AuthenticatedApp
+                pendingCount={pendingCount}
+                refreshPendingCount={refreshPendingCount}
+              />
+            </NavigationContainer>
+          )}
+          <StatusBar style="auto" />
+        </View>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
