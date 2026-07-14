@@ -76,6 +76,9 @@ export default async function DashboardPage() {
           <Link href="/clearance" className="text-sm underline">
             Clearance lookup
           </Link>
+          <Link href="/analytics" className="text-sm underline">
+            Analytics
+          </Link>
         </>
       )}
 
