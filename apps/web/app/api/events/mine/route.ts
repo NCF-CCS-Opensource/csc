@@ -19,6 +19,10 @@ export async function GET(request: Request) {
       halfDayPenaltyAmount: events.halfDayPenaltyAmount,
       officerId: events.officerId,
       createdAt: events.createdAt,
+      // Raw attendanceSessions row count, not distinct students — a
+      // whole-day Event's student attending both halves counts twice.
+      // Deliberate per spec: a real count, no capacity denominator, not a
+      // distinct-attendee metric.
       attendeeCount: count(attendanceSessions.id),
     })
     .from(events)
