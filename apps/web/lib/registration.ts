@@ -1,24 +1,20 @@
-export const PROGRAMS = [
-  "Computer Science",
-  "Information Technology",
-  "Information System",
-  "ACT",
-] as const;
-
-export type Program = (typeof PROGRAMS)[number];
-
 const SCHOOL_EMAIL_DOMAIN = "@gbox.ncf.edu.ph";
 
 export type RegistrationInput = {
   email: string;
   name: string;
-  program: Program;
+  program: string;
   studentId: string;
 };
 
 export type ValidationError = { field: string; message: string };
 
-export function validateRegistration(input: RegistrationInput): ValidationError[] {
+// validPrograms is the Governor-managed list (packages/db `programs` table),
+// fetched by the caller — kept out of this pure function so it stays testable.
+export function validateRegistration(
+  input: RegistrationInput,
+  validPrograms: string[],
+): ValidationError[] {
   const errors: ValidationError[] = [];
 
   if (!input.email.toLowerCase().endsWith(SCHOOL_EMAIL_DOMAIN)) {
@@ -32,7 +28,7 @@ export function validateRegistration(input: RegistrationInput): ValidationError[
     errors.push({ field: "name", message: "Name is required" });
   }
 
-  if (!PROGRAMS.includes(input.program)) {
+  if (!validPrograms.includes(input.program)) {
     errors.push({ field: "program", message: "Select a valid Program" });
   }
 

@@ -1,12 +1,11 @@
 "use server";
 
-import { students } from "@attendance/db";
+import { programs, students } from "@attendance/db";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   decideRegistrationAction,
   validateRegistration,
-  type Program,
   type ValidationError,
 } from "@/lib/registration";
 import { createClient } from "@/lib/supabase/server";
@@ -23,11 +22,15 @@ export async function registerStudent(
   const input = {
     email: String(formData.get("email") ?? "").trim().toLowerCase(),
     name: String(formData.get("name") ?? "").trim(),
-    program: String(formData.get("program") ?? "") as Program,
+    program: String(formData.get("program") ?? ""),
     studentId: String(formData.get("studentId") ?? "").trim(),
   };
 
-  const errors = validateRegistration(input);
+  const validPrograms = (await db.select({ name: programs.name }).from(programs)).map(
+    (row) => row.name,
+  );
+
+  const errors = validateRegistration(input, validPrograms);
   if (errors.length > 0) return { errors };
 
   const existing = await db.query.students.findFirst({

@@ -1,52 +1,63 @@
 import { describe, expect, it } from "vitest";
-import {
-  decideRegistrationAction,
-  PROGRAMS,
-  validateRegistration,
-} from "./registration";
+import { decideRegistrationAction, validateRegistration } from "./registration";
+
+const PROGRAMS = [
+  "Computer Science",
+  "Information Technology",
+  "Information System",
+  "ACT",
+];
 
 describe("validateRegistration", () => {
   const valid = {
     email: "student@gbox.ncf.edu.ph",
     name: "Juan Dela Cruz",
-    program: "Computer Science" as const,
+    program: "Computer Science",
     studentId: "2021-00123",
   };
 
   it("accepts a well-formed registration", () => {
-    expect(validateRegistration(valid)).toEqual([]);
+    expect(validateRegistration(valid, PROGRAMS)).toEqual([]);
   });
 
   it("rejects an email outside the school domain", () => {
-    const errors = validateRegistration({ ...valid, email: "student@gmail.com" });
+    const errors = validateRegistration(
+      { ...valid, email: "student@gmail.com" },
+      PROGRAMS,
+    );
     expect(errors).toEqual([
       { field: "email", message: "Email must be a @gbox.ncf.edu.ph address" },
     ]);
   });
 
-  it("rejects a program outside the fixed list", () => {
-    // @ts-expect-error deliberately invalid program for the test
-    const errors = validateRegistration({ ...valid, program: "Nursing" });
+  it("rejects a program outside the Governor-managed list", () => {
+    const errors = validateRegistration({ ...valid, program: "Nursing" }, PROGRAMS);
     expect(errors).toEqual([{ field: "program", message: "Select a valid Program" }]);
   });
 
+  it("accepts a program the Governor added, even if not one of the original 4", () => {
+    const errors = validateRegistration(
+      { ...valid, program: "Nursing" },
+      ["Nursing"],
+    );
+    expect(errors).toEqual([]);
+  });
+
   it("rejects a blank student id", () => {
-    const errors = validateRegistration({ ...valid, studentId: "  " });
+    const errors = validateRegistration({ ...valid, studentId: "  " }, PROGRAMS);
     expect(errors).toEqual([{ field: "studentId", message: "Student ID is required" }]);
   });
 
   it("rejects a blank name", () => {
-    const errors = validateRegistration({ ...valid, name: "  " });
+    const errors = validateRegistration({ ...valid, name: "  " }, PROGRAMS);
     expect(errors).toEqual([{ field: "name", message: "Name is required" }]);
   });
 
   it("collects multiple field errors at once", () => {
-    const errors = validateRegistration({
-      email: "bad",
-      name: "",
-      program: "Nursing" as never,
-      studentId: "",
-    });
+    const errors = validateRegistration(
+      { email: "bad", name: "", program: "Nursing", studentId: "" },
+      PROGRAMS,
+    );
     expect(errors.map((e) => e.field).sort()).toEqual([
       "email",
       "name",
@@ -56,22 +67,11 @@ describe("validateRegistration", () => {
   });
 });
 
-describe("PROGRAMS", () => {
-  it("matches the fixed Program list", () => {
-    expect(PROGRAMS).toEqual([
-      "Computer Science",
-      "Information Technology",
-      "Information System",
-      "ACT",
-    ]);
-  });
-});
-
 describe("decideRegistrationAction", () => {
   const input = {
     email: "student@gbox.ncf.edu.ph",
     name: "Juan Dela Cruz",
-    program: "Computer Science" as const,
+    program: "Computer Science",
     studentId: "2021-00123",
   };
 

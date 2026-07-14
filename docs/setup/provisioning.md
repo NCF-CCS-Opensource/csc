@@ -15,7 +15,11 @@ pnpm --filter @attendance/db db:generate   # writes packages/db/migrations from 
 pnpm --filter @attendance/db db:migrate    # applies migrations against DATABASE_URL
 ```
 
-`students` is currently the only table (registration + QR tickets). Re-run `db:generate` after schema changes and `db:migrate` to apply.
+`students`, `programs` (seeded with the 4 defaults), and `semesters` exist so far. Re-run `db:generate` after schema changes and `db:migrate` to apply.
+
+## 1b. Bootstrap the Governor account
+
+There's no in-app way to create a Governor. Set `GOVERNOR_EMAILS` (comma-separated `@gbox.ncf.edu.ph` addresses) in `.env` / Vercel *before* that person registers — the role is granted automatically on their first magic-link verification (`apps/web/app/auth/callback/route.ts`).
 
 ## 3. Deploy apps/web to Vercel
 

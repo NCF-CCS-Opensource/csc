@@ -1,10 +1,9 @@
 import QRCode from "qrcode";
-import type { Program } from "./registration";
 
 export type QrSubject = {
   name: string;
   studentId: string;
-  program: Program;
+  program: string;
 };
 
 // Self-contained: readable by decoding the QR alone, no server lookup.

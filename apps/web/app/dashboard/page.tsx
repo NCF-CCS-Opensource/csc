@@ -1,5 +1,6 @@
 import { students } from "@attendance/db";
 import { eq } from "drizzle-orm";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
@@ -31,6 +32,11 @@ export default async function DashboardPage() {
       <a href="/qr" download="attendance-qr.png" className="text-sm underline">
         Download QR code
       </a>
+      {student.role === "governor" && (
+        <Link href="/admin" className="text-sm underline">
+          Governor admin
+        </Link>
+      )}
     </main>
   );
 }
