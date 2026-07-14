@@ -20,6 +20,7 @@ import {
   addProgram,
   closeSemester,
   createSemester,
+  deleteSemester,
   editSemester,
   promoteToOfficer,
   removeProgram,
@@ -89,34 +90,38 @@ export default async function AdminPage({
                         type="date"
                         name="startDate"
                         defaultValue={semester.startDate}
-                        disabled={!!semester.closedAt}
                         className="text-xs"
                       />
                       <Input
                         type="date"
                         name="endDate"
                         defaultValue={semester.endDate}
-                        disabled={!!semester.closedAt}
                         className="text-xs"
                       />
-                      {!semester.closedAt && (
-                        <Button type="submit" variant="ghost" size="sm">
-                          Save
-                        </Button>
-                      )}
+                      <Button type="submit" variant="ghost" size="sm">
+                        Save
+                      </Button>
                     </form>
                   </TableCell>
                   <TableCell className="text-right">
-                    {semester.closedAt ? (
-                      <Badge variant="secondary">Closed</Badge>
-                    ) : (
-                      <form action={closeSemester} className="inline">
+                    <div className="flex items-center justify-end gap-2">
+                      {semester.closedAt ? (
+                        <Badge variant="secondary">Closed</Badge>
+                      ) : (
+                        <form action={closeSemester} className="inline">
+                          <input type="hidden" name="id" value={semester.id} />
+                          <Button type="submit" variant="link" size="sm">
+                            Close
+                          </Button>
+                        </form>
+                      )}
+                      <form action={deleteSemester} className="inline">
                         <input type="hidden" name="id" value={semester.id} />
-                        <Button type="submit" variant="link" size="sm">
-                          Close
+                        <Button type="submit" variant="link" size="sm" className="text-destructive">
+                          Delete
                         </Button>
                       </form>
-                    )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

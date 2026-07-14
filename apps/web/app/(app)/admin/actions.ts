@@ -51,6 +51,20 @@ export async function closeSemester(formData: FormData) {
   redirect("/admin");
 }
 
+export async function deleteSemester(formData: FormData) {
+  await requireGovernor();
+
+  const id = String(formData.get("id") ?? "");
+  let failed = false;
+  try {
+    await db.delete(semesters).where(eq(semesters.id, id));
+  } catch {
+    failed = true;
+  }
+  if (failed) fail("Can't delete a Semester that already has Events under it");
+  redirect("/admin");
+}
+
 export async function addProgram(formData: FormData) {
   await requireGovernor();
 
