@@ -7,9 +7,18 @@ export type EventInput = {
   name: string;
   type: EventType;
   halfDayPenaltyAmount: string;
+  date: string;
 };
 
-export function validateEventInput(input: EventInput): ValidationError[] {
+export type SemesterRange = {
+  startDate: string;
+  endDate: string;
+};
+
+export function validateEventInput(
+  input: EventInput,
+  semesterRange: SemesterRange,
+): ValidationError[] {
   const errors: ValidationError[] = [];
 
   if (input.name.trim() === "") {
@@ -26,6 +35,16 @@ export function validateEventInput(input: EventInput): ValidationError[] {
       field: "halfDayPenaltyAmount",
       message: "Penalty amount must be greater than 0",
     });
+  }
+
+  const date = new Date(input.date);
+  if (Number.isNaN(date.getTime())) {
+    errors.push({ field: "date", message: "Date is required" });
+  } else if (
+    input.date < semesterRange.startDate ||
+    input.date > semesterRange.endDate
+  ) {
+    errors.push({ field: "date", message: "Date must fall within the open Semester" });
   }
 
   return errors;

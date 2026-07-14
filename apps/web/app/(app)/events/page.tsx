@@ -61,6 +61,7 @@ export default async function EventsPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Date</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Penalty</TableHead>
                   <TableHead className="text-right">Attendance</TableHead>
@@ -70,6 +71,7 @@ export default async function EventsPage({
                 {myEvents.map((event) => (
                   <TableRow key={event.id}>
                     <TableCell>{event.name}</TableCell>
+                    <TableCell>{event.date}</TableCell>
                     <TableCell>
                       {event.type === "whole_day" ? "Whole-day" : "Half-day"}
                     </TableCell>
@@ -101,6 +103,17 @@ export default async function EventsPage({
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="name">Name</Label>
                 <Input id="name" name="name" required />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  name="date"
+                  type="date"
+                  min={openSemester.startDate}
+                  max={openSemester.endDate}
+                  required
+                />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="type">Type</Label>

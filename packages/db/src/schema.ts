@@ -54,6 +54,7 @@ export const events = pgTable("events", {
   semesterId: uuid("semester_id")
     .notNull()
     .references(() => semesters.id),
+  date: date("date").notNull(),
   type: eventTypeEnum("type").notNull(),
   halfDayPenaltyAmount: numeric("half_day_penalty_amount", {
     precision: 10,

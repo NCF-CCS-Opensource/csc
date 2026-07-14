@@ -18,20 +18,22 @@ export async function createEvent(formData: FormData) {
     name: String(formData.get("name") ?? "").trim(),
     type: String(formData.get("type") ?? "") as EventType,
     halfDayPenaltyAmount: String(formData.get("halfDayPenaltyAmount") ?? ""),
+    date: String(formData.get("date") ?? ""),
   };
-
-  const errors = validateEventInput(input);
-  if (errors.length > 0) fail(errors[0].message);
 
   const openSemester = await db.query.semesters.findFirst({
     where: isNull(semesters.closedAt),
   });
   if (!openSemester) fail("No open Semester — ask the Governor to open one");
 
+  const errors = validateEventInput(input, openSemester);
+  if (errors.length > 0) fail(errors[0].message);
+
   await db.insert(events).values({
     name: input.name,
     type: input.type,
     halfDayPenaltyAmount: input.halfDayPenaltyAmount,
+    date: input.date,
     semesterId: openSemester.id,
     officerId: officer.id,
   });

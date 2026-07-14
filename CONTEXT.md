@@ -17,7 +17,7 @@ The top-level administrator with oversight of all Events, all Officers, Semester
 _Avoid_: Super admin
 
 **Event**:
-An occasion requiring attendance, created and owned by an Officer, belonging to a Semester. Declared as whole-day or half-day, each with its own configurable penalty amount.
+An occasion requiring attendance, created and owned by an Officer, belonging to a Semester, scoped to exactly one calendar date within that Semester's range. Declared as whole-day or half-day, each with its own configurable penalty amount. A multi-day activity (e.g. a 3-day workshop) is modeled as multiple Events, one per day — there is no grouping entity linking them; naming them "Day 1", "Day 2", etc. is the Officer's convention, not an enforced relationship.
 _Avoid_: Activity, occasion
 
 **Semester**:
