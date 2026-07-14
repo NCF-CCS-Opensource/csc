@@ -14,6 +14,8 @@ describe("validateRegistration", () => {
     name: "Juan Dela Cruz",
     program: "Computer Science",
     studentId: "2021-00123",
+    password: "correct-horse",
+    confirmPassword: "correct-horse",
   };
 
   it("accepts a well-formed registration", () => {
@@ -53,14 +55,40 @@ describe("validateRegistration", () => {
     expect(errors).toEqual([{ field: "name", message: "Name is required" }]);
   });
 
+  it("rejects a password shorter than the minimum", () => {
+    const errors = validateRegistration(
+      { ...valid, password: "short", confirmPassword: "short" },
+      PROGRAMS,
+    );
+    expect(errors).toEqual([
+      { field: "password", message: "Password must be at least 8 characters" },
+    ]);
+  });
+
+  it("rejects mismatched password confirmation", () => {
+    const errors = validateRegistration(
+      { ...valid, confirmPassword: "different-password" },
+      PROGRAMS,
+    );
+    expect(errors).toEqual([{ field: "confirmPassword", message: "Passwords don't match" }]);
+  });
+
   it("collects multiple field errors at once", () => {
     const errors = validateRegistration(
-      { email: "bad", name: "", program: "Nursing", studentId: "" },
+      {
+        email: "bad",
+        name: "",
+        program: "Nursing",
+        studentId: "",
+        password: "short",
+        confirmPassword: "short",
+      },
       PROGRAMS,
     );
     expect(errors.map((e) => e.field).sort()).toEqual([
       "email",
       "name",
+      "password",
       "program",
       "studentId",
     ]);
@@ -73,13 +101,15 @@ describe("decideRegistrationAction", () => {
     name: "Juan Dela Cruz",
     program: "Computer Science",
     studentId: "2021-00123",
+    password: "correct-horse",
+    confirmPassword: "correct-horse",
   };
 
   it("creates a new row when no existing registration", () => {
     expect(decideRegistrationAction(input, null)).toEqual({ action: "create" });
   });
 
-  it("resends the magic link when the existing row is unverified", () => {
+  it("resends the confirmation email when the existing row is unverified", () => {
     expect(decideRegistrationAction(input, { authUserId: null })).toEqual({
       action: "resend",
     });
@@ -88,7 +118,7 @@ describe("decideRegistrationAction", () => {
   it("rejects when the existing row is already verified", () => {
     expect(decideRegistrationAction(input, { authUserId: "auth-123" })).toEqual({
       action: "reject",
-      reason: "This email is already registered. Check your inbox or sign in.",
+      reason: "This email is already registered. Log in instead.",
     });
   });
 });

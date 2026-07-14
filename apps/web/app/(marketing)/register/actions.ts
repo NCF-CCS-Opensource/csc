@@ -24,6 +24,8 @@ export async function registerStudent(
     name: String(formData.get("name") ?? "").trim(),
     program: String(formData.get("program") ?? ""),
     studentId: String(formData.get("studentId") ?? "").trim(),
+    password: String(formData.get("password") ?? ""),
+    confirmPassword: String(formData.get("confirmPassword") ?? ""),
   };
 
   const validPrograms = (await db.select({ name: programs.name }).from(programs)).map(
@@ -44,25 +46,37 @@ export async function registerStudent(
     return { errors: [{ field: "email", message: decision.reason }] };
   }
 
+  const studentRow = {
+    email: input.email,
+    name: input.name,
+    program: input.program,
+    studentId: input.studentId,
+  };
+
+  const supabase = await createClient();
+  const emailRedirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+
   if (decision.action === "create") {
-    await db.insert(students).values(input);
+    const { error } = await supabase.auth.signUp({
+      email: input.email,
+      password: input.password,
+      options: { emailRedirectTo },
+    });
+    if (error) return { errors: [{ field: "email", message: error.message }] };
+
+    await db.insert(students).values(studentRow);
   } else {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: input.email,
+      options: { emailRedirectTo },
+    });
+    if (error) return { errors: [{ field: "email", message: error.message }] };
+
     await db
       .update(students)
       .set({ name: input.name, program: input.program, studentId: input.studentId })
       .where(eq(students.email, input.email));
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({
-    email: input.email,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-    },
-  });
-
-  if (error) {
-    return { errors: [{ field: "email", message: error.message }] };
   }
 
   return { errors: [], success: true };

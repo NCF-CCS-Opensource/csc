@@ -1,10 +1,13 @@
 const SCHOOL_EMAIL_DOMAIN = "@gbox.ncf.edu.ph";
+export const MIN_PASSWORD_LENGTH = 8;
 
 export type RegistrationInput = {
   email: string;
   name: string;
   program: string;
   studentId: string;
+  password: string;
+  confirmPassword: string;
 };
 
 export type ValidationError = { field: string; message: string };
@@ -36,6 +39,15 @@ export function validateRegistration(
     errors.push({ field: "studentId", message: "Student ID is required" });
   }
 
+  if (input.password.length < MIN_PASSWORD_LENGTH) {
+    errors.push({
+      field: "password",
+      message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+    });
+  } else if (input.password !== input.confirmPassword) {
+    errors.push({ field: "confirmPassword", message: "Passwords don't match" });
+  }
+
   return errors;
 }
 
@@ -54,7 +66,7 @@ export function decideRegistrationAction(
   if (existing.authUserId) {
     return {
       action: "reject",
-      reason: "This email is already registered. Check your inbox or sign in.",
+      reason: "This email is already registered. Log in instead.",
     };
   }
   return { action: "resend" };

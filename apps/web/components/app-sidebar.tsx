@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  BarChart3,
-  CalendarCheck,
-  LayoutDashboard,
-  ShieldCheck,
-  UserPlus,
-} from "lucide-react";
+import { BarChart3, CalendarCheck, LayoutDashboard, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -43,7 +37,7 @@ const OFFICER_NAV: NavItem[] = [
 const GOVERNOR_NAV: NavItem[] = [{ href: "/admin", label: "Admin", icon: ShieldCheck }];
 
 function navForRole(role: Role | null): NavItem[] {
-  if (!role) return [{ href: "/register", label: "Register", icon: UserPlus }];
+  if (!role) return [];
   if (role === "governor") return [...STUDENT_NAV, ...OFFICER_NAV, ...GOVERNOR_NAV];
   if (role === "officer") return [...STUDENT_NAV, ...OFFICER_NAV];
   return STUDENT_NAV;

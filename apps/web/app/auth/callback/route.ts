@@ -14,6 +14,7 @@ const GOVERNOR_EMAILS = (process.env.GOVERNOR_EMAILS ?? "")
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const next = searchParams.get("next") ?? "/dashboard";
 
   if (code) {
     const supabase = await createClient();
@@ -31,12 +32,12 @@ export async function GET(request: Request) {
         )
         .returning();
 
-      // Only the first verification linked a row — skip on repeat sign-ins.
+      // Only the first confirmation linked a row — skip on repeat sign-ins/resets.
       if (linked) {
         await sendConfirmationEmail(linked.email, linked);
       }
 
-      return NextResponse.redirect(`${origin}/dashboard`);
+      return NextResponse.redirect(`${origin}${next}`);
     }
   }
 

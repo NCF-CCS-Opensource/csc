@@ -39,7 +39,9 @@ cd packages/db && node --env-file=.env verify.mjs && rm verify.mjs
 
 ## 1b. Bootstrap the Governor account
 
-There's no in-app way to create a Governor. Set `GOVERNOR_EMAILS` (comma-separated `@gbox.ncf.edu.ph` addresses) in `.env` / Vercel *before* that person registers — the role is granted automatically on their first magic-link verification (`apps/web/app/auth/callback/route.ts`).
+There's no in-app way to create a Governor. Set `GOVERNOR_EMAILS` (comma-separated `@gbox.ncf.edu.ph` addresses) in `.env` / Vercel *before* that person registers — the role is granted automatically the first time they confirm their email (`apps/web/app/auth/callback/route.ts`).
+
+Supabase dashboard > Authentication > Providers > Email: **Confirm email** must be enabled — Students can't sign in with their password until they've clicked the confirmation link (ADR-0003).
 
 ## 3. Deploy apps/web to Vercel
 
@@ -62,7 +64,7 @@ Vercel > Project Settings > Domains > add your domain shows the exact records it
 
 Same Resend account, two different credentials:
 
-**a. SMTP for Supabase Auth's own magic-link email** (sent on registration):
+**a. SMTP for Supabase Auth's own confirmation/reset-password emails** (sent on registration and on forgot-password, per ADR-0003):
 
 1. https://resend.com — add and verify the `ncfccs.org` domain (DNS records on Cloudflare per ADR 0001).
 2. Resend > API Keys: create a key with sending access.
