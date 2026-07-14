@@ -41,23 +41,24 @@ export default async function AnalyticsPage() {
   const eventRows = await db.select().from(events).where(eventScope);
   const eventIds = eventRows.map((event) => event.id);
 
-  const sessions =
+  const [sessions, paymentRows] =
     eventIds.length > 0
-      ? await db
-          .select()
-          .from(attendanceSessions)
-          .where(inArray(attendanceSessions.eventId, eventIds))
-      : [];
-
-  const paymentRows =
-    eventIds.length > 0
-      ? await db
-          .select({ eventId: attendanceSessions.eventId, amount: payments.amount })
-          .from(payments)
-          .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
-          .innerJoin(attendanceSessions, eq(penalties.attendanceSessionId, attendanceSessions.id))
-          .where(inArray(attendanceSessions.eventId, eventIds))
-      : [];
+      ? await Promise.all([
+          db
+            .select()
+            .from(attendanceSessions)
+            .where(inArray(attendanceSessions.eventId, eventIds)),
+          db
+            .select({ eventId: attendanceSessions.eventId, amount: payments.amount })
+            .from(payments)
+            .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
+            .innerJoin(
+              attendanceSessions,
+              eq(penalties.attendanceSessionId, attendanceSessions.id),
+            )
+            .where(inArray(attendanceSessions.eventId, eventIds)),
+        ])
+      : [[], []];
 
   const stats = eventRows.map((event) => {
     const eventSessions = sessions.filter((s) => s.eventId === event.id);

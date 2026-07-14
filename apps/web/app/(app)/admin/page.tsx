@@ -35,24 +35,23 @@ export default async function AdminPage({
   await requireGovernor();
   const { error, q } = await searchParams;
 
-  const allSemesters = await db
-    .select()
-    .from(semesters)
-    .orderBy(desc(semesters.createdAt));
-  const allPrograms = await db.select().from(programs).orderBy(asc(programs.name));
-  const searchResults = q
-    ? await db
-        .select()
-        .from(students)
-        .where(
-          or(
-            ilike(students.name, `%${q}%`),
-            ilike(students.email, `%${q}%`),
-            ilike(students.studentId, `%${q}%`),
-          ),
-        )
-        .limit(20)
-    : [];
+  const [allSemesters, allPrograms, searchResults] = await Promise.all([
+    db.select().from(semesters).orderBy(desc(semesters.createdAt)),
+    db.select().from(programs).orderBy(asc(programs.name)),
+    q
+      ? db
+          .select()
+          .from(students)
+          .where(
+            or(
+              ilike(students.name, `%${q}%`),
+              ilike(students.email, `%${q}%`),
+              ilike(students.studentId, `%${q}%`),
+            ),
+          )
+          .limit(20)
+      : Promise.resolve([]),
+  ]);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">

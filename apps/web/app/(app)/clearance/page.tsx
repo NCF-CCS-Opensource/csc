@@ -26,23 +26,22 @@ export default async function ClearancePage({
   await requireOfficerOrGovernor();
   const { q } = await searchParams;
 
-  const openSemester = await db.query.semesters.findFirst({
-    where: isNull(semesters.closedAt),
-  });
-
-  const matches = q
-    ? await db
-        .select()
-        .from(students)
-        .where(
-          or(
-            ilike(students.name, `%${q}%`),
-            ilike(students.email, `%${q}%`),
-            ilike(students.studentId, `%${q}%`),
-          ),
-        )
-        .limit(20)
-    : [];
+  const [openSemester, matches] = await Promise.all([
+    db.query.semesters.findFirst({ where: isNull(semesters.closedAt) }),
+    q
+      ? db
+          .select()
+          .from(students)
+          .where(
+            or(
+              ilike(students.name, `%${q}%`),
+              ilike(students.email, `%${q}%`),
+              ilike(students.studentId, `%${q}%`),
+            ),
+          )
+          .limit(20)
+      : Promise.resolve([]),
+  ]);
 
   const results = await Promise.all(
     matches.map(async (student) => ({

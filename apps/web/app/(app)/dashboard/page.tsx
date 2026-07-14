@@ -22,9 +22,15 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [
+    {
+      data: { user },
+    },
+    openSemester,
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    db.query.semesters.findFirst({ where: isNull(semesters.closedAt) }),
+  ]);
 
   if (!user) redirect("/register");
 
@@ -33,33 +39,30 @@ export default async function DashboardPage() {
   });
   if (!student) redirect("/register");
 
-  const attendanceHistory = await db
-    .select({
-      sessionId: attendanceSessions.id,
-      eventName: events.name,
-      half: attendanceSessions.half,
-      timeIn: attendanceSessions.timeIn,
-      timeOut: attendanceSessions.timeOut,
-    })
-    .from(attendanceSessions)
-    .innerJoin(events, eq(attendanceSessions.eventId, events.id))
-    .where(eq(attendanceSessions.studentId, student.id))
-    .orderBy(desc(attendanceSessions.createdAt));
-
-  const openSemester = await db.query.semesters.findFirst({
-    where: isNull(semesters.closedAt),
-  });
+  const [attendanceHistory, paymentHistory] = await Promise.all([
+    db
+      .select({
+        sessionId: attendanceSessions.id,
+        eventName: events.name,
+        half: attendanceSessions.half,
+        timeIn: attendanceSessions.timeIn,
+        timeOut: attendanceSessions.timeOut,
+      })
+      .from(attendanceSessions)
+      .innerJoin(events, eq(attendanceSessions.eventId, events.id))
+      .where(eq(attendanceSessions.studentId, student.id))
+      .orderBy(desc(attendanceSessions.createdAt)),
+    db
+      .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })
+      .from(payments)
+      .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
+      .where(eq(penalties.studentId, student.id))
+      .orderBy(desc(payments.paidAt)),
+  ]);
 
   const { total: totalPenalty, outstanding } = openSemester
     ? await getSemesterPenaltySummary(student.id, openSemester.id)
     : { total: 0, outstanding: 0 };
-
-  const paymentHistory = await db
-    .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })
-    .from(payments)
-    .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
-    .where(eq(penalties.studentId, student.id))
-    .orderBy(desc(payments.paidAt));
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">

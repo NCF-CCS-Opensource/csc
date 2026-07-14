@@ -35,14 +35,14 @@ export default async function EventsPage({
   const officer = await requireOfficerOrGovernor();
   const { error } = await searchParams;
 
-  const openSemester = await db.query.semesters.findFirst({
-    where: isNull(semesters.closedAt),
-  });
-  const myEvents = await db
-    .select()
-    .from(events)
-    .where(eq(events.officerId, officer.id))
-    .orderBy(desc(events.createdAt));
+  const [openSemester, myEvents] = await Promise.all([
+    db.query.semesters.findFirst({ where: isNull(semesters.closedAt) }),
+    db
+      .select()
+      .from(events)
+      .where(eq(events.officerId, officer.id))
+      .orderBy(desc(events.createdAt)),
+  ]);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
