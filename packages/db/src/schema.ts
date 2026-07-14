@@ -5,6 +5,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -27,7 +28,7 @@ export const students = pgTable("students", {
   program: text("program")
     .notNull()
     .references(() => programs.name),
-  studentId: text("student_id").notNull(),
+  studentId: text("student_id").notNull().unique(),
   role: roleEnum("role").notNull().default("student"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -62,4 +63,44 @@ export const events = pgTable("events", {
     .notNull()
     .references(() => students.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const halfEnum = pgEnum("half", ["am", "pm"]);
+
+// One half (AM/PM) of an Event's day for one Student — see CONTEXT.md's
+// Attendance Session entry. Absent unless both timeIn and timeOut are set;
+// see lib/attendance.ts's isSessionAbsent(). Timestamps are the Officer's
+// device capture time, not server receipt time — set by the caller.
+export const attendanceSessions = pgTable(
+  "attendance_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id),
+    half: halfEnum("half").notNull(),
+    timeIn: timestamp("time_in", { withTimezone: true }),
+    timeOut: timestamp("time_out", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.eventId, table.studentId, table.half)],
+);
+
+// A rejected Scan Approval — logged for fraud pattern detection, never
+// written to an Attendance Session. studentId is null when the QR payload
+// doesn't resolve to a registered Student (e.g. tampered/forged QR).
+export const scanRejections = pgTable("scan_rejections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  eventId: uuid("event_id")
+    .notNull()
+    .references(() => events.id),
+  studentId: uuid("student_id").references(() => students.id),
+  qrPayload: text("qr_payload").notNull(),
+  officerId: uuid("officer_id")
+    .notNull()
+    .references(() => students.id),
+  scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull(),
 });

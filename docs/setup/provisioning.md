@@ -15,7 +15,7 @@ pnpm --filter @attendance/db db:generate   # writes packages/db/migrations from 
 pnpm --filter @attendance/db db:migrate    # applies migrations against DATABASE_URL
 ```
 
-`students`, `programs` (seeded with the 4 defaults), and `semesters` exist so far. Re-run `db:generate` after schema changes and `db:migrate` to apply.
+`students`, `programs` (seeded with the 4 defaults), `semesters`, `events`, `attendance_sessions`, and `scan_rejections` exist so far. Re-run `db:generate` after schema changes and `db:migrate` to apply.
 
 ## 1b. Bootstrap the Governor account
 
@@ -47,3 +47,10 @@ Same Resend account, two different credentials:
 
 1. Resend > API Keys: create a second key (or reuse the one above).
 2. Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (an `ncfccs.org` address) in `.env` / Vercel.
+
+## 5. apps/mobile (Officer booth app)
+
+1. Set `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` (same Supabase project) and `EXPO_PUBLIC_API_BASE_URL` (the deployed `apps/web` URL from step 3 — this is what `/api/events/mine` and `/api/scan/*` resolve against) in `apps/mobile/.env`.
+2. Officers sign in with an email OTP code (not a clickable link — avoids deep-linking setup), sent through the same SMTP configured in step 4a.
+3. `npx expo run:ios` / `run:android` for a dev build (`expo-camera` needs a native build, not Expo Go), or `eas build` for a real device.
+4. Not verifiable without a live Supabase project and a physical device/camera — this repo's checks only cover typecheck and app-level logic (`pnpm --filter web test`).
