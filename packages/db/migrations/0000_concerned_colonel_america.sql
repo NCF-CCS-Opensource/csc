@@ -1,4 +1,15 @@
+CREATE TYPE "public"."event_type" AS ENUM('whole_day', 'half_day');--> statement-breakpoint
 CREATE TYPE "public"."role" AS ENUM('student', 'officer', 'governor');--> statement-breakpoint
+CREATE TABLE "events" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"semester_id" uuid NOT NULL,
+	"type" "event_type" NOT NULL,
+	"half_day_penalty_amount" numeric(10, 2) NOT NULL,
+	"officer_id" uuid NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "programs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
@@ -27,6 +38,8 @@ CREATE TABLE "students" (
 	CONSTRAINT "students_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
+ALTER TABLE "events" ADD CONSTRAINT "events_semester_id_semesters_id_fk" FOREIGN KEY ("semester_id") REFERENCES "public"."semesters"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "events" ADD CONSTRAINT "events_officer_id_students_id_fk" FOREIGN KEY ("officer_id") REFERENCES "public"."students"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "students" ADD CONSTRAINT "students_program_programs_name_fk" FOREIGN KEY ("program") REFERENCES "public"."programs"("name") ON DELETE no action ON UPDATE no action;
 --> statement-breakpoint
 INSERT INTO "programs" ("name") VALUES

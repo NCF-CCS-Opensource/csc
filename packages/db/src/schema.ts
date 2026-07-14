@@ -1,4 +1,12 @@
-import { date, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  date,
+  numeric,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["student", "officer", "governor"]);
 
@@ -31,5 +39,27 @@ export const semesters = pgTable("semesters", {
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
   closedAt: timestamp("closed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const eventTypeEnum = pgEnum("event_type", ["whole_day", "half_day"]);
+
+// Owned by the Officer who created it, scoped to one Semester — see
+// CONTEXT.md's Event entry. Whole-day penalty is derived (2x half-day),
+// never stored — see lib/events.ts's deriveWholeDayPenalty().
+export const events = pgTable("events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  semesterId: uuid("semester_id")
+    .notNull()
+    .references(() => semesters.id),
+  type: eventTypeEnum("type").notNull(),
+  halfDayPenaltyAmount: numeric("half_day_penalty_amount", {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
+  officerId: uuid("officer_id")
+    .notNull()
+    .references(() => students.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

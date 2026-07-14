@@ -22,3 +22,11 @@ export async function requireGovernor() {
   if (!student || student.role !== "governor") redirect("/");
   return student;
 }
+
+export async function requireOfficerOrGovernor() {
+  const student = await getCurrentStudent();
+  if (!student || (student.role !== "officer" && student.role !== "governor")) {
+    redirect("/");
+  }
+  return student;
+}

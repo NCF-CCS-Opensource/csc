@@ -37,6 +37,11 @@ export default async function DashboardPage() {
           Governor admin
         </Link>
       )}
+      {(student.role === "officer" || student.role === "governor") && (
+        <Link href="/events" className="text-sm underline">
+          My Events
+        </Link>
+      )}
     </main>
   );
 }
