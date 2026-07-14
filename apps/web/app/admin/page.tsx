@@ -1,5 +1,6 @@
 import { programs, semesters, students } from "@attendance/db";
 import { asc, desc, ilike, or } from "drizzle-orm";
+import Link from "next/link";
 import { requireGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -42,6 +43,9 @@ export default async function AdminPage({
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 p-8">
       <h1 className="text-xl font-medium">Governor admin</h1>
       {error && <p className="text-sm text-red-600">{error}</p>}
+      <Link href="/admin/rejections" className="text-sm underline">
+        Rejected scans log
+      </Link>
 
       <section className="flex flex-col gap-2">
         <h2 className="font-medium">Semesters</h2>
