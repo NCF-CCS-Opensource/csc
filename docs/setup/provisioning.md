@@ -8,14 +8,34 @@ Everything code-side is scaffolded. These steps need your own Supabase, Vercel, 
 2. Settings > API: copy `Project URL` and `anon public` key into `.env` as `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` (also `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` for `apps/mobile`). Copy `service_role` key as `SUPABASE_SERVICE_ROLE_KEY` (server-only, never ship to a client).
 3. Settings > Database > Connection string ("Transaction" pooler, port 6543): copy into `.env` as `DATABASE_URL`.
 
-## 2. Run the empty Drizzle baseline
+## 2. Run the Drizzle migrations
+
+`pnpm --filter @attendance/db ...` runs with cwd `packages/db/`, and drizzle-kit only auto-loads `.env` from its own cwd — it will **not** see a `.env` at the repo root and fails with `Please provide required params for Postgres driver: [x] url: undefined`. Symlink it once:
 
 ```bash
-pnpm --filter @attendance/db db:generate   # writes packages/db/migrations from src/schema.ts
+cd packages/db && ln -sf ../../.env .env && cd ../..
+```
+
+Then:
+
+```bash
+pnpm --filter @attendance/db db:generate   # writes packages/db/migrations from src/schema.ts (only needed after a schema change)
 pnpm --filter @attendance/db db:migrate    # applies migrations against DATABASE_URL
 ```
 
-`students`, `programs` (seeded with the 4 defaults), `semesters`, `events`, `attendance_sessions`, `scans`, `penalties`, and `payments` exist so far. Re-run `db:generate` after schema changes and `db:migrate` to apply.
+`students`, `programs` (seeded with the 4 defaults), `semesters`, `events`, `attendance_sessions`, `scans`, `penalties`, and `payments` exist so far. Verify in Supabase dashboard > Table Editor, or from `packages/db`:
+
+```js
+// packages/db/verify.mjs — delete after running
+import postgres from "postgres";
+const sql = postgres(process.env.DATABASE_URL);
+console.log(await sql`select table_name from information_schema.tables where table_schema='public' order by table_name`);
+await sql.end();
+```
+
+```bash
+cd packages/db && node --env-file=.env verify.mjs && rm verify.mjs
+```
 
 ## 1b. Bootstrap the Governor account
 
@@ -25,8 +45,18 @@ There's no in-app way to create a Governor. Set `GOVERNOR_EMAILS` (comma-separat
 
 1. https://vercel.com/new, import this repo, set **Root Directory** to `apps/web`.
 2. Framework preset: Next.js (auto-detected).
-3. Add all `.env.example` vars in Vercel project settings (Supabase, `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL` set to the deployed domain, Resend).
-4. Deploy.
+3. Add all `.env.example` vars in Vercel project settings — Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`), `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL`, Resend, `GOVERNOR_EMAILS`. Vercel doesn't read your local `.env` — these must be entered in the dashboard, and adding/editing one after the first deploy needs a redeploy to take effect. `EXPO_PUBLIC_*` vars don't belong here — they're mobile-only, go in `apps/mobile/.env`.
+4. Deploy. `NEXT_PUBLIC_SITE_URL` is chicken-and-egg — deploy once to get the `*.vercel.app` URL, then set it and redeploy.
+5. **If `/register` (or any DB-backed page) fails to load after deploy**: it's almost always step 2's migration never having actually run against this Supabase project (check Table Editor for the 8 tables), or a missing/stale env var in this Vercel project (not your local `.env`).
+
+### Custom domain via Cloudflare DNS
+
+Vercel > Project Settings > Domains > add your domain shows the exact records it needs. Common failure: Cloudflare's proxy (orange cloud) intercepts the record, so Vercel can't verify it.
+
+1. In Cloudflare DNS, click the record's cloud icon to set it to **grey ("DNS only")** — at least until verified.
+2. Match Vercel's listed records exactly: root domain → `A` → `76.76.21.21`; `www`/subdomain → `CNAME` → `cname.vercel-dns.com`.
+3. Wait a few minutes, Vercel auto-rechecks (or hit "Refresh" on the domain).
+4. To re-enable Cloudflare's proxy afterward, set Cloudflare SSL mode to **Full (strict)** first, or you'll get cert/redirect errors.
 
 ## 4. Resend — two separate uses
 
