@@ -121,3 +121,21 @@ export const scans = pgTable("scans", {
   scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// One row per absent Attendance Session — see CONTEXT.md's Penalty entry.
+// Auto-synced by lib/penalties.ts's computeSessionPenalty() whenever a
+// session is written, never set manually; deleted when the session becomes
+// present again. A whole-day absence is just the sum of both halves' rows —
+// no separate aggregate is stored.
+export const penalties = pgTable("penalties", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  attendanceSessionId: uuid("attendance_session_id")
+    .notNull()
+    .unique()
+    .references(() => attendanceSessions.id),
+  studentId: uuid("student_id")
+    .notNull()
+    .references(() => students.id),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

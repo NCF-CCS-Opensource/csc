@@ -1,5 +1,6 @@
 import { events, semesters } from "@attendance/db";
 import { desc, eq, isNull } from "drizzle-orm";
+import Link from "next/link";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deriveWholeDayPenalty, EVENT_TYPES } from "@/lib/events";
@@ -35,7 +36,10 @@ export default async function EventsPage({
             {event.name} — {event.type === "whole_day" ? "Whole-day" : "Half-day"} — ₱
             {event.halfDayPenaltyAmount}/half
             {event.type === "whole_day" &&
-              ` (₱${deriveWholeDayPenalty(event.halfDayPenaltyAmount)} full absence)`}
+              ` (₱${deriveWholeDayPenalty(event.halfDayPenaltyAmount)} full absence)`}{" "}
+            <Link href={`/events/${event.id}/attendance`} className="underline">
+              Attendance
+            </Link>
           </li>
         ))}
       </ul>

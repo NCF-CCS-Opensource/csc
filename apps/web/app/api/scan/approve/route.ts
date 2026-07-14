@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { requireOfficerFromRequest } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { syncPenaltyForSession } from "@/lib/penalties";
 import { BOOTH_MODES, decodeQrPayload, modeToHalfAndField, type BoothMode } from "@/lib/scan";
 
 export async function POST(request: Request) {
@@ -71,18 +72,26 @@ export async function POST(request: Request) {
       ),
     });
 
+    let sessionId: string;
     if (existingSession) {
+      sessionId = existingSession.id;
       await db
         .update(attendanceSessions)
         .set(field === "timeIn" ? { timeIn: capturedAt } : { timeOut: capturedAt })
         .where(eq(attendanceSessions.id, existingSession.id));
     } else {
-      await db.insert(attendanceSessions).values(
-        field === "timeIn"
-          ? { eventId: event.id, studentId: student.id, half, timeIn: capturedAt }
-          : { eventId: event.id, studentId: student.id, half, timeOut: capturedAt },
-      );
+      const [createdSession] = await db
+        .insert(attendanceSessions)
+        .values(
+          field === "timeIn"
+            ? { eventId: event.id, studentId: student.id, half, timeIn: capturedAt }
+            : { eventId: event.id, studentId: student.id, half, timeOut: capturedAt },
+        )
+        .returning();
+      sessionId = createdSession.id;
     }
+
+    await syncPenaltyForSession(sessionId);
   }
 
   return NextResponse.json({
