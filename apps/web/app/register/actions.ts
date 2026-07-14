@@ -22,6 +22,7 @@ export async function registerStudent(
 ): Promise<RegisterState> {
   const input = {
     email: String(formData.get("email") ?? "").trim().toLowerCase(),
+    name: String(formData.get("name") ?? "").trim(),
     program: String(formData.get("program") ?? "") as Program,
     studentId: String(formData.get("studentId") ?? "").trim(),
   };
@@ -45,7 +46,7 @@ export async function registerStudent(
   } else {
     await db
       .update(students)
-      .set({ program: input.program, studentId: input.studentId })
+      .set({ name: input.name, program: input.program, studentId: input.studentId })
       .where(eq(students.email, input.email));
   }
 

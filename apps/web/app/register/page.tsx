@@ -40,6 +40,13 @@ export default function RegisterPage() {
           )}
         </label>
         <label className="flex flex-col gap-1 text-sm">
+          Full name
+          <input name="name" required className="rounded border px-2 py-1" />
+          {errorFor("name") && (
+            <span className="text-xs text-red-600">{errorFor("name")}</span>
+          )}
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
           Program
           <select name="program" required className="rounded border px-2 py-1">
             <option value="">Select a Program</option>

@@ -8,6 +8,7 @@ import {
 describe("validateRegistration", () => {
   const valid = {
     email: "student@gbox.ncf.edu.ph",
+    name: "Juan Dela Cruz",
     program: "Computer Science" as const,
     studentId: "2021-00123",
   };
@@ -34,9 +35,24 @@ describe("validateRegistration", () => {
     expect(errors).toEqual([{ field: "studentId", message: "Student ID is required" }]);
   });
 
+  it("rejects a blank name", () => {
+    const errors = validateRegistration({ ...valid, name: "  " });
+    expect(errors).toEqual([{ field: "name", message: "Name is required" }]);
+  });
+
   it("collects multiple field errors at once", () => {
-    const errors = validateRegistration({ email: "bad", program: "Nursing" as never, studentId: "" });
-    expect(errors.map((e) => e.field).sort()).toEqual(["email", "program", "studentId"]);
+    const errors = validateRegistration({
+      email: "bad",
+      name: "",
+      program: "Nursing" as never,
+      studentId: "",
+    });
+    expect(errors.map((e) => e.field).sort()).toEqual([
+      "email",
+      "name",
+      "program",
+      "studentId",
+    ]);
   });
 });
 
@@ -54,6 +70,7 @@ describe("PROGRAMS", () => {
 describe("decideRegistrationAction", () => {
   const input = {
     email: "student@gbox.ncf.edu.ph",
+    name: "Juan Dela Cruz",
     program: "Computer Science" as const,
     studentId: "2021-00123",
   };

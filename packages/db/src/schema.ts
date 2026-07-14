@@ -13,6 +13,7 @@ export const students = pgTable("students", {
   // Null until the magic-link is verified (auth.users.id at that point).
   authUserId: uuid("auth_user_id").unique(),
   email: text("email").notNull().unique(),
+  name: text("name").notNull(),
   program: programEnum("program").notNull(),
   studentId: text("student_id").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

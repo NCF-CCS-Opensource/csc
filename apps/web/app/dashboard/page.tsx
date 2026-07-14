@@ -20,11 +20,17 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-2">
-      <h1 className="text-xl font-medium">Welcome, {student.email}</h1>
+      <h1 className="text-xl font-medium">Welcome, {student.name}</h1>
       <dl className="text-sm text-zinc-500">
+        <div>Email: {student.email}</div>
         <div>Program: {student.program}</div>
         <div>Student ID: {student.studentId}</div>
       </dl>
+      {/* eslint-disable-next-line @next/next/no-img-element -- generated PNG, not an optimizable static asset */}
+      <img src="/qr" alt="Your attendance QR code" width={200} height={200} />
+      <a href="/qr" download="attendance-qr.png" className="text-sm underline">
+        Download QR code
+      </a>
     </main>
   );
 }

@@ -15,16 +15,20 @@ pnpm --filter @attendance/db db:generate   # writes packages/db/migrations from 
 pnpm --filter @attendance/db db:migrate    # applies migrations against DATABASE_URL
 ```
 
-`src/schema.ts` is intentionally empty — this just proves the migration pipeline reaches the project. Real tables land in later tickets.
+`students` is currently the only table (registration + QR tickets). Re-run `db:generate` after schema changes and `db:migrate` to apply.
 
 ## 3. Deploy apps/web to Vercel
 
 1. https://vercel.com/new, import this repo, set **Root Directory** to `apps/web`.
 2. Framework preset: Next.js (auto-detected).
-3. Add env vars from step 1 (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) in Vercel project settings.
-4. Deploy. The root page renders "Not signed in" until a real auth flow exists (later ticket).
+3. Add all `.env.example` vars in Vercel project settings (Supabase, `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL` set to the deployed domain, Resend).
+4. Deploy.
 
-## 4. Resend SMTP on Supabase Auth
+## 4. Resend — two separate uses
+
+Same Resend account, two different credentials:
+
+**a. SMTP for Supabase Auth's own magic-link email** (sent on registration):
 
 1. https://resend.com — add and verify the `ncfccs.org` domain (DNS records on Cloudflare per ADR 0001).
 2. Resend > API Keys: create a key with sending access.
@@ -33,4 +37,9 @@ pnpm --filter @attendance/db db:migrate    # applies migrations against DATABASE
    - Username: `resend`
    - Password: the Resend API key
    - Sender email: an address on `ncfccs.org`
-4. Save and send a test email from the same screen. Not wired to a real magic-link flow yet — that's a later ticket.
+4. Save and send a test email from the same screen.
+
+**b. API key for the app's own confirmation email** (sent by `apps/web/lib/email.ts` after verification, with the QR attached):
+
+1. Resend > API Keys: create a second key (or reuse the one above).
+2. Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (an `ncfccs.org` address) in `.env` / Vercel.

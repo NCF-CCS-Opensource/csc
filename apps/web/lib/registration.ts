@@ -11,6 +11,7 @@ const SCHOOL_EMAIL_DOMAIN = "@gbox.ncf.edu.ph";
 
 export type RegistrationInput = {
   email: string;
+  name: string;
   program: Program;
   studentId: string;
 };
@@ -25,6 +26,10 @@ export function validateRegistration(input: RegistrationInput): ValidationError[
       field: "email",
       message: `Email must be a ${SCHOOL_EMAIL_DOMAIN} address`,
     });
+  }
+
+  if (input.name.trim() === "") {
+    errors.push({ field: "name", message: "Name is required" });
   }
 
   if (!PROGRAMS.includes(input.program)) {
