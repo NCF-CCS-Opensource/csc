@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { CalendarGrid } from "../components/CalendarGrid";
 import { apiFetch } from "../lib/api";
+import { useTheme } from "../lib/theme-context";
+import type { ThemeColors } from "../lib/theme";
 
 export type EventType = "whole_day" | "half_day";
 
@@ -33,11 +35,18 @@ function deriveStatus(date: string): EventStatus {
   return "Upcoming";
 }
 
-const STATUS_STYLES: Record<EventStatus, { bg: string; text: string }> = {
-  Active: { bg: "#dcfce7", text: "#15803d" },
-  Upcoming: { bg: "#fef9c3", text: "#a16207" },
-  Completed: { bg: "#f1f5f9", text: "#64748b" },
-};
+type Styles = ReturnType<typeof makeStyles>;
+
+function statusColors(status: EventStatus, c: ThemeColors): { bg: string; text: string } {
+  switch (status) {
+    case "Active":
+      return { bg: c.successBg, text: c.success };
+    case "Upcoming":
+      return { bg: c.warningBg, text: c.warning };
+    case "Completed":
+      return { bg: c.neutralBg, text: c.neutral };
+  }
+}
 
 function formatDate(date: string) {
   return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
@@ -48,6 +57,8 @@ function formatDate(date: string) {
 }
 
 export function EventsScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +116,7 @@ export function EventsScreen() {
         ListEmptyComponent={<Text style={styles.hint}>No Events yet.</Text>}
         renderItem={({ item }) => {
           const status = deriveStatus(item.date);
-          const statusStyle = STATUS_STYLES[status];
+          const statusStyle = statusColors(status, colors);
           return (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
@@ -145,6 +156,8 @@ export function EventsScreen() {
         mode="create"
         onClose={() => setAddOpen(false)}
         onSaved={load}
+        colors={colors}
+        styles={styles}
       />
       <EventFormModal
         visible={!!editing}
@@ -152,6 +165,8 @@ export function EventsScreen() {
         event={editing}
         onClose={() => setEditing(null)}
         onSaved={(updated) => onUpdated(updated)}
+        colors={colors}
+        styles={styles}
       />
       <DeleteEventModal
         event={deleting}
@@ -159,6 +174,8 @@ export function EventsScreen() {
         onDeleted={() => {
           if (deleting) onDeleted(deleting.id);
         }}
+        colors={colors}
+        styles={styles}
       />
     </View>
   );
@@ -168,10 +185,14 @@ function DeleteEventModal({
   event,
   onClose,
   onDeleted,
+  colors,
+  styles,
 }: {
   event: EventRow | null;
   onClose: () => void;
   onDeleted: () => void;
+  colors: ThemeColors;
+  styles: Styles;
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -213,7 +234,7 @@ function DeleteEventModal({
               onPress={confirmDelete}
             >
               {submitting ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.primaryText} />
               ) : (
                 <Text style={styles.submitButtonText}>Delete</Text>
               )}
@@ -231,12 +252,16 @@ function EventFormModal({
   event,
   onClose,
   onSaved,
+  colors,
+  styles,
 }: {
   visible: boolean;
   mode: "create" | "edit";
   event?: EventRow | null;
   onClose: () => void;
   onSaved: (event: EventRow) => void;
+  colors: ThemeColors;
+  styles: Styles;
 }) {
   const [name, setName] = useState("");
   const [venue, setVenue] = useState("");
@@ -294,6 +319,7 @@ function EventFormModal({
           <TextInput
             style={styles.input}
             placeholder="e.g. Foundation Day Ceremony"
+            placeholderTextColor={colors.textFaint}
             value={name}
             onChangeText={setName}
           />
@@ -302,6 +328,7 @@ function EventFormModal({
           <TextInput
             style={styles.input}
             placeholder="e.g. ST Quad"
+            placeholderTextColor={colors.textFaint}
             value={venue}
             onChangeText={setVenue}
           />
@@ -325,6 +352,7 @@ function EventFormModal({
           <TextInput
             style={styles.input}
             placeholder="e.g. 50.00"
+            placeholderTextColor={colors.textFaint}
             keyboardType="decimal-pad"
             value={penalty}
             onChangeText={setPenalty}
@@ -345,7 +373,7 @@ function EventFormModal({
               onPress={submit}
             >
               {submitting ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.primaryText} />
               ) : (
                 <Text style={styles.submitButtonText}>
                   {mode === "create" ? "+ Add event" : "Save edit"}
@@ -359,101 +387,105 @@ function EventFormModal({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 20,
-    paddingBottom: 12,
-  },
-  title: { fontSize: 24, fontWeight: "700" },
-  addButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "#000",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addButtonText: { color: "#fff", fontSize: 20, lineHeight: 22 },
-  list: { paddingHorizontal: 20, paddingBottom: 20, gap: 12 },
-  hint: { fontSize: 13, color: "#666" },
-  error: { fontSize: 13, color: "#c00" },
-  card: {
-    borderWidth: 1,
-    borderColor: "#eee",
-    borderRadius: 12,
-    padding: 16,
-    gap: 4,
-  },
-  cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  cardTitle: { fontSize: 16, fontWeight: "600", flexShrink: 1 },
-  cardMeta: { fontSize: 13, color: "#666" },
-  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeText: { fontSize: 12, fontWeight: "600" },
-  cardActions: { flexDirection: "row", gap: 10, marginTop: 8 },
-  cardActionButton: {
-    flex: 1,
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderWidth: 1,
-  },
-  editButton: { borderColor: "#ddd", backgroundColor: "#fff" },
-  editButtonText: { fontSize: 13, fontWeight: "600", color: "#333" },
-  deleteButton: { borderColor: "#fecaca", backgroundColor: "#fef2f2" },
-  deleteButtonText: { fontSize: 13, fontWeight: "600", color: "#dc2626" },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalCard: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    gap: 8,
-    maxHeight: "90%",
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#ddd",
-    alignSelf: "center",
-    marginBottom: 8,
-  },
-  modalTitle: { fontSize: 18, fontWeight: "700" },
-  modalSubtitle: { fontSize: 13, color: "#888", marginBottom: 8 },
-  fieldLabel: { fontSize: 12, color: "#666", marginTop: 8 },
-  input: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    marginTop: 4,
-  },
-  typeRow: { flexDirection: "row", gap: 8, marginTop: 4 },
-  typeOption: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  typeOptionSelected: { backgroundColor: "#000", borderColor: "#000" },
-  typeOptionText: { fontSize: 13, color: "#333" },
-  typeOptionTextSelected: { color: "#fff", fontWeight: "600" },
-  modalActions: { flexDirection: "row", gap: 12, marginTop: 16 },
-  button: { flex: 1, borderRadius: 8, paddingVertical: 12, alignItems: "center" },
-  cancelButton: { backgroundColor: "#f1f1f1" },
-  cancelButtonText: { fontWeight: "600", color: "#333" },
-  submitButton: { backgroundColor: "#000" },
-  submitButtonText: { color: "#fff", fontWeight: "600" },
-  destructiveButton: { backgroundColor: "#dc2626" },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.background },
+    center: { flex: 1, alignItems: "center", justifyContent: "center" },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: 20,
+      paddingBottom: 12,
+    },
+    title: { fontSize: 24, fontWeight: "700", color: c.text },
+    addButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: c.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    addButtonText: { color: c.primaryText, fontSize: 20, lineHeight: 22 },
+    list: { paddingHorizontal: 20, paddingBottom: 20, gap: 12 },
+    hint: { fontSize: 13, color: c.textMuted },
+    error: { fontSize: 13, color: c.danger },
+    card: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: 16,
+      gap: 4,
+      backgroundColor: c.card,
+    },
+    cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    cardTitle: { fontSize: 16, fontWeight: "600", flexShrink: 1, color: c.text },
+    cardMeta: { fontSize: 13, color: c.textMuted },
+    badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+    badgeText: { fontSize: 12, fontWeight: "600" },
+    cardActions: { flexDirection: "row", gap: 10, marginTop: 8 },
+    cardActionButton: {
+      flex: 1,
+      borderRadius: 8,
+      paddingVertical: 10,
+      alignItems: "center",
+      borderWidth: 1,
+    },
+    editButton: { borderColor: c.border, backgroundColor: c.card },
+    editButtonText: { fontSize: 13, fontWeight: "600", color: c.text },
+    deleteButton: { borderColor: c.dangerBorder, backgroundColor: c.dangerBg },
+    deleteButtonText: { fontSize: 13, fontWeight: "600", color: c.danger },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: c.backdrop,
+      justifyContent: "flex-end",
+    },
+    modalCard: {
+      backgroundColor: c.card,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      gap: 8,
+      maxHeight: "90%",
+    },
+    modalHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: c.handle,
+      alignSelf: "center",
+      marginBottom: 8,
+    },
+    modalTitle: { fontSize: 18, fontWeight: "700", color: c.text },
+    modalSubtitle: { fontSize: 13, color: c.textMuted, marginBottom: 8 },
+    fieldLabel: { fontSize: 12, color: c.textMuted, marginTop: 8 },
+    input: {
+      backgroundColor: c.inputBackground,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 14,
+      marginTop: 4,
+      color: c.text,
+    },
+    typeRow: { flexDirection: "row", gap: 8, marginTop: 4 },
+    typeOption: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingVertical: 10,
+      alignItems: "center",
+    },
+    typeOptionSelected: { backgroundColor: c.primary, borderColor: c.primary },
+    typeOptionText: { fontSize: 13, color: c.text },
+    typeOptionTextSelected: { color: c.primaryText, fontWeight: "600" },
+    modalActions: { flexDirection: "row", gap: 12, marginTop: 16 },
+    button: { flex: 1, borderRadius: 8, paddingVertical: 12, alignItems: "center" },
+    cancelButton: { backgroundColor: c.cancelBackground },
+    cancelButtonText: { fontWeight: "600", color: c.cancelText },
+    submitButton: { backgroundColor: c.primary },
+    submitButtonText: { color: c.primaryText, fontWeight: "600" },
+    destructiveButton: { backgroundColor: c.danger },
+  });
+}

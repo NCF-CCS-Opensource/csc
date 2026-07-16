@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useTheme } from "../lib/theme-context";
+import type { ThemeColors } from "../lib/theme";
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTH_NAMES = [
@@ -18,6 +20,8 @@ export function CalendarGrid({
   value: string | null;
   onChange: (date: string) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const initial = value ? new Date(`${value}T00:00:00`) : new Date();
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
@@ -89,23 +93,25 @@ export function CalendarGrid({
 
 const CELL_SIZE = `${100 / 7}%` as const;
 
-const styles = StyleSheet.create({
-  container: { gap: 8 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  nav: { fontSize: 20, paddingHorizontal: 8, color: "#333" },
-  monthLabel: { fontSize: 14, fontWeight: "600" },
-  weekRow: { flexDirection: "row" },
-  weekday: { width: CELL_SIZE, textAlign: "center", fontSize: 12, color: "#999" },
-  grid: { flexDirection: "row", flexWrap: "wrap" },
-  cell: { width: CELL_SIZE, alignItems: "center", justifyContent: "center", paddingVertical: 4 },
-  dayCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  daySelected: { backgroundColor: "#000" },
-  dayText: { fontSize: 13, color: "#333" },
-  dayTextSelected: { color: "#fff", fontWeight: "600" },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { gap: 8 },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    nav: { fontSize: 20, paddingHorizontal: 8, color: c.text },
+    monthLabel: { fontSize: 14, fontWeight: "600", color: c.text },
+    weekRow: { flexDirection: "row" },
+    weekday: { width: CELL_SIZE, textAlign: "center", fontSize: 12, color: c.textFaint },
+    grid: { flexDirection: "row", flexWrap: "wrap" },
+    cell: { width: CELL_SIZE, alignItems: "center", justifyContent: "center", paddingVertical: 4 },
+    dayCircle: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    daySelected: { backgroundColor: c.primary },
+    dayText: { fontSize: 13, color: c.text },
+    dayTextSelected: { color: c.primaryText, fontWeight: "600" },
+  });
+}

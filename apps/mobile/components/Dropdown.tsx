@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useTheme } from "../lib/theme-context";
+import type { ThemeColors } from "../lib/theme";
 
 export function Dropdown<T extends string>({
   label,
@@ -14,6 +16,8 @@ export function Dropdown<T extends string>({
   options: { label: string; value: T }[];
   onChange: (value: T) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
 
@@ -53,29 +57,31 @@ export function Dropdown<T extends string>({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  label: { fontSize: 12, color: "#666", marginBottom: 4 },
-  trigger: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  triggerText: { fontSize: 13, color: "#333", flexShrink: 1 },
-  chevron: { fontSize: 14, color: "#888", marginLeft: 6 },
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  sheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: "60%",
-    paddingVertical: 8,
-  },
-  option: { paddingVertical: 14, paddingHorizontal: 20 },
-  optionText: { fontSize: 15 },
-  empty: { padding: 20, color: "#999", textAlign: "center" },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { flex: 1 },
+    label: { fontSize: 12, color: c.textMuted, marginBottom: 4 },
+    trigger: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: c.inputBackground,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    triggerText: { fontSize: 13, color: c.text, flexShrink: 1 },
+    chevron: { fontSize: 14, color: c.textMuted, marginLeft: 6 },
+    backdrop: { flex: 1, backgroundColor: c.backdrop, justifyContent: "flex-end" },
+    sheet: {
+      backgroundColor: c.card,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      maxHeight: "60%",
+      paddingVertical: 8,
+    },
+    option: { paddingVertical: 14, paddingHorizontal: 20 },
+    optionText: { fontSize: 15, color: c.text },
+    empty: { padding: 20, color: c.textFaint, textAlign: "center" },
+  });
+}

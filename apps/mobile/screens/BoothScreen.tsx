@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Crypto from "expo-crypto";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -14,7 +14,11 @@ import { apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
 import { enqueue } from "../lib/scanQueue";
 import { flushQueue } from "../lib/syncScans";
+import { useTheme } from "../lib/theme-context";
+import type { ThemeColors } from "../lib/theme";
 import type { EventRow } from "./EventsScreen";
+
+type Styles = ReturnType<typeof makeStyles>;
 
 const BOOTH_MODES = [
   { value: "time_in_am", label: "Time-in AM" },
@@ -33,6 +37,8 @@ export function BoothScreen({
   pendingCount: number;
   onScanQueued: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -143,7 +149,7 @@ export function BoothScreen({
       </View>
 
       <View style={[styles.statusBar, ready ? styles.statusReady : styles.statusNotReady]}>
-        <View style={[styles.statusDot, { backgroundColor: ready ? "#16a34a" : "#d97706" }]} />
+        <View style={[styles.statusDot, { backgroundColor: ready ? colors.success : colors.warning }]} />
         <Text style={styles.statusText}>{ready ? "Ready to scan" : "Select event & time"}</Text>
         <Text style={styles.statusHint}>Tap QR to begin</Text>
       </View>
@@ -192,11 +198,12 @@ export function BoothScreen({
                 </View>
 
                 <View style={styles.detailRows}>
-                  <DetailRow label="Student ID" value={scanned.student.studentId} />
-                  <DetailRow label="Event" value={activeEvent?.name ?? "—"} />
+                  <DetailRow label="Student ID" value={scanned.student.studentId} styles={styles} />
+                  <DetailRow label="Event" value={activeEvent?.name ?? "—"} styles={styles} />
                   <DetailRow
                     label="Log type"
                     value={BOOTH_MODES.find((m) => m.value === mode)?.label ?? "—"}
+                    styles={styles}
                   />
                   <DetailRow
                     label="Scanned at"
@@ -204,6 +211,7 @@ export function BoothScreen({
                       hour: "numeric",
                       minute: "2-digit",
                     })}
+                    styles={styles}
                   />
                 </View>
 
@@ -228,7 +236,7 @@ export function BoothScreen({
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({ label, value, styles }: { label: string; value: string; styles: Styles }) {
   return (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
@@ -237,96 +245,99 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
-  hint: { fontSize: 13, color: "#666", paddingHorizontal: 16 },
-  cameraWrap: { flex: 1, backgroundColor: "#000" },
-  camera: { flex: 1 },
-  cameraHint: {
-    position: "absolute",
-    top: 16,
-    alignSelf: "center",
-    color: "#fff",
-    fontSize: 13,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  torchButton: {
-    position: "absolute",
-    bottom: 16,
-    right: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  torchIcon: { color: "#fff", fontSize: 16 },
-  statusBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-  },
-  statusReady: { backgroundColor: "#dcfce7" },
-  statusNotReady: { backgroundColor: "#fef3c7" },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: 13, fontWeight: "600", color: "#166534" },
-  statusHint: { fontSize: 12, color: "#666", marginLeft: "auto" },
-  pending: { fontSize: 13, color: "#b45309", fontWeight: "600", paddingHorizontal: 16, marginTop: 8 },
-  dropdownRow: { flexDirection: "row", gap: 12, padding: 16 },
-  button: {
-    backgroundColor: "#000",
-    borderRadius: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    alignItems: "center",
-  },
-  buttonText: { color: "#fff", fontWeight: "600" },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalCard: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    gap: 12,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#ddd",
-    alignSelf: "center",
-    marginBottom: 4,
-  },
-  modalHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: "#fff", fontWeight: "700", fontSize: 16 },
-  modalHeaderText: { flex: 1 },
-  modalTitle: { fontSize: 16, fontWeight: "700" },
-  modalSubtitle: { fontSize: 12, color: "#888" },
-  validBadge: { backgroundColor: "#dcfce7", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  validBadgeText: { fontSize: 12, fontWeight: "600", color: "#15803d" },
-  detailRows: { gap: 8 },
-  detailRow: { flexDirection: "row", justifyContent: "space-between" },
-  detailLabel: { fontSize: 13, color: "#888" },
-  detailValue: { fontSize: 13, fontWeight: "600" },
-  modalActions: { flexDirection: "row", gap: 12, marginTop: 4 },
-  actionButton: { flex: 1, borderRadius: 8, paddingVertical: 14, alignItems: "center" },
-  reject: { backgroundColor: "#fee2e2" },
-  rejectText: { color: "#dc2626", fontWeight: "600" },
-  accept: { backgroundColor: "#000" },
-  acceptText: { color: "#fff", fontWeight: "600" },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.background },
+    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
+    hint: { fontSize: 13, color: c.textMuted, paddingHorizontal: 16 },
+    // Camera viewport stays black in both themes so framing reads over any scene.
+    cameraWrap: { flex: 1, backgroundColor: "#000" },
+    camera: { flex: 1 },
+    cameraHint: {
+      position: "absolute",
+      top: 16,
+      alignSelf: "center",
+      color: "#fff",
+      fontSize: 13,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
+    torchButton: {
+      position: "absolute",
+      bottom: 16,
+      right: 16,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(255,255,255,0.2)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    torchIcon: { color: "#fff", fontSize: 16 },
+    statusBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginHorizontal: 16,
+      marginTop: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 10,
+    },
+    statusReady: { backgroundColor: c.successBg },
+    statusNotReady: { backgroundColor: c.warningBg },
+    statusDot: { width: 8, height: 8, borderRadius: 4 },
+    statusText: { fontSize: 13, fontWeight: "600", color: c.success },
+    statusHint: { fontSize: 12, color: c.textMuted, marginLeft: "auto" },
+    pending: { fontSize: 13, color: c.warning, fontWeight: "600", paddingHorizontal: 16, marginTop: 8 },
+    dropdownRow: { flexDirection: "row", gap: 12, padding: 16 },
+    button: {
+      backgroundColor: c.primary,
+      borderRadius: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      alignItems: "center",
+    },
+    buttonText: { color: c.primaryText, fontWeight: "600" },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: c.backdrop,
+      justifyContent: "flex-end",
+    },
+    modalCard: {
+      backgroundColor: c.card,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      gap: 12,
+    },
+    modalHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: c.handle,
+      alignSelf: "center",
+      marginBottom: 4,
+    },
+    modalHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+    avatar: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+    avatarText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+    modalHeaderText: { flex: 1 },
+    modalTitle: { fontSize: 16, fontWeight: "700", color: c.text },
+    modalSubtitle: { fontSize: 12, color: c.textMuted },
+    validBadge: { backgroundColor: c.successBg, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+    validBadgeText: { fontSize: 12, fontWeight: "600", color: c.success },
+    detailRows: { gap: 8 },
+    detailRow: { flexDirection: "row", justifyContent: "space-between" },
+    detailLabel: { fontSize: 13, color: c.textMuted },
+    detailValue: { fontSize: 13, fontWeight: "600", color: c.text },
+    modalActions: { flexDirection: "row", gap: 12, marginTop: 4 },
+    actionButton: { flex: 1, borderRadius: 8, paddingVertical: 14, alignItems: "center" },
+    reject: { backgroundColor: c.dangerBg },
+    rejectText: { color: c.danger, fontWeight: "600" },
+    accept: { backgroundColor: c.primary },
+    acceptText: { color: c.primaryText, fontWeight: "600" },
+  });
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -9,10 +9,12 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
+import { useTheme } from "../lib/theme-context";
+import type { ThemeColors } from "../lib/theme";
 
 const WEB_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL!;
 
-function LogoMark() {
+function LogoMark({ styles }: { styles: Styles }) {
   return (
     <View style={styles.logo}>
       <View style={[styles.corner, styles.cornerTL]} />
@@ -23,7 +25,11 @@ function LogoMark() {
   );
 }
 
+type Styles = ReturnType<typeof makeStyles>;
+
 export function LoginScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
@@ -45,7 +51,7 @@ export function LoginScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.center}>
-        <LogoMark />
+        <LogoMark styles={styles} />
         <Text style={styles.title}>AttendKita</Text>
         <Text style={styles.tagline}>CCS Attendance System</Text>
 
@@ -53,7 +59,7 @@ export function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textFaint}
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
@@ -62,7 +68,7 @@ export function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textFaint}
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -83,7 +89,7 @@ export function LoginScreen() {
             onPress={signIn}
           >
             {pending ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.primaryText} />
             ) : (
               <Text style={styles.buttonText}>Sign In</Text>
             )}
@@ -96,49 +102,52 @@ export function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 24,
-    justifyContent: "space-between",
-  },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 4 },
-  logo: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    backgroundColor: "#000",
-    marginBottom: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  corner: { position: "absolute", width: 12, height: 12, borderColor: "#fff" },
-  cornerTL: { top: 20, left: 20, borderTopWidth: 2, borderLeftWidth: 2 },
-  cornerTR: { top: 20, right: 20, borderTopWidth: 2, borderRightWidth: 2 },
-  cornerBL: { bottom: 20, left: 20, borderBottomWidth: 2, borderLeftWidth: 2 },
-  cornerBR: { bottom: 20, right: 20, borderBottomWidth: 2, borderRightWidth: 2 },
-  title: { fontSize: 22, fontWeight: "700", marginTop: 4 },
-  tagline: { fontSize: 13, color: "#888", marginBottom: 28 },
-  form: { width: "100%", gap: 12 },
-  error: { fontSize: 13, color: "#c00" },
-  input: {
-    width: "100%",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
-    padding: 14,
-    fontSize: 15,
-  },
-  forgotLink: { alignItems: "flex-end" },
-  forgotText: { fontSize: 13, color: "#666" },
-  button: {
-    backgroundColor: "#000",
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: "center",
-    width: "100%",
-    marginTop: 4,
-  },
-  buttonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
-  version: { textAlign: "center", fontSize: 12, color: "#bbb", paddingBottom: 8 },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+      padding: 24,
+      justifyContent: "space-between",
+    },
+    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 4 },
+    logo: {
+      width: 72,
+      height: 72,
+      borderRadius: 20,
+      backgroundColor: c.primary,
+      marginBottom: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    corner: { position: "absolute", width: 12, height: 12, borderColor: c.primaryText },
+    cornerTL: { top: 20, left: 20, borderTopWidth: 2, borderLeftWidth: 2 },
+    cornerTR: { top: 20, right: 20, borderTopWidth: 2, borderRightWidth: 2 },
+    cornerBL: { bottom: 20, left: 20, borderBottomWidth: 2, borderLeftWidth: 2 },
+    cornerBR: { bottom: 20, right: 20, borderBottomWidth: 2, borderRightWidth: 2 },
+    title: { fontSize: 22, fontWeight: "700", marginTop: 4, color: c.text },
+    tagline: { fontSize: 13, color: c.textMuted, marginBottom: 28 },
+    form: { width: "100%", gap: 12 },
+    error: { fontSize: 13, color: c.danger },
+    input: {
+      width: "100%",
+      backgroundColor: c.inputBackground,
+      borderRadius: 8,
+      padding: 14,
+      fontSize: 15,
+      color: c.text,
+    },
+    forgotLink: { alignItems: "flex-end" },
+    forgotText: { fontSize: 13, color: c.textMuted },
+    button: {
+      backgroundColor: c.primary,
+      borderRadius: 8,
+      paddingVertical: 14,
+      alignItems: "center",
+      width: "100%",
+      marginTop: 4,
+    },
+    buttonText: { color: c.primaryText, fontWeight: "600", fontSize: 15 },
+    version: { textAlign: "center", fontSize: 12, color: c.textDisabled, paddingBottom: 8 },
+  });
+}
