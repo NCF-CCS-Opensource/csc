@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { computeLedger, missingHalves, owedHalves, type LedgerInput } from "./ledger";
+import {
+  computeEventGrid,
+  computeLedger,
+  type EventGridInput,
+  missingHalves,
+  owedHalves,
+  type LedgerInput,
+} from "./ledger";
 
 describe("owedHalves", () => {
   const none = new Set<"am" | "pm">();
@@ -327,5 +334,127 @@ describe("computeLedger", () => {
     const ledger = computeLedger(input);
     expect(ledger.events[0]).toMatchObject({ present: 1, absent: 1, rate: 50 });
     expect(ledger.students.get("s1")!.total).toBe(50);
+  });
+});
+
+describe("computeEventGrid", () => {
+  const t = new Date("2024-03-10T08:00:00Z");
+
+  function gridBase(): EventGridInput {
+    return {
+      eventType: "whole_day",
+      students: [{ id: "s1", name: "Ana", studentId: "2024-1" }],
+      sessions: [],
+      penalties: [],
+      payments: [],
+    };
+  }
+
+  it("returns four cells for a whole-day Event, present only when the field is set", () => {
+    const input = gridBase();
+    // am fully present, pm a no-show (both fields null).
+    input.sessions.push(
+      { id: "am1", studentId: "s1", half: "am", timeIn: t, timeOut: t },
+      { id: "pm1", studentId: "s1", half: "pm", timeIn: null, timeOut: null },
+    );
+
+    const [row] = computeEventGrid(input);
+    expect(row.cells.map((c) => c.label)).toEqual(["AM In", "AM Out", "PM In", "PM Out"]);
+    expect(row.cells.map((c) => c.present)).toEqual([true, true, false, false]);
+    expect(row.cells.map((c) => c.field)).toEqual(["timeIn", "timeOut", "timeIn", "timeOut"]);
+    expect(row.cells[0].sessionId).toBe("am1");
+    expect(row.cells[2].sessionId).toBe("pm1");
+  });
+
+  it("returns two cells for a half-day Event using the Student's one session", () => {
+    const input = gridBase();
+    input.eventType = "half_day";
+    input.sessions.push({ id: "pm1", studentId: "s1", half: "pm", timeIn: t, timeOut: null });
+
+    const [row] = computeEventGrid(input);
+    expect(row.cells.map((c) => c.label)).toEqual(["Time-in", "Time-out"]);
+    expect(row.cells.map((c) => c.present)).toEqual([true, false]);
+    expect(row.cells.every((c) => c.sessionId === "pm1")).toBe(true);
+  });
+
+  it("a half only reads fully attended when both In and Out are present", () => {
+    const input = gridBase();
+    // am present, pm has an In but no Out — its half is not fully attended.
+    input.sessions.push(
+      { id: "am1", studentId: "s1", half: "am", timeIn: t, timeOut: t },
+      { id: "pm1", studentId: "s1", half: "pm", timeIn: t, timeOut: null },
+    );
+    // The absent pm half carries a Penalty (as the write path would create).
+    input.penalties.push({ id: "p1", attendanceSessionId: "pm1", amount: "50.00" });
+
+    const [row] = computeEventGrid(input);
+    // In present, Out absent — the half is not complete.
+    expect(row.cells[2].present).toBe(true);
+    expect(row.cells[3].present).toBe(false);
+    expect(row.outstanding).toBe(50);
+    expect(row.unpaidPenaltyIds).toEqual(["p1"]);
+    expect(row.settled).toBe(false);
+  });
+
+  it("sums the Student's unpaid Penalties for this Event as outstanding", () => {
+    const input = gridBase();
+    input.sessions.push(
+      { id: "am1", studentId: "s1", half: "am", timeIn: null, timeOut: null },
+      { id: "pm1", studentId: "s1", half: "pm", timeIn: null, timeOut: null },
+    );
+    input.penalties.push(
+      { id: "p1", attendanceSessionId: "am1", amount: "50.00" },
+      { id: "p2", attendanceSessionId: "pm1", amount: "50.00" },
+    );
+
+    const [row] = computeEventGrid(input);
+    expect(row.outstanding).toBe(100);
+    expect(row.unpaidPenaltyIds.sort()).toEqual(["p1", "p2"]);
+    expect(row.settled).toBe(false);
+  });
+
+  it("marks a row settled when every Penalty is paid; outstanding drops to 0", () => {
+    const input = gridBase();
+    input.sessions.push(
+      { id: "am1", studentId: "s1", half: "am", timeIn: null, timeOut: null },
+      { id: "pm1", studentId: "s1", half: "pm", timeIn: null, timeOut: null },
+    );
+    input.penalties.push(
+      { id: "p1", attendanceSessionId: "am1", amount: "50.00" },
+      { id: "p2", attendanceSessionId: "pm1", amount: "50.00" },
+    );
+    input.payments.push({ penaltyId: "p1" }, { penaltyId: "p2" });
+
+    const [row] = computeEventGrid(input);
+    expect(row.outstanding).toBe(0);
+    expect(row.unpaidPenaltyIds).toEqual([]);
+    expect(row.settled).toBe(true);
+  });
+
+  it("a fully present Student owes nothing and is not marked settled", () => {
+    const input = gridBase();
+    input.sessions.push(
+      { id: "am1", studentId: "s1", half: "am", timeIn: t, timeOut: t },
+      { id: "pm1", studentId: "s1", half: "pm", timeIn: t, timeOut: t },
+    );
+
+    const [row] = computeEventGrid(input);
+    expect(row.outstanding).toBe(0);
+    expect(row.settled).toBe(false);
+  });
+
+  it("returns one row per Student, carrying name and Student ID", () => {
+    const input = gridBase();
+    input.students.push({ id: "s2", name: "Ben", studentId: "2024-2" });
+    input.sessions.push(
+      { id: "am1", studentId: "s1", half: "am", timeIn: t, timeOut: t },
+      { id: "pm1", studentId: "s1", half: "pm", timeIn: t, timeOut: t },
+      { id: "am2", studentId: "s2", half: "am", timeIn: null, timeOut: null },
+      { id: "pm2", studentId: "s2", half: "pm", timeIn: null, timeOut: null },
+    );
+
+    const rows = computeEventGrid(input);
+    expect(rows.map((r) => r.name)).toEqual(["Ana", "Ben"]);
+    expect(rows.map((r) => r.studentIdText)).toEqual(["2024-1", "2024-2"]);
   });
 });

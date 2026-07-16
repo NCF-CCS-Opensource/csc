@@ -247,6 +247,111 @@ export function computeLedger(input: LedgerInput): Ledger {
   };
 }
 
+// Already-loaded rows for one Event's roster. computeEventGrid does no DB
+// access — the page loads these (after materializeEventNoShows, so every
+// liable Student already has real session rows) and delegates here.
+export type EventGridInput = {
+  eventType: EventType;
+  students: { id: string; name: string; studentId: string }[];
+  sessions: {
+    id: string;
+    studentId: string;
+    half: Half;
+    timeIn: Date | null;
+    timeOut: Date | null;
+  }[];
+  penalties: { id: string; attendanceSessionId: string; amount: string }[];
+  payments: { penaltyId: string }[];
+};
+
+// One scan field of the grid. Present iff the field is set; each cell maps to
+// exactly one (Attendance Session, timeIn|timeOut) the write path can toggle.
+export type EventGridCell = {
+  label: string;
+  sessionId: string;
+  field: "timeIn" | "timeOut";
+  present: boolean;
+};
+
+export type EventGridRow = {
+  studentId: string;
+  name: string;
+  studentIdText: string;
+  cells: EventGridCell[]; // 4 for whole_day (AM/PM × In/Out), 2 for half_day
+  outstanding: number; // unpaid Penalties for this Event
+  unpaidPenaltyIds: string[];
+  settled: boolean; // had Penalties, all paid → row reads "Paid"
+};
+
+function cellFor(
+  label: string,
+  session: EventGridInput["sessions"][number] | undefined,
+  field: "timeIn" | "timeOut",
+): EventGridCell {
+  return {
+    label,
+    sessionId: session?.id ?? "",
+    field,
+    present: !!session?.[field],
+  };
+}
+
+// Pivots one Event's rows to one row per Student: the scan cells (Present iff
+// the field is set), the outstanding balance for this Event, and the unpaid
+// Penalty ids the "Mark paid" button settles. Pure — same style as
+// computeLedger; the both-scans-attended rule is surfaced by each cell's
+// present flag, the money rule by the Penalty/Payment rows passed in.
+export function computeEventGrid(input: EventGridInput): EventGridRow[] {
+  const { eventType, students, sessions, penalties, payments } = input;
+  const paidPenaltyIds = new Set(payments.map((p) => p.penaltyId));
+
+  const sessionByStudentHalf = new Map<string, EventGridInput["sessions"][number]>();
+  const sessionIdsByStudent = new Map<string, string[]>();
+  for (const s of sessions) {
+    sessionByStudentHalf.set(`${s.studentId}:${s.half}`, s);
+    (sessionIdsByStudent.get(s.studentId) ??
+      sessionIdsByStudent.set(s.studentId, []).get(s.studentId)!).push(s.id);
+  }
+  const penaltyBySession = new Map(penalties.map((p) => [p.attendanceSessionId, p]));
+
+  return students.map((student) => {
+    const am = sessionByStudentHalf.get(`${student.id}:am`);
+    const pm = sessionByStudentHalf.get(`${student.id}:pm`);
+    const cells =
+      eventType === "half_day"
+        ? [cellFor("Time-in", am ?? pm, "timeIn"), cellFor("Time-out", am ?? pm, "timeOut")]
+        : [
+            cellFor("AM In", am, "timeIn"),
+            cellFor("AM Out", am, "timeOut"),
+            cellFor("PM In", pm, "timeIn"),
+            cellFor("PM Out", pm, "timeOut"),
+          ];
+
+    let penaltyCount = 0;
+    let outstanding = 0;
+    const unpaidPenaltyIds: string[] = [];
+    for (const sessionId of sessionIdsByStudent.get(student.id) ?? []) {
+      const penalty = penaltyBySession.get(sessionId);
+      if (!penalty) continue;
+      penaltyCount++;
+      if (!paidPenaltyIds.has(penalty.id)) {
+        outstanding += Number(penalty.amount);
+        unpaidPenaltyIds.push(penalty.id);
+      }
+    }
+
+    return {
+      studentId: student.id,
+      name: student.name,
+      studentIdText: student.studentId,
+      cells,
+      outstanding,
+      unpaidPenaltyIds,
+      settled: penaltyCount > 0 && unpaidPenaltyIds.length === 0,
+    };
+  });
+}
+
 // Writes real absent Attendance Session + Penalty rows for every Student who
 // no-showed one Event, so an Officer opening the Event's attendance table can
 // see the no-show and record a Payment (a Payment must reference a real

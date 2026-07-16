@@ -4,7 +4,7 @@ import { KeyRound, Mail } from "lucide-react";
 import Link from "next/link";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { requestPasswordReset, type ForgotPasswordState } from "./actions";
@@ -38,7 +38,7 @@ export function ForgotPasswordForm() {
         </span>
         <h1 className="text-2xl font-semibold tracking-tight">Forgot password</h1>
         <p className="text-muted-foreground mx-auto max-w-sm text-sm">
-          Enter your school email and we'll send you a link to set a new password.
+          Enter your school email and we&apos;ll send you a link to set a new password.
         </p>
       </div>
 
