@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { db } from "@/lib/db";
+import { reconcileAbsences } from "@/lib/absences";
 import { getSemesterPenaltySummary } from "@/lib/penalties";
 import { isSessionAbsent } from "@/lib/scan";
 import { createClient } from "@/lib/supabase/server";
@@ -38,6 +39,10 @@ export default async function DashboardPage() {
     where: eq(students.authUserId, user.id),
   });
   if (!student) redirect("/register");
+
+  // Backfill absences for past Events so full no-shows show up here, not just
+  // partial attendance — see lib/absences.ts.
+  if (openSemester) await reconcileAbsences(openSemester.id);
 
   const [attendanceHistory, paymentHistory] = await Promise.all([
     db
