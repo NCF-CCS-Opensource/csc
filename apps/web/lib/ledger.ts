@@ -1,4 +1,4 @@
-import { attendanceSessions, events, payments, penalties, students } from "@attendance/db";
+import { attendanceSessions, events, payments, penalties, semesters, students } from "@attendance/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "./db";
 import type { EventType } from "./events";
@@ -48,6 +48,11 @@ export function owedHalves(
 // access — the DB wrappers (studentLedger / semesterLedger) load these and
 // delegate here so the no-show rule is exercised in exactly one place.
 export type LedgerInput = {
+  // The end date (YYYY-MM-DD) of the Semester these Events belong to. A Student
+  // owes for every Event in a Semester they registered into — including Events
+  // before their registration — but nothing for a Semester that ended before
+  // their account existed (ADR 0008). This is the single liability boundary.
+  semesterEndDate: string;
   events: {
     id: string;
     name: string;
@@ -112,7 +117,7 @@ export type Ledger = {
 // projections: per-Student standing (dashboard, Clearance) and per-Event stats
 // (Analytics). No writes — loading a page never mutates shared state.
 export function computeLedger(input: LedgerInput): Ledger {
-  const { events, students, sessions, penalties, payments } = input;
+  const { semesterEndDate, events, students, sessions, penalties, payments } = input;
 
   const eventById = new Map(events.map((e) => [e.id, e]));
   const sessionById = new Map(sessions.map((s) => [s.id, s]));
@@ -172,8 +177,11 @@ export function computeLedger(input: LedgerInput): Ledger {
   for (const event of events) {
     const rate = Number(event.halfDayPenaltyAmount);
     for (const student of students) {
-      // A Student can't owe for an Event that predates their registration.
-      if (student.createdAt.toISOString().slice(0, 10) > event.date) continue;
+      // Liability is per-Semester, not per-Event: a Student owes for every
+      // Event in a Semester they belong to (late registration still owes for
+      // earlier Events), and nothing for a Semester that ended before they
+      // registered. See ADR 0008.
+      if (student.createdAt.toISOString().slice(0, 10) > semesterEndDate) continue;
       const key = `${event.id}:${student.id}`;
       const existing = existingHalves.get(key) ?? new Set<Half>();
       const completed = completedByKey.get(key) ?? { am: false, pm: false };
@@ -251,6 +259,10 @@ export function computeLedger(input: LedgerInput): Ledger {
 export async function materializeEventNoShows(eventId: string): Promise<void> {
   const event = await db.query.events.findFirst({ where: eq(events.id, eventId) });
   if (!event) return;
+  const semester = await db.query.semesters.findFirst({
+    where: eq(semesters.id, event.semesterId),
+  });
+  if (!semester) return;
 
   const [allStudents, existing] = await Promise.all([
     db.select({ id: students.id, createdAt: students.createdAt }).from(students),
@@ -277,7 +289,8 @@ export async function materializeEventNoShows(eventId: string): Promise<void> {
 
   const toInsert: { eventId: string; studentId: string; half: Half }[] = [];
   for (const student of allStudents) {
-    if (student.createdAt.toISOString().slice(0, 10) > event.date) continue;
+    // Same per-Semester liability boundary as computeLedger (ADR 0008).
+    if (student.createdAt.toISOString().slice(0, 10) > semester.endDate) continue;
     const seen = existingHalves.get(student.id) ?? new Set<Half>();
     const completed = completedBy.get(student.id) ?? { am: false, pm: false };
     for (const half of owedHalves(event.type, completed, seen)) {
@@ -323,11 +336,12 @@ export async function studentLedger(
 ): Promise<StudentStanding> {
   const empty: StudentStanding = { total: 0, outstanding: 0, sessions: [] };
 
-  const [student, eventRows] = await Promise.all([
+  const [student, semester, eventRows] = await Promise.all([
     db.query.students.findFirst({ where: eq(students.id, studentId) }),
+    db.query.semesters.findFirst({ where: eq(semesters.id, semesterId) }),
     db.select(eventCols).from(events).where(eq(events.semesterId, semesterId)),
   ]);
-  if (!student || eventRows.length === 0) return empty;
+  if (!student || !semester || eventRows.length === 0) return empty;
 
   const eventIds = eventRows.map((e) => e.id);
   const sessionRows = await db
@@ -370,6 +384,7 @@ export async function studentLedger(
       : [];
 
   const ledger = computeLedger({
+    semesterEndDate: semester.endDate,
     events: eventRows,
     students: [{ id: student.id, createdAt: student.createdAt }],
     sessions: sessionRows,
@@ -379,30 +394,23 @@ export async function studentLedger(
   return ledger.students.get(studentId) ?? empty;
 }
 
-export type SemesterLedgerScope = "all" | { officerId: string };
-
 export type SemesterLedgerEvent = EventStats & { name: string };
 
 // Per-Event present/absent/rate/collected plus Semester totals, no-show-
-// inclusive. Governor scope ("all") rolls up every Officer's Events; an
-// Officer scope limits to their own. Reads only; delegates to computeLedger.
-// Consumed by Analytics.
+// inclusive. Rolls up every Event in the Semester — there is no per-Officer
+// scope since every Officer shares all Events (ADR 0007). Reads only;
+// delegates to computeLedger. Consumed by Analytics.
 export async function semesterLedger(
   semesterId: string,
-  scope: SemesterLedgerScope,
 ): Promise<{ events: SemesterLedgerEvent[]; totals: Ledger["totals"] }> {
-  const where =
-    scope === "all"
-      ? eq(events.semesterId, semesterId)
-      : and(eq(events.semesterId, semesterId), eq(events.officerId, scope.officerId));
-
-  const [eventRows, studentRows] = await Promise.all([
-    db.select(eventCols).from(events).where(where),
+  const [semester, eventRows, studentRows] = await Promise.all([
+    db.query.semesters.findFirst({ where: eq(semesters.id, semesterId) }),
+    db.select(eventCols).from(events).where(eq(events.semesterId, semesterId)),
     db.select({ id: students.id, createdAt: students.createdAt }).from(students),
   ]);
 
   const eventIds = eventRows.map((e) => e.id);
-  if (eventIds.length === 0) {
+  if (!semester || eventIds.length === 0) {
     return { events: [], totals: { present: 0, absent: 0, rate: 0, collected: 0 } };
   }
 
@@ -442,6 +450,7 @@ export async function semesterLedger(
       : [];
 
   const ledger = computeLedger({
+    semesterEndDate: semester.endDate,
     events: eventRows,
     students: studentRows,
     sessions: sessionRows,

@@ -45,12 +45,13 @@ export const semesters = pgTable("semesters", {
 
 export const eventTypeEnum = pgEnum("event_type", ["whole_day", "half_day"]);
 
-// Owned by the Officer who created it, scoped to one Semester — see
-// CONTEXT.md's Event entry. Whole-day penalty is derived (2x half-day),
-// never stored — see lib/events.ts's deriveWholeDayPenalty(). Deletion is a
-// confirmed hard delete (no soft-delete/undo) that cascades through scans,
-// attendanceSessions, penalties, and payments — deleting an Event wipes its
-// entire attendance and billing trail, not just the top-level row.
+// Scoped to one Semester — see CONTEXT.md's Event entry. No per-Officer
+// ownership: every Officer sees and CRUDs every Event (ADR 0007), so there is
+// no officer_id here. Whole-day penalty is derived (2x half-day), never stored
+// — see lib/events.ts's deriveWholeDayPenalty(). Deletion is a confirmed hard
+// delete (no soft-delete/undo) that cascades through scans, attendanceSessions,
+// penalties, and payments — deleting an Event wipes its entire attendance and
+// billing trail, not just the top-level row.
 export const events = pgTable("events", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -65,9 +66,6 @@ export const events = pgTable("events", {
     precision: 10,
     scale: 2,
   }).notNull(),
-  officerId: uuid("officer_id")
-    .notNull()
-    .references(() => students.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

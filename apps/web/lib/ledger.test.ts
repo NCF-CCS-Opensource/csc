@@ -49,12 +49,21 @@ describe("missingHalves", () => {
   });
 });
 
-// Registration date well before every Event so prior-registration exclusion
-// isn't in play unless a test opts in.
+// Registration date well before every Semester end so the per-Semester
+// liability boundary never excludes this Student unless a test opts in.
 const EARLY = new Date("2020-01-01T00:00:00Z");
 
 function base(): LedgerInput {
-  return { events: [], students: [], sessions: [], penalties: [], payments: [] };
+  // Far-future Semester end so no Student is excluded by default; tests that
+  // exercise the boundary set their own semesterEndDate.
+  return {
+    semesterEndDate: "2099-12-31",
+    events: [],
+    students: [],
+    sessions: [],
+    penalties: [],
+    payments: [],
+  };
 }
 
 function present(id: string, eventId: string, studentId: string, half: "am" | "pm") {
@@ -194,8 +203,9 @@ describe("computeLedger", () => {
     expect(ledger.events[0]).toMatchObject({ present: 0, absent: 1 });
   });
 
-  it("excludes an Event that predates the Student's registration", () => {
+  it("charges a late registrant for an Event before their registration (same Semester)", () => {
     const input = base();
+    input.semesterEndDate = "2024-05-31";
     input.events.push({
       id: "e1",
       name: "Before I registered",
@@ -203,7 +213,27 @@ describe("computeLedger", () => {
       type: "whole_day",
       halfDayPenaltyAmount: "50.00",
     });
+    // Registered mid-Semester, after the Event — still owes (department rule).
     input.students.push({ id: "s1", createdAt: new Date("2024-03-11T00:00:00Z") });
+
+    const ledger = computeLedger(input);
+    expect(ledger.students.get("s1")!.total).toBe(100);
+    expect(ledger.students.get("s1")!.sessions).toHaveLength(2);
+    expect(ledger.events[0]).toMatchObject({ present: 0, absent: 2 });
+  });
+
+  it("excludes a Student who registered after the Semester ended", () => {
+    const input = base();
+    input.semesterEndDate = "2024-05-31";
+    input.events.push({
+      id: "e1",
+      name: "A Semester I was never in",
+      date: "2024-03-10",
+      type: "whole_day",
+      halfDayPenaltyAmount: "50.00",
+    });
+    // Account created after this Semester closed — owes nothing for it.
+    input.students.push({ id: "s1", createdAt: new Date("2024-06-01T00:00:00Z") });
 
     const ledger = computeLedger(input);
     expect(ledger.students.get("s1")!.total).toBe(0);

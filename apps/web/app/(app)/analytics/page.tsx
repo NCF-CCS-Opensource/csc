@@ -14,7 +14,7 @@ import { semesterLedger } from "@/lib/ledger";
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
-  const officer = await requireOfficerOrGovernor();
+  await requireOfficerOrGovernor();
 
   const openSemester = await findOpenSemester();
 
@@ -27,12 +27,10 @@ export default async function AnalyticsPage() {
     );
   }
 
-  // Governor sees every Officer's Events rolled up; an Officer sees only their
-  // own. The Ledger counts full no-shows too, not just Students with rows.
-  const { events: stats, totals } = await semesterLedger(
-    openSemester.id,
-    officer.role === "governor" ? "all" : { officerId: officer.id },
-  );
+  // Every Officer and the Governor see the whole Semester rolled up — Events
+  // are shared (ADR 0007). The Ledger counts full no-shows too, not just
+  // Students with rows.
+  const { events: stats, totals } = await semesterLedger(openSemester.id);
 
   const {
     present: totalPresent,
@@ -43,9 +41,7 @@ export default async function AnalyticsPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-8">
-      <h1 className="text-xl font-medium">
-        {officer.role === "governor" ? "Analytics — all Officers" : "Analytics — my Events"}
-      </h1>
+      <h1 className="text-xl font-medium">Analytics</h1>
 
       <div className="grid grid-cols-3 gap-4">
         <Card>

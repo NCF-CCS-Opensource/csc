@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const officer = await requireOfficerFromRequest(request);
   if (!officer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const myEvents = await db
+  const allEvents = await db
     .select({
       id: events.id,
       name: events.name,
@@ -17,7 +17,6 @@ export async function GET(request: Request) {
       venue: events.venue,
       type: events.type,
       halfDayPenaltyAmount: events.halfDayPenaltyAmount,
-      officerId: events.officerId,
       createdAt: events.createdAt,
       // Raw attendanceSessions row count, not distinct students — a
       // whole-day Event's student attending both halves counts twice.
@@ -27,11 +26,10 @@ export async function GET(request: Request) {
     })
     .from(events)
     .leftJoin(attendanceSessions, eq(attendanceSessions.eventId, events.id))
-    .where(eq(events.officerId, officer.id))
     .groupBy(events.id)
     .orderBy(desc(events.createdAt));
 
   return NextResponse.json({
-    events: myEvents.map((event) => ({ ...event, attendeeCount: Number(event.attendeeCount) })),
+    events: allEvents.map((event) => ({ ...event, attendeeCount: Number(event.attendeeCount) })),
   });
 }

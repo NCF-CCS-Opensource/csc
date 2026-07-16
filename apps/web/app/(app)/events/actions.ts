@@ -12,7 +12,7 @@ function fail(message: string): never {
 }
 
 export async function createEvent(formData: FormData) {
-  const officer = await requireOfficerOrGovernor();
+  await requireOfficerOrGovernor();
 
   const input = {
     name: String(formData.get("name") ?? "").trim(),
@@ -37,7 +37,6 @@ export async function createEvent(formData: FormData) {
     date: input.date,
     venue: input.venue,
     semesterId: openSemester.id,
-    officerId: officer.id,
   });
 
   redirect("/events");

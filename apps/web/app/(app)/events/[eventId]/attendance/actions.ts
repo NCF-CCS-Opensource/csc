@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { syncPenaltyForSession } from "@/lib/penalties";
 
 export async function updateSession(formData: FormData) {
-  const officer = await requireOfficerOrGovernor();
+  await requireOfficerOrGovernor();
 
   const sessionId = String(formData.get("sessionId") ?? "");
   const timeInRaw = String(formData.get("timeIn") ?? "");
@@ -20,9 +20,7 @@ export async function updateSession(formData: FormData) {
   if (!session) redirect("/events");
 
   const event = await db.query.events.findFirst({ where: eq(events.id, session.eventId) });
-  if (!event || (event.officerId !== officer.id && officer.role !== "governor")) {
-    redirect("/events");
-  }
+  if (!event) redirect("/events");
 
   // Clearing a field (empty input) is how the table marks that half absent —
   // the penalty is never set directly, only ever derived from this write.
@@ -53,9 +51,7 @@ export async function recordPayment(formData: FormData) {
   const event = session
     ? await db.query.events.findFirst({ where: eq(events.id, session.eventId) })
     : null;
-  if (!event || (event.officerId !== officer.id && officer.role !== "governor")) {
-    redirect("/events");
-  }
+  if (!event) redirect("/events");
 
   // Insert-only, guarded by payments.penaltyId's unique constraint — a
   // double-submit upserts to nothing rather than creating a second Payment.

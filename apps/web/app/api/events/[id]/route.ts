@@ -1,5 +1,5 @@
 import { events } from "@attendance/db";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { requireOfficerFromRequest } from "@/lib/api-auth";
 import { db } from "@/lib/db";
@@ -11,7 +11,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const existing = await db.query.events.findFirst({
-    where: and(eq(events.id, id), eq(events.officerId, officer.id)),
+    where: eq(events.id, id),
   });
   if (!existing) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
@@ -51,7 +51,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
   const { id } = await params;
   const existing = await db.query.events.findFirst({
-    where: and(eq(events.id, id), eq(events.officerId, officer.id)),
+    where: eq(events.id, id),
   });
   if (!existing) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 

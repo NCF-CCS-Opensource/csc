@@ -1,5 +1,5 @@
 import { events, semesters } from "@attendance/db";
-import { desc, eq, isNull } from "drizzle-orm";
+import { desc, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,21 +32,17 @@ export default async function EventsPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const officer = await requireOfficerOrGovernor();
+  await requireOfficerOrGovernor();
   const { error } = await searchParams;
 
-  const [openSemester, myEvents] = await Promise.all([
+  const [openSemester, allEvents] = await Promise.all([
     db.query.semesters.findFirst({ where: isNull(semesters.closedAt) }),
-    db
-      .select()
-      .from(events)
-      .where(eq(events.officerId, officer.id))
-      .orderBy(desc(events.createdAt)),
+    db.select().from(events).orderBy(desc(events.createdAt)),
   ]);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
-      <h1 className="text-xl font-medium">My Events</h1>
+      <h1 className="text-xl font-medium">Events</h1>
       {error && <p className="text-destructive text-sm">{error}</p>}
 
       <Card>
@@ -54,7 +50,7 @@ export default async function EventsPage({
           <CardTitle>Events</CardTitle>
         </CardHeader>
         <CardContent>
-          {myEvents.length === 0 ? (
+          {allEvents.length === 0 ? (
             <p className="text-muted-foreground text-sm">No Events yet.</p>
           ) : (
             <Table>
@@ -68,7 +64,7 @@ export default async function EventsPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {myEvents.map((event) => (
+                {allEvents.map((event) => (
                   <TableRow key={event.id}>
                     <TableCell>{event.name}</TableCell>
                     <TableCell>{event.date}</TableCell>
