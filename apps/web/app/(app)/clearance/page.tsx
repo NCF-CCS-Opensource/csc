@@ -1,5 +1,5 @@
-import { semesters, students } from "@attendance/db";
-import { ilike, isNull, or } from "drizzle-orm";
+import { students } from "@attendance/db";
+import { ilike, or } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/table";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getSemesterPenaltySummary } from "@/lib/penalties";
+import { findOpenSemester } from "@/lib/events";
+import { studentLedger } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function ClearancePage({
   const { q } = await searchParams;
 
   const [openSemester, matches] = await Promise.all([
-    db.query.semesters.findFirst({ where: isNull(semesters.closedAt) }),
+    findOpenSemester(),
     q
       ? db
           .select()
@@ -47,7 +48,7 @@ export default async function ClearancePage({
     matches.map(async (student) => ({
       student,
       outstanding: openSemester
-        ? (await getSemesterPenaltySummary(student.id, openSemester.id)).outstanding
+        ? (await studentLedger(openSemester.id, student.id)).outstanding
         : 0,
     })),
   );

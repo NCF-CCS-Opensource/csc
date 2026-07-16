@@ -1,5 +1,5 @@
 import { attendanceSessions, events, payments, penalties } from "@attendance/db";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "./db";
 import { isSessionAbsent } from "./scan";
 
@@ -50,28 +50,4 @@ export async function syncPenaltyForSession(sessionId: string): Promise<void> {
       .insert(penalties)
       .values({ attendanceSessionId: sessionId, studentId: session.studentId, amount });
   }
-}
-
-// Total charged vs. still-unpaid for one Student, scoped to one Semester —
-// scoping matters: a prior Semester's unpaid balance must never block a new
-// Semester's Clearance (CONTEXT.md's Semester entry: Penalties don't carry
-// forward).
-export async function getSemesterPenaltySummary(
-  studentId: string,
-  semesterId: string,
-): Promise<{ total: number; outstanding: number }> {
-  const rows = await db
-    .select({ amount: penalties.amount, paymentId: payments.id })
-    .from(penalties)
-    .innerJoin(attendanceSessions, eq(penalties.attendanceSessionId, attendanceSessions.id))
-    .innerJoin(events, eq(attendanceSessions.eventId, events.id))
-    .leftJoin(payments, eq(payments.penaltyId, penalties.id))
-    .where(and(eq(penalties.studentId, studentId), eq(events.semesterId, semesterId)));
-
-  const total = rows.reduce((sum, row) => sum + Number(row.amount), 0);
-  const outstanding = rows
-    .filter((row) => !row.paymentId)
-    .reduce((sum, row) => sum + Number(row.amount), 0);
-
-  return { total, outstanding };
 }

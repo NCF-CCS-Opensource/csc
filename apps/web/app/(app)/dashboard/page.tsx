@@ -1,5 +1,5 @@
-import { attendanceSessions, events, payments, penalties, semesters, students } from "@attendance/db";
-import { desc, eq, isNull } from "drizzle-orm";
+import { payments, penalties, students } from "@attendance/db";
+import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { db } from "@/lib/db";
-import { reconcileAbsences } from "@/lib/absences";
-import { getSemesterPenaltySummary } from "@/lib/penalties";
-import { isSessionAbsent } from "@/lib/scan";
+import { findOpenSemester } from "@/lib/events";
+import { studentLedger } from "@/lib/ledger";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -28,10 +27,7 @@ export default async function DashboardPage() {
       data: { user },
     },
     openSemester,
-  ] = await Promise.all([
-    supabase.auth.getUser(),
-    db.query.semesters.findFirst({ where: isNull(semesters.closedAt) }),
-  ]);
+  ] = await Promise.all([supabase.auth.getUser(), findOpenSemester()]);
 
   if (!user) redirect("/register");
 
@@ -40,23 +36,12 @@ export default async function DashboardPage() {
   });
   if (!student) redirect("/register");
 
-  // Backfill absences for past Events so full no-shows show up here, not just
-  // partial attendance — see lib/absences.ts.
-  if (openSemester) await reconcileAbsences(openSemester.id);
-
-  const [attendanceHistory, paymentHistory] = await Promise.all([
-    db
-      .select({
-        sessionId: attendanceSessions.id,
-        eventName: events.name,
-        half: attendanceSessions.half,
-        timeIn: attendanceSessions.timeIn,
-        timeOut: attendanceSessions.timeOut,
-      })
-      .from(attendanceSessions)
-      .innerJoin(events, eq(attendanceSessions.eventId, events.id))
-      .where(eq(attendanceSessions.studentId, student.id))
-      .orderBy(desc(attendanceSessions.createdAt)),
+  // The Ledger folds full no-shows into the history and totals — no backfill,
+  // no write on load. Attendance history is the Ledger's session breakdown.
+  const [ledger, paymentHistory] = await Promise.all([
+    openSemester
+      ? studentLedger(openSemester.id, student.id)
+      : Promise.resolve({ total: 0, outstanding: 0, sessions: [] }),
     db
       .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })
       .from(payments)
@@ -65,9 +50,8 @@ export default async function DashboardPage() {
       .orderBy(desc(payments.paidAt)),
   ]);
 
-  const { total: totalPenalty, outstanding } = openSemester
-    ? await getSemesterPenaltySummary(student.id, openSemester.id)
-    : { total: 0, outstanding: 0 };
+  const { total: totalPenalty, outstanding } = ledger;
+  const attendanceHistory = ledger.sessions;
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
@@ -148,13 +132,13 @@ export default async function DashboardPage() {
               </TableHeader>
               <TableBody>
                 {attendanceHistory.map((row) => (
-                  <TableRow key={row.sessionId}>
+                  <TableRow key={`${row.eventId}:${row.half}`}>
                     <TableCell>
                       {row.eventName} ({row.half.toUpperCase()})
                     </TableCell>
                     <TableCell className="text-right">
-                      <Badge variant={isSessionAbsent(row) ? "destructive" : "default"}>
-                        {isSessionAbsent(row) ? "Absent" : "Present"}
+                      <Badge variant={row.absent ? "destructive" : "default"}>
+                        {row.absent ? "Absent" : "Present"}
                       </Badge>
                     </TableCell>
                   </TableRow>

@@ -44,6 +44,10 @@ _Avoid_: Fine, fee
 A record of a Student settling a Penalty, logged as a transaction (amount, date, receiving Officer) for financial reporting. Recorded by an Officer.
 _Avoid_: Settlement
 
+**Ledger**:
+A Student's computed penalty standing for one Semester: total charged, outstanding balance, and the per-Attendance-Session breakdown — including full no-shows that have no stored session row yet. Not a stored table; derived on read from Events, Attendance Sessions, Penalties, and Payments. The single read model behind the dashboard, Clearance, and Analytics, so every surface counts no-shows the same way. No-show Penalty rows are materialized (written) only when an Officer opens an Event's attendance table to record Payment.
+_Avoid_: Balance, statement, summary
+
 **Clearance**:
 The end-of-semester gate requiring a Student's unpaid Penalty balance to be zero before an Officer will sign their clearance paper.
 _Avoid_: Sign-off

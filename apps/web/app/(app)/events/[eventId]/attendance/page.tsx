@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { materializeEventNoShows } from "@/lib/ledger";
 import { recordPayment, updateSession } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,10 @@ export default async function AttendancePage({
   const event = await db.query.events.findFirst({ where: eq(events.id, eventId) });
   if (!event) notFound();
   if (event.officerId !== officer.id && officer.role !== "governor") notFound();
+
+  // Give every no-show a real absent session + Penalty row so it shows here as
+  // a payable row. Scoped to this Event, idempotent — safe to repeat.
+  await materializeEventNoShows(event.id);
 
   const rows = await db
     .select({

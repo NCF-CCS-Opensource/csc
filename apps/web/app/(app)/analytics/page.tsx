@@ -1,5 +1,3 @@
-import { attendanceSessions, events, payments, penalties, semesters } from "@attendance/db";
-import { and, eq, inArray, isNull } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -10,17 +8,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireOfficerOrGovernor } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { isSessionAbsent } from "@/lib/scan";
+import { findOpenSemester } from "@/lib/events";
+import { semesterLedger } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
   const officer = await requireOfficerOrGovernor();
 
-  const openSemester = await db.query.semesters.findFirst({
-    where: isNull(semesters.closedAt),
-  });
+  const openSemester = await findOpenSemester();
 
   if (!openSemester) {
     return (
@@ -31,52 +27,19 @@ export default async function AnalyticsPage() {
     );
   }
 
-  // Governor sees every Officer's Events rolled up; an Officer sees only
-  // their own — same page, same query shape, different scope.
-  const eventScope =
-    officer.role === "governor"
-      ? eq(events.semesterId, openSemester.id)
-      : and(eq(events.semesterId, openSemester.id), eq(events.officerId, officer.id));
+  // Governor sees every Officer's Events rolled up; an Officer sees only their
+  // own. The Ledger counts full no-shows too, not just Students with rows.
+  const { events: stats, totals } = await semesterLedger(
+    openSemester.id,
+    officer.role === "governor" ? "all" : { officerId: officer.id },
+  );
 
-  const eventRows = await db.select().from(events).where(eventScope);
-  const eventIds = eventRows.map((event) => event.id);
-
-  const [sessions, paymentRows] =
-    eventIds.length > 0
-      ? await Promise.all([
-          db
-            .select()
-            .from(attendanceSessions)
-            .where(inArray(attendanceSessions.eventId, eventIds)),
-          db
-            .select({ eventId: attendanceSessions.eventId, amount: payments.amount })
-            .from(payments)
-            .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
-            .innerJoin(
-              attendanceSessions,
-              eq(penalties.attendanceSessionId, attendanceSessions.id),
-            )
-            .where(inArray(attendanceSessions.eventId, eventIds)),
-        ])
-      : [[], []];
-
-  const stats = eventRows.map((event) => {
-    const eventSessions = sessions.filter((s) => s.eventId === event.id);
-    const present = eventSessions.filter((s) => !isSessionAbsent(s)).length;
-    const absent = eventSessions.filter((s) => isSessionAbsent(s)).length;
-    const total = present + absent;
-    const rate = total > 0 ? (present / total) * 100 : 0;
-    const collected = paymentRows
-      .filter((p) => p.eventId === event.id)
-      .reduce((sum, p) => sum + Number(p.amount), 0);
-    return { event, present, absent, rate, collected };
-  });
-
-  const totalPresent = stats.reduce((sum, s) => sum + s.present, 0);
-  const totalAbsent = stats.reduce((sum, s) => sum + s.absent, 0);
-  const totalCollected = stats.reduce((sum, s) => sum + s.collected, 0);
-  const totalSessions = totalPresent + totalAbsent;
-  const totalRate = totalSessions > 0 ? (totalPresent / totalSessions) * 100 : 0;
+  const {
+    present: totalPresent,
+    absent: totalAbsent,
+    rate: totalRate,
+    collected: totalCollected,
+  } = totals;
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-8">
@@ -133,9 +96,9 @@ export default async function AnalyticsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stats.map(({ event, present, absent, rate, collected }) => (
-                  <TableRow key={event.id}>
-                    <TableCell>{event.name}</TableCell>
+                {stats.map(({ eventId, name, present, absent, rate, collected }) => (
+                  <TableRow key={eventId}>
+                    <TableCell>{name}</TableCell>
                     <TableCell>
                       {present} / {absent}
                     </TableCell>
