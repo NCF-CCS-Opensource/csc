@@ -32,7 +32,6 @@ export async function POST(request: Request) {
       date: input.date,
       venue: input.venue,
       semesterId: openSemester.id,
-      officerId: officer.id,
     })
     .returning();
 

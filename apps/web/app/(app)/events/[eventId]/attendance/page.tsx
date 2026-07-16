@@ -32,12 +32,11 @@ export default async function AttendancePage({
 }: {
   params: Promise<{ eventId: string }>;
 }) {
-  const officer = await requireOfficerOrGovernor();
+  await requireOfficerOrGovernor();
   const { eventId } = await params;
 
   const event = await db.query.events.findFirst({ where: eq(events.id, eventId) });
   if (!event) notFound();
-  if (event.officerId !== officer.id && officer.role !== "governor") notFound();
 
   // Give every no-show a real absent session + Penalty row so it shows here as
   // a payable row. Scoped to this Event, idempotent — safe to repeat.

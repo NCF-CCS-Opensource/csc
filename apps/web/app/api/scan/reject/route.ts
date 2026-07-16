@@ -1,5 +1,5 @@
 import { events, scans, students } from "@attendance/db";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { requireOfficerFromRequest } from "@/lib/api-auth";
 import { db } from "@/lib/db";
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   }
 
   const event = await db.query.events.findFirst({
-    where: and(eq(events.id, eventId), eq(events.officerId, officer.id)),
+    where: eq(events.id, eventId),
   });
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 

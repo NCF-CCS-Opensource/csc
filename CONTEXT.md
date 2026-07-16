@@ -9,11 +9,11 @@ A registered user who self-registers via school email, attends Events, and accru
 _Avoid_: User, enrollee
 
 **Officer**:
-A Student promoted (by the Governor) to manage Events they create — scans attendance at the booth, edits attendance records, marks Payments received. Scoped to their own Events only.
+A Student promoted (by the Governor) to run Events — creates, edits, and deletes **any** Event (not only ones they created), scans attendance at the booth, edits attendance records, marks Payments received, signs Clearance. Every Officer sees and acts on every Officer's Events; there is no per-Officer Event ownership. Cannot perform ADMIN actions (see Governor), which stay Governor-only.
 _Avoid_: Admin, staff
 
 **Governor**:
-The top-level administrator with oversight of all Events, all Officers, Semester periods, and the Program list. Only role that spans every Officer's scope.
+An Officer plus the ADMIN powers: managing Officers (promote/demote), Semester periods (create/edit/close), and the Program list. Everything an Officer can do, a Governor can do; ADMIN is the only thing Officers cannot. These three ADMIN capabilities are the whole Officer/Governor distinction.
 _Avoid_: Super admin
 
 **Event**:
@@ -37,7 +37,7 @@ The modal shown after a QR scan, displaying the Student's details for the Office
 _Avoid_: Verification
 
 **Penalty**:
-A peso amount charged to a Student for an absent Attendance Session, auto-recalculated whenever attendance data changes — never set manually. A whole-day absence is the sum of both halves' penalty amounts.
+A peso amount charged to a Student for an absent Attendance Session, auto-recalculated whenever attendance data changes — never set manually. A whole-day absence is the sum of both halves' penalty amounts. A Student who registers mid-Semester owes for **every** Event in that Semester, including Events dated before their registration (all marked absent, first Event included) — the department charges late registrants for the whole Semester. Liability is per-Semester: a newly created account owes nothing for a Semester that ended before the account existed. Carrying real unpaid debt between Semesters is the Clearance gate's job, not the no-show engine's.
 _Avoid_: Fine, fee
 
 **Payment**:

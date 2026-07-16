@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   }
 
   const event = await db.query.events.findFirst({
-    where: and(eq(events.id, eventId), eq(events.officerId, officer.id)),
+    where: eq(events.id, eventId),
   });
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
