@@ -29,7 +29,7 @@ One half (AM or PM) of an Event's day. Requires both a Time-in and a Time-out sc
 _Avoid_: Shift, period
 
 **Time-in / Time-out**:
-A QR scan recorded against an Attendance Session, written under whichever mode the Officer's booth dropdown is currently set to. Scans are accepted even without their counterpart (e.g. a Time-out with no matching Time-in); the incomplete half is simply treated as absent until an Officer corrects it manually. The scan's true moment is when the Officer's device captured it, not when it reached the backend — a scan taken offline and synced later still counts as happening at its original capture time.
+A QR scan recorded against an Attendance Session, written under whichever mode the Officer's booth dropdown is currently set to. Scans are accepted even without their counterpart (e.g. a Time-out with no matching Time-in); the incomplete half is simply treated as absent until an Officer corrects it manually. A **booth scan** stores its true moment — when the Officer's device captured it, not when it reached the backend, so a scan taken offline and synced later still counts as happening at its original capture time. A **manual grid edit** (the per-Event attendance editor) stores only presence, not a real moment: Present writes a sentinel (the Event's date at noon), Absent nulls the field. Nothing reads the exact value — only its non-null-ness marks the half attended (`isSessionAbsent`) — so the editor is a Present/Absent dropdown, not a timestamp picker (ADR 0009).
 _Avoid_: Check-in/check-out
 
 **Scan Approval**:

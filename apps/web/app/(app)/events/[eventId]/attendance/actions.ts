@@ -1,64 +1,56 @@
 "use server";
 
 import { attendanceSessions, events, payments, penalties } from "@attendance/db";
-import { eq } from "drizzle-orm";
-import { redirect } from "next/navigation";
+import { eq, inArray } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { syncPenaltyForSession } from "@/lib/penalties";
 
-export async function updateSession(formData: FormData) {
+// Toggle one scan field Present/Absent. Present writes a sentinel (the Event's
+// date at noon); Absent nulls it — nothing reads the exact moment here, only
+// its non-null-ness drives isSessionAbsent (see ADR 0009). Re-syncs the
+// Penalty so balances follow the change. Booth scans are unaffected.
+export async function setScanField(
+  sessionId: string,
+  field: "timeIn" | "timeOut",
+  present: boolean,
+) {
   await requireOfficerOrGovernor();
-
-  const sessionId = String(formData.get("sessionId") ?? "");
-  const timeInRaw = String(formData.get("timeIn") ?? "");
-  const timeOutRaw = String(formData.get("timeOut") ?? "");
+  if (field !== "timeIn" && field !== "timeOut") return;
 
   const session = await db.query.attendanceSessions.findFirst({
     where: eq(attendanceSessions.id, sessionId),
   });
-  if (!session) redirect("/events");
+  if (!session) return;
 
   const event = await db.query.events.findFirst({ where: eq(events.id, session.eventId) });
-  if (!event) redirect("/events");
+  if (!event) return;
 
-  // Clearing a field (empty input) is how the table marks that half absent —
-  // the penalty is never set directly, only ever derived from this write.
-  await db
-    .update(attendanceSessions)
-    .set({
-      timeIn: timeInRaw ? new Date(timeInRaw) : null,
-      timeOut: timeOutRaw ? new Date(timeOutRaw) : null,
-    })
-    .where(eq(attendanceSessions.id, sessionId));
+  const sentinel = present ? new Date(`${event.date}T12:00:00`) : null;
+  const patch = field === "timeIn" ? { timeIn: sentinel } : { timeOut: sentinel };
+  await db.update(attendanceSessions).set(patch).where(eq(attendanceSessions.id, sessionId));
 
   await syncPenaltyForSession(sessionId);
-
-  redirect(`/events/${event.id}/attendance`);
+  revalidatePath(`/events/${event.id}/attendance`);
 }
 
-export async function recordPayment(formData: FormData) {
+// Settle every unpaid Penalty a Student has for this Event in one click.
+// Insert-only, guarded by payments.penaltyId's unique constraint — a
+// double-submit conflicts to nothing rather than creating a second Payment.
+export async function markPaid(penaltyIds: string[], eventId: string) {
   const officer = await requireOfficerOrGovernor();
+  if (penaltyIds.length === 0) return;
 
-  const penaltyId = String(formData.get("penaltyId") ?? "");
-
-  const penalty = await db.query.penalties.findFirst({ where: eq(penalties.id, penaltyId) });
-  if (!penalty) redirect("/events");
-
-  const session = await db.query.attendanceSessions.findFirst({
-    where: eq(attendanceSessions.id, penalty.attendanceSessionId),
+  const rows = await db.query.penalties.findMany({
+    where: inArray(penalties.id, penaltyIds),
   });
-  const event = session
-    ? await db.query.events.findFirst({ where: eq(events.id, session.eventId) })
-    : null;
-  if (!event) redirect("/events");
+  if (rows.length === 0) return;
 
-  // Insert-only, guarded by payments.penaltyId's unique constraint — a
-  // double-submit upserts to nothing rather than creating a second Payment.
   await db
     .insert(payments)
-    .values({ penaltyId, amount: penalty.amount, officerId: officer.id })
+    .values(rows.map((p) => ({ penaltyId: p.id, amount: p.amount, officerId: officer.id })))
     .onConflictDoNothing({ target: payments.penaltyId });
 
-  redirect(`/events/${event.id}/attendance`);
+  revalidatePath(`/events/${eventId}/attendance`);
 }
