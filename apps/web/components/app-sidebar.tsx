@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, CalendarCheck, LayoutDashboard, LogOut, ShieldCheck } from "lucide-react";
+import { BarChart3, CalendarCheck, LayoutDashboard, LogOut, ScanLine, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -74,7 +74,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <Link href="/" className="flex items-center gap-2 px-2 py-1 font-semibold">
-          CCS Attendance
+          <ScanLine className="size-5 shrink-0" />
+          <span className="group-data-[collapsible=icon]:hidden">CCS Attendance</span>
         </Link>
       </SidebarHeader>
       <SidebarContent>
