@@ -48,7 +48,7 @@ export function RegisterForm({ programs }: { programs: string[] }) {
         </span>
         <h1 className="text-2xl font-semibold tracking-tight">Register</h1>
         <p className="text-muted-foreground mx-auto max-w-sm text-sm">
-          Sign up with your school email and a password. You'll confirm your email before you can
+          Sign up with your school email and a password. You&apos;ll confirm your email before you can
           log in.
         </p>
       </div>
