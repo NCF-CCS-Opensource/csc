@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -12,29 +12,41 @@ import {
 import { apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
+import { useTheme } from "../lib/theme-context";
+import type { ThemeColors, ThemePreference } from "../lib/theme";
 
 type Me = { name: string; email: string };
+type Styles = ReturnType<typeof makeStyles>;
+
+const THEME_CYCLE: ThemePreference[] = ["light", "dark", "system"];
+const THEME_LABEL: Record<ThemePreference, string> = {
+  light: "Light",
+  dark: "Dark",
+  system: "System",
+};
 
 function SettingsRow({
   label,
+  value,
   onPress,
   disabled,
   destructive,
-  badge,
+  styles,
 }: {
   label: string;
+  value?: string;
   onPress?: () => void;
   disabled?: boolean;
   destructive?: boolean;
-  badge?: string;
+  styles: Styles;
 }) {
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} disabled={disabled || !onPress}>
       <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive, disabled && styles.rowLabelDisabled]}>
         {label}
       </Text>
-      {badge ? (
-        <Text style={styles.rowBadge}>{badge}</Text>
+      {value ? (
+        <Text style={styles.rowValue}>{value}</Text>
       ) : (
         <Text style={[styles.rowChevron, disabled && styles.rowLabelDisabled]}>›</Text>
       )}
@@ -43,6 +55,8 @@ function SettingsRow({
 }
 
 export function SettingsScreen() {
+  const { colors, preference, setPreference } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [me, setMe] = useState<Me | null>(null);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
@@ -51,6 +65,11 @@ export function SettingsScreen() {
       .then((data) => setMe(data.student))
       .catch(() => {});
   }, []);
+
+  function cycleTheme() {
+    const next = THEME_CYCLE[(THEME_CYCLE.indexOf(preference) + 1) % THEME_CYCLE.length];
+    setPreference(next);
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -72,29 +91,38 @@ export function SettingsScreen() {
 
       <Text style={styles.sectionLabel}>GENERAL</Text>
       <View style={styles.section}>
-        <SettingsRow label="Change theme" disabled badge="Coming soon" />
-        <SettingsRow label="Notifications" disabled badge="Coming soon" />
-        <SettingsRow label="Language" disabled badge="Coming soon" />
+        <SettingsRow label="Change theme" value={THEME_LABEL[preference]} onPress={cycleTheme} styles={styles} />
       </View>
 
       <Text style={styles.sectionLabel}>ACCOUNT</Text>
       <View style={styles.section}>
-        <SettingsRow label="Change password" onPress={() => setPasswordModalOpen(true)} />
-        <SettingsRow
-          label="Log out"
-          destructive
-          onPress={() => supabase.auth.signOut()}
-        />
+        <SettingsRow label="Change password" onPress={() => setPasswordModalOpen(true)} styles={styles} />
+        <SettingsRow label="Log out" destructive onPress={() => supabase.auth.signOut()} styles={styles} />
       </View>
 
       <Text style={styles.version}>AttendKita v1.0.0</Text>
 
-      <ChangePasswordModal visible={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} />
+      <ChangePasswordModal
+        visible={passwordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
+        colors={colors}
+        styles={styles}
+      />
     </ScrollView>
   );
 }
 
-function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function ChangePasswordModal({
+  visible,
+  onClose,
+  colors,
+  styles,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  colors: ThemeColors;
+  styles: Styles;
+}) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [pending, setPending] = useState(false);
@@ -149,6 +177,7 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
               <TextInput
                 style={styles.input}
                 placeholder="New password"
+                placeholderTextColor={colors.textFaint}
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
@@ -156,6 +185,7 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
               <TextInput
                 style={styles.input}
                 placeholder="Confirm password"
+                placeholderTextColor={colors.textFaint}
                 secureTextEntry
                 value={confirm}
                 onChangeText={setConfirm}
@@ -176,7 +206,11 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
                   disabled={pending || !password || !confirm}
                   onPress={submit}
                 >
-                  {pending ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save</Text>}
+                  {pending ? (
+                    <ActivityIndicator color={colors.primaryText} />
+                  ) : (
+                    <Text style={styles.buttonText}>Save</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </>
@@ -187,51 +221,54 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  content: { padding: 20, gap: 8 },
-  title: { fontSize: 24, fontWeight: "700", marginBottom: 12 },
-  profileRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
-  },
-  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: "#fff", fontWeight: "700" },
-  profileName: { fontSize: 15, fontWeight: "600" },
-  profileEmail: { fontSize: 12, color: "#888" },
-  sectionLabel: { fontSize: 11, color: "#999", fontWeight: "600", marginTop: 12, marginBottom: 6 },
-  section: { borderWidth: 1, borderColor: "#eee", borderRadius: 12, overflow: "hidden" },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f2f2f2",
-  },
-  rowLabel: { fontSize: 14 },
-  rowLabelDisabled: { color: "#bbb" },
-  rowLabelDestructive: { color: "#dc2626" },
-  rowChevron: { color: "#ccc", fontSize: 16 },
-  rowBadge: { fontSize: 11, color: "#999" },
-  version: { textAlign: "center", fontSize: 12, color: "#bbb", marginTop: 24 },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalCard: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, gap: 10 },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#ddd", alignSelf: "center", marginBottom: 4 },
-  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 4 },
-  input: { backgroundColor: "#f5f5f5", borderRadius: 8, padding: 12, fontSize: 14 },
-  error: { fontSize: 13, color: "#c00" },
-  successText: { fontSize: 14, color: "#15803d" },
-  modalActions: { flexDirection: "row", gap: 12, marginTop: 8 },
-  button: { flex: 1, borderRadius: 8, paddingVertical: 12, alignItems: "center", backgroundColor: "#000" },
-  buttonText: { color: "#fff", fontWeight: "600" },
-  cancelButton: { backgroundColor: "#f1f1f1" },
-  cancelButtonText: { fontWeight: "600", color: "#333" },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.background },
+    content: { padding: 20, gap: 8 },
+    title: { fontSize: 24, fontWeight: "700", marginBottom: 12, color: c.text },
+    profileRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 20,
+    },
+    avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+    avatarText: { color: "#fff", fontWeight: "700" },
+    profileName: { fontSize: 15, fontWeight: "600", color: c.text },
+    profileEmail: { fontSize: 12, color: c.textMuted },
+    sectionLabel: { fontSize: 11, color: c.textFaint, fontWeight: "600", marginTop: 12, marginBottom: 6 },
+    section: { borderWidth: 1, borderColor: c.border, borderRadius: 12, overflow: "hidden" },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: c.borderSubtle,
+      backgroundColor: c.card,
+    },
+    rowLabel: { fontSize: 14, color: c.text },
+    rowLabelDisabled: { color: c.textDisabled },
+    rowLabelDestructive: { color: c.danger },
+    rowChevron: { color: c.chevron, fontSize: 16 },
+    rowValue: { fontSize: 13, color: c.textFaint },
+    version: { textAlign: "center", fontSize: 12, color: c.textDisabled, marginTop: 24 },
+    modalBackdrop: { flex: 1, backgroundColor: c.backdrop, justifyContent: "flex-end" },
+    modalCard: { backgroundColor: c.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, gap: 10 },
+    modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.handle, alignSelf: "center", marginBottom: 4 },
+    modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 4, color: c.text },
+    input: { backgroundColor: c.inputBackground, borderRadius: 8, padding: 12, fontSize: 14, color: c.text },
+    error: { fontSize: 13, color: c.danger },
+    successText: { fontSize: 14, color: c.success },
+    modalActions: { flexDirection: "row", gap: 12, marginTop: 8 },
+    button: { flex: 1, borderRadius: 8, paddingVertical: 12, alignItems: "center", backgroundColor: c.primary },
+    buttonText: { color: c.primaryText, fontWeight: "600" },
+    cancelButton: { backgroundColor: c.cancelBackground },
+    cancelButtonText: { fontWeight: "600", color: c.cancelText },
+  });
+}

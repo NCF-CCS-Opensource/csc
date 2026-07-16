@@ -1,4 +1,4 @@
-import { NavigationContainer } from "@react-navigation/native";
+import { DarkTheme, DefaultTheme, NavigationContainer, type Theme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import NetInfo from "@react-native-community/netinfo";
 import type { Session } from "@supabase/supabase-js";
@@ -14,6 +14,8 @@ import { SettingsScreen } from "./screens/SettingsScreen";
 import { loadQueue } from "./lib/scanQueue";
 import { supabase } from "./lib/supabase";
 import { flushQueue } from "./lib/syncScans";
+import { ThemeProvider, useTheme } from "./lib/theme-context";
+import type { ThemeColors } from "./lib/theme";
 
 const Tab = createBottomTabNavigator();
 
@@ -34,12 +36,14 @@ function AuthenticatedApp({
   pendingCount: number;
   refreshPendingCount: () => void;
 }) {
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: "#000",
-        tabBarInactiveTintColor: "#999",
+        tabBarActiveTintColor: colors.tabActive,
+        tabBarInactiveTintColor: colors.tabInactive,
+        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
         tabBarIcon: ({ color }) => <TabIcon route={route.name} color={color} />,
       })}
     >
@@ -82,21 +86,57 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
-        <View style={styles.container}>
-          {session === undefined ? null : !session ? (
-            <LoginScreen />
-          ) : (
-            <NavigationContainer>
-              <AuthenticatedApp
-                pendingCount={pendingCount}
-                refreshPendingCount={refreshPendingCount}
-              />
-            </NavigationContainer>
-          )}
-          <StatusBar style="auto" />
-        </View>
+        <ThemeProvider>
+          <AppShell
+            session={session}
+            pendingCount={pendingCount}
+            refreshPendingCount={refreshPendingCount}
+          />
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+function navTheme(colors: ThemeColors): Theme {
+  const base = colors.mode === "dark" ? DarkTheme : DefaultTheme;
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      background: colors.background,
+      card: colors.card,
+      text: colors.text,
+      border: colors.border,
+      primary: colors.primary,
+    },
+  };
+}
+
+function AppShell({
+  session,
+  pendingCount,
+  refreshPendingCount,
+}: {
+  session: Session | null | undefined;
+  pendingCount: number;
+  refreshPendingCount: () => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {session === undefined ? null : !session ? (
+        <LoginScreen />
+      ) : (
+        <NavigationContainer theme={navTheme(colors)}>
+          <AuthenticatedApp
+            pendingCount={pendingCount}
+            refreshPendingCount={refreshPendingCount}
+          />
+        </NavigationContainer>
+      )}
+      <StatusBar style={colors.mode === "dark" ? "light" : "dark"} />
+    </View>
   );
 }
 
