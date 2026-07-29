@@ -14,10 +14,15 @@ import { apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
 import {
   blockingScanCount,
+  discardScan,
   discardLegacyScans,
+  failedScans,
   legacyScans,
+  retryScan,
+  type QueuedScan,
 } from "../lib/scanQueue";
 import { supabase } from "../lib/supabase";
+import { flushQueue } from "../lib/syncScans";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors, ThemePreference } from "../lib/theme";
 
@@ -83,46 +88,95 @@ export function SettingsScreen({
     setPreference(next);
   }
 
+  function confirmDiscardLegacy() {
+    Alert.alert(
+      "Discard older scans?",
+      "These scans cannot be safely attributed after the storage upgrade. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: async () => {
+            await discardLegacyScans();
+            onQueueChanged();
+          },
+        },
+      ],
+    );
+  }
+
+  function reviewFailedScan(scan: QueuedScan, total: number) {
+    Alert.alert(
+      `Failed scan${total > 1 ? ` (1 of ${total})` : ""}`,
+      `${scan.error ?? "Delivery was rejected."}\nCaptured ${new Date(scan.scannedAt).toLocaleString()}`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard scan",
+          style: "destructive",
+          onPress: () =>
+            Alert.alert(
+              "Discard failed scan?",
+              "This removes only this queued delivery. This cannot be undone.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Discard",
+                  style: "destructive",
+                  onPress: async () => {
+                    await discardScan(officerId, scan.id);
+                    onQueueChanged();
+                  },
+                },
+              ],
+            ),
+        },
+        {
+          text: "Retry",
+          onPress: async () => {
+            await retryScan(officerId, scan.id);
+            onQueueChanged();
+            flushQueue(officerId, onQueueChanged).catch(() => {});
+          },
+        },
+      ],
+    );
+  }
+
   async function logout() {
-    const [count, legacy] = await Promise.all([
+    const [count, legacy, failed] = await Promise.all([
       blockingScanCount(officerId),
       legacyScans(),
+      failedScans(officerId),
     ]);
-    if (count === 0) {
+    if (count === 0 && legacy.length === 0) {
       await supabase.auth.signOut();
       return;
     }
 
-    const discardLegacy =
-      legacy.length === 0
-        ? []
-        : [
-            {
-              text: `Discard ${legacy.length} older scan${legacy.length === 1 ? "" : "s"}`,
-              style: "destructive" as const,
-              onPress: () =>
-                Alert.alert(
-                  "Discard older scans?",
-                  "These scans cannot be safely attributed after the storage upgrade. This cannot be undone.",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Discard",
-                      style: "destructive",
-                      onPress: async () => {
-                        await discardLegacyScans();
-                        onQueueChanged();
-                      },
-                    },
-                  ],
-                ),
-            },
-          ];
+    if (count === 0) {
+      Alert.alert(
+        "Older scans quarantined",
+        `${legacy.length} scan${legacy.length === 1 ? "" : "s"} from the previous storage format cannot be safely attributed or delivered. You may log out without inheriting them.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Discard older scans", style: "destructive", onPress: confirmDiscardLegacy },
+          { text: "Log out", onPress: () => supabase.auth.signOut() },
+        ],
+      );
+      return;
+    }
 
     Alert.alert(
       "Can’t log out yet",
       `${count} scan${count === 1 ? "" : "s"} remain unresolved. Reconnect to retry Pending scans, or return to Scanner and review Failed rows.`,
-      [...discardLegacy, { text: "OK" }],
+      [
+        ...(failed[0]
+          ? [{ text: "Review Failed", onPress: () => reviewFailedScan(failed[0], failed.length) }]
+          : []),
+        { text: "OK" },
+      ],
     );
   }
 

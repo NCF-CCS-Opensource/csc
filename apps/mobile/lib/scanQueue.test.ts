@@ -5,6 +5,7 @@ import {
   blockingScanCount,
   discardScan,
   enqueue,
+  failedScans,
   loadQueue,
   loadRecentScans,
   retryScan,
@@ -146,16 +147,41 @@ describe("Offline Scan Queue ownership", () => {
         deliveryState: "failed",
       }),
     ]);
-    expect(await blockingScanCount("officer-a")).toBe(1);
+    expect(await blockingScanCount("officer-a")).toBe(0);
   });
 
   it("retries or discards only the selected failed decision", async () => {
     await enqueue({ ...queued("1"), deliveryState: "failed", error: "Bad request" });
     await enqueue({ ...queued("2"), deliveryState: "failed", error: "Unknown student" });
+    await addRecentScan({
+      ...recent("2"),
+      deliveryState: "failed",
+      error: "Unknown student",
+    });
 
     await retryScan("officer-a", "1");
     await discardScan("officer-a", "2");
 
     expect(await loadQueue("officer-a")).toEqual([queued("1")]);
+    expect(await loadRecentScans("officer-a")).toEqual([
+      {
+        ...recent("2"),
+        deliveryState: "failed",
+        error: "Unknown student",
+        discarded: true,
+      },
+    ]);
+    expect(await retryScan("officer-a", "2")).toBe(false);
+    expect((await loadRecentScans("officer-a"))[0].discarded).toBe(true);
+  });
+
+  it("keeps a Failed decision reviewable after normal Recent-scan eviction", async () => {
+    const failed = { ...queued("1"), deliveryState: "failed" as const, error: "Invalid request" };
+    await enqueue(failed);
+    await addRecentScan({ ...recent("1"), deliveryState: "failed", error: "Invalid request" });
+    for (let id = 2; id <= 6; id += 1) await addRecentScan(recent(String(id)));
+
+    expect((await loadRecentScans("officer-a")).some(({ id }) => id === "1")).toBe(false);
+    expect(await failedScans("officer-a")).toEqual([failed]);
   });
 });

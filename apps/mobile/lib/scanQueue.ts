@@ -6,6 +6,7 @@ const RECENT_KEY = "attendance.recentScans.v1";
 const LEGACY_ERROR =
   "This scan predates Officer ownership and cannot be delivered safely. Review and discard it.";
 let storageMutation = Promise.resolve();
+// ponytail: one device has one scanner; split this lock per storage key only if write throughput matters.
 
 export type DeliveryState = "pending" | "synced" | "failed";
 
@@ -34,6 +35,7 @@ export type RecentScan = {
   decision: "accepted" | "rejected";
   deliveryState: DeliveryState;
   error?: string;
+  discarded?: boolean;
 };
 
 function parseArray<T>(raw: string | null): T[] {
@@ -123,9 +125,10 @@ export async function failScan(
   });
 }
 
-export async function retryScan(officerId: string, id: string): Promise<void> {
-  await mutate(async () => {
+export async function retryScan(officerId: string, id: string): Promise<boolean> {
+  const found = await mutate(async () => {
     const queue = await loadAllQueue();
+    const found = queue.some((scan) => scan.id === id && scan.officerId === officerId);
     await saveQueue(
       queue.map((scan) => {
         if (scan.id !== id || scan.officerId !== officerId) return scan;
@@ -133,21 +136,21 @@ export async function retryScan(officerId: string, id: string): Promise<void> {
         return { ...pending, deliveryState: "pending" };
       }),
     );
+    return found;
   });
-  await updateRecentScan(officerId, id, { deliveryState: "pending", error: undefined });
+  if (!found) return false;
+  await updateRecentScan(officerId, id, {
+    deliveryState: "pending",
+    error: undefined,
+    discarded: false,
+  });
+  return true;
 }
 
 export async function discardScan(officerId: string, id: string): Promise<number> {
-  return dequeue(id, officerId);
-}
-
-export async function discardLegacyScan(id: string): Promise<number> {
-  return mutate(async () => {
-    const queue = await loadAllQueue();
-    const next = queue.filter((scan) => scan.id !== id || scan.officerId !== null);
-    await saveQueue(next);
-    return next.filter((scan) => scan.officerId === null).length;
-  });
+  const remaining = await dequeue(id, officerId);
+  await updateRecentScan(officerId, id, { deliveryState: "failed", discarded: true });
+  return remaining;
 }
 
 export async function discardLegacyScans(): Promise<void> {
@@ -158,11 +161,15 @@ export async function discardLegacyScans(): Promise<void> {
 
 export async function blockingScanCount(officerId: string): Promise<number> {
   const queue = await loadAllQueue();
-  return queue.filter((scan) => scan.officerId === officerId || scan.officerId === null).length;
+  return queue.filter((scan) => scan.officerId === officerId).length;
 }
 
 export async function legacyScans(): Promise<QueuedScan[]> {
   return (await loadAllQueue()).filter((scan) => scan.officerId === null);
+}
+
+export async function failedScans(officerId: string): Promise<QueuedScan[]> {
+  return (await loadQueue(officerId)).filter((scan) => scan.deliveryState === "failed");
 }
 
 function recentKey(officerId: string): string {
@@ -185,7 +192,10 @@ export async function addRecentScan(scan: RecentScan): Promise<void> {
 export async function updateRecentScan(
   officerId: string,
   id: string,
-  patch: Pick<RecentScan, "deliveryState"> & { error?: string },
+  patch: Pick<RecentScan, "deliveryState"> & {
+    error?: string;
+    discarded?: boolean;
+  },
 ): Promise<void> {
   await mutate(async () => {
     const recent = await loadRecentScans(officerId);
@@ -195,7 +205,7 @@ export async function updateRecentScan(
         recent.map((scan) => {
           if (scan.id !== id) return scan;
           const updated = { ...scan, ...patch };
-          if (patch.error === undefined) delete updated.error;
+          if ("error" in patch && patch.error === undefined) delete updated.error;
           return updated;
         }),
       ),

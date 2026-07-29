@@ -14,11 +14,11 @@ export class ApiError extends Error {
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
-  expectedUserId?: string,
+  expectedOfficerId?: string,
 ): Promise<T> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
-  if (expectedUserId && data.session?.user.id !== expectedUserId) {
+  if (expectedOfficerId && data.session?.user.id !== expectedOfficerId) {
     throw new ApiError("Queued scan belongs to another Officer", 401);
   }
 

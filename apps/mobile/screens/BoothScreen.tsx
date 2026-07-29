@@ -251,7 +251,9 @@ export function BoothScreen({
                 key={scan.id}
                 scan={scan}
                 styles={styles}
-                onPress={() => scan.deliveryState === "failed" && setSelectedFailed(scan)}
+                onPress={() =>
+                  scan.deliveryState === "failed" && !scan.discarded && setSelectedFailed(scan)
+                }
               />
             ))}
           </ScrollView>
@@ -363,20 +365,24 @@ function RecentScanRow({
   onPress: () => void;
 }) {
   const decision = scan.decision === "accepted" ? "✓ Accepted" : "✕ Rejected";
-  const status = {
-    pending: "◷ Pending",
-    synced: "✓ Synced",
-    failed: "! Failed",
-  }[scan.deliveryState];
+  const status = scan.discarded
+    ? "! Failed · Discarded"
+    : {
+        pending: "◷ Pending",
+        synced: "✓ Synced",
+        failed: "! Failed",
+      }[scan.deliveryState];
   const mode = BOOTH_MODES.find(({ value }) => value === scan.mode)?.label ?? scan.mode;
 
   return (
     <TouchableOpacity
       style={styles.recentRow}
       onPress={onPress}
-      disabled={scan.deliveryState !== "failed"}
+      disabled={scan.deliveryState !== "failed" || scan.discarded}
       accessibilityHint={
-        scan.deliveryState === "failed" ? "Opens delivery error and actions" : undefined
+        scan.deliveryState === "failed" && !scan.discarded
+          ? "Opens delivery error and actions"
+          : undefined
       }
     >
       <View style={styles.recentMain}>
