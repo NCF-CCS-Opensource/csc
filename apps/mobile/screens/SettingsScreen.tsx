@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,11 @@ import {
 } from "react-native";
 import { apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
+import {
+  blockingScanCount,
+  discardLegacyScans,
+  legacyScans,
+} from "../lib/scanQueue";
 import { supabase } from "../lib/supabase";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors, ThemePreference } from "../lib/theme";
@@ -54,7 +60,13 @@ function SettingsRow({
   );
 }
 
-export function SettingsScreen() {
+export function SettingsScreen({
+  officerId,
+  onQueueChanged,
+}: {
+  officerId: string;
+  onQueueChanged: () => void;
+}) {
   const { colors, preference, setPreference } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [me, setMe] = useState<Me | null>(null);
@@ -69,6 +81,49 @@ export function SettingsScreen() {
   function cycleTheme() {
     const next = THEME_CYCLE[(THEME_CYCLE.indexOf(preference) + 1) % THEME_CYCLE.length];
     setPreference(next);
+  }
+
+  async function logout() {
+    const [count, legacy] = await Promise.all([
+      blockingScanCount(officerId),
+      legacyScans(),
+    ]);
+    if (count === 0) {
+      await supabase.auth.signOut();
+      return;
+    }
+
+    const discardLegacy =
+      legacy.length === 0
+        ? []
+        : [
+            {
+              text: `Discard ${legacy.length} older scan${legacy.length === 1 ? "" : "s"}`,
+              style: "destructive" as const,
+              onPress: () =>
+                Alert.alert(
+                  "Discard older scans?",
+                  "These scans cannot be safely attributed after the storage upgrade. This cannot be undone.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Discard",
+                      style: "destructive",
+                      onPress: async () => {
+                        await discardLegacyScans();
+                        onQueueChanged();
+                      },
+                    },
+                  ],
+                ),
+            },
+          ];
+
+    Alert.alert(
+      "Can’t log out yet",
+      `${count} scan${count === 1 ? "" : "s"} remain unresolved. Reconnect to retry Pending scans, or return to Scanner and review Failed rows.`,
+      [...discardLegacy, { text: "OK" }],
+    );
   }
 
   return (
@@ -97,7 +152,7 @@ export function SettingsScreen() {
       <Text style={styles.sectionLabel}>ACCOUNT</Text>
       <View style={styles.section}>
         <SettingsRow label="Change password" onPress={() => setPasswordModalOpen(true)} styles={styles} />
-        <SettingsRow label="Log out" destructive onPress={() => supabase.auth.signOut()} styles={styles} />
+        <SettingsRow label="Log out" destructive onPress={logout} styles={styles} />
       </View>
 
       <Text style={styles.version}>AttendKita v1.0.0</Text>
