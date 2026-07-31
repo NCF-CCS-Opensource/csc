@@ -7,12 +7,7 @@ import { findOpenSemester, parseEventInput, validateEventUpdate } from "@/lib/ev
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const authorization = await authorizeRequest(request, "manage_operations");
-  if (!authorization.ok) {
-    return NextResponse.json(
-      { error: authorization.error },
-      { status: authorization.status },
-    );
-  }
+  if (!authorization.ok) return authorization.response;
 
   const { id } = await params;
   const existing = await db.query.events.findFirst({
@@ -52,12 +47,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const authorization = await authorizeRequest(request, "manage_operations");
-  if (!authorization.ok) {
-    return NextResponse.json(
-      { error: authorization.error },
-      { status: authorization.status },
-    );
-  }
+  if (!authorization.ok) return authorization.response;
 
   const { id } = await params;
   const existing = await db.query.events.findFirst({

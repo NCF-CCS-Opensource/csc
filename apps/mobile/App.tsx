@@ -1,5 +1,6 @@
 import { DarkTheme, DefaultTheme, NavigationContainer, type Theme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import type { Session } from "@supabase/supabase-js";
 import { StatusBar } from "expo-status-bar";
@@ -25,6 +26,7 @@ import { ThemeProvider, useTheme } from "./lib/theme-context";
 import type { ThemeColors } from "./lib/theme";
 
 const Tab = createBottomTabNavigator();
+const MOBILE_ADMISSION_OWNER_KEY = "attendance:mobile-admission-owner";
 type MobileAdmission =
   | { allowed: true }
   | { allowed: false; message: string }
@@ -70,6 +72,7 @@ function AuthenticatedApp({
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [admission, setAdmission] = useState<MobileAdmission>(undefined);
+  const [admissionAttempt, setAdmissionAttempt] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
 
   const refreshPendingCount = useCallback(async () => {
@@ -90,10 +93,21 @@ export default function App() {
     if (!session) return;
 
     let current = true;
-    apiFetch("/api/me")
-      .then(() => current && setAdmission({ allowed: true }))
-      .catch((error: unknown) => {
-        if (current) {
+    const userId = session.user.id;
+    void (async () => {
+      const cachedOwner = await AsyncStorage.getItem(
+        MOBILE_ADMISSION_OWNER_KEY,
+      ).catch(() => null);
+      if (current && cachedOwner === userId) setAdmission({ allowed: true });
+
+      try {
+        await apiFetch("/api/me");
+        await AsyncStorage.setItem(MOBILE_ADMISSION_OWNER_KEY, userId).catch(
+          () => {},
+        );
+        if (current) setAdmission({ allowed: true });
+      } catch (error: unknown) {
+        if (current && cachedOwner !== userId) {
           setAdmission({
             allowed: false,
             message:
@@ -102,17 +116,19 @@ export default function App() {
                 : "Unable to verify mobile booth access",
           });
         }
-      });
+      }
+    })();
     return () => {
       current = false;
     };
-  }, [session]);
+  }, [admissionAttempt, session]);
 
   useEffect(() => {
     refreshPendingCount();
     const unsubscribe = NetInfo.addEventListener((state) => {
       if (state.isConnected) {
         flushQueue(setPendingCount).catch(() => {});
+        setAdmissionAttempt((attempt) => attempt + 1);
       }
     });
     return () => unsubscribe();
@@ -180,11 +196,20 @@ function AppShell({
             Mobile access unavailable
           </Text>
           <Text style={[styles.accessMessage, { color: colors.textMuted }]}>
-            {admission.message}
+            {pendingCount > 0
+              ? `${admission.message}. Connect to deliver ${pendingCount} queued decision${pendingCount === 1 ? "" : "s"} before signing out.`
+              : admission.message}
           </Text>
           <TouchableOpacity
             accessibilityRole="button"
-            style={[styles.signOutButton, { backgroundColor: colors.primary }]}
+            disabled={pendingCount > 0}
+            style={[
+              styles.signOutButton,
+              {
+                backgroundColor: colors.primary,
+                opacity: pendingCount > 0 ? 0.5 : 1,
+              },
+            ]}
             onPress={() => supabase.auth.signOut()}
           >
             <Text style={{ color: colors.primaryText, fontWeight: "600" }}>

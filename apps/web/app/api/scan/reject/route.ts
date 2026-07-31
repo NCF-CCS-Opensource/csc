@@ -7,12 +7,7 @@ import { decodeQrPayload } from "@/lib/scan";
 
 export async function POST(request: Request) {
   const authorization = await authorizeRequest(request, "manage_operations");
-  if (!authorization.ok) {
-    return NextResponse.json(
-      { error: authorization.error },
-      { status: authorization.status },
-    );
-  }
+  if (!authorization.ok) return authorization.response;
   const officer = authorization.actor;
 
   const body = (await request.json()) as {

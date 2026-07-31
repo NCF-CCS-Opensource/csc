@@ -1,6 +1,5 @@
 import { payments, penalties } from "@attendance/db";
 import { desc, eq } from "drizzle-orm";
-import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getCurrentStudent } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { findOpenSemester } from "@/lib/events";
 import { studentLedger } from "@/lib/ledger";
@@ -21,10 +20,9 @@ export const dynamic = "force-dynamic";
 
 export default async function MyAttendancePage() {
   const [student, openSemester] = await Promise.all([
-    getCurrentStudent(),
+    requireCapability("view_own_attendance"),
     findOpenSemester(),
   ]);
-  if (!student) redirect("/register");
 
   // The Ledger folds full no-shows into the history and totals — no backfill,
   // no write on load. Attendance history is the Ledger's session breakdown.

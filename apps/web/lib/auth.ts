@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { db } from "./db";
 import {
+  capabilityFailure,
   dashboardDestination,
-  hasCapability,
   type Capability,
 } from "./roles";
 import { createClient } from "./supabase/server";
@@ -30,8 +30,9 @@ export type Identity = Pick<
 
 export async function requireCapability(capability: Capability) {
   const student = await getCurrentStudent();
-  if (!student) redirect("/login");
-  if (!hasCapability(student.role, capability)) {
+  const failure = capabilityFailure(student?.role ?? null, capability);
+  if (!student || failure === "unauthenticated") redirect("/login");
+  if (failure === "forbidden") {
     redirect(dashboardDestination(student.role));
   }
   return student;

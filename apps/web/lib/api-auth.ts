@@ -1,8 +1,9 @@
 import { students } from "@attendance/db";
 import { createClient } from "@supabase/supabase-js";
 import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
 import { db } from "./db";
-import { hasCapability, type Capability } from "./roles";
+import { capabilityFailure, type Capability } from "./roles";
 
 // Mobile (apps/mobile) has no cookies to send — it authenticates API routes
 // with an `Authorization: Bearer <access_token>` header instead.
@@ -19,37 +20,29 @@ export async function getUserFromBearer(request: Request) {
   return data.user;
 }
 
-export async function getStudentFromRequest(request: Request) {
-  const user = await getUserFromBearer(request);
-  if (!user) return null;
-
-  return (
-    (await db.query.students.findFirst({
-      where: eq(students.authUserId, user.id),
-    })) ?? null
-  );
-}
-
 export async function authorizeRequest(
   request: Request,
   capability: Capability,
 ) {
   const user = await getUserFromBearer(request);
-  if (!user) {
-    return { ok: false as const, status: 401 as const, error: "Authentication required" };
-  }
-
-  const actor = await db.query.students.findFirst({
-    where: eq(students.authUserId, user.id),
-  });
-  if (!actor || !hasCapability(actor.role, capability)) {
+  const actor = user
+    ? await db.query.students.findFirst({
+        where: eq(students.authUserId, user.id),
+      })
+    : null;
+  const failure = capabilityFailure(actor?.role ?? null, capability);
+  if (failure || !actor) {
+    const denied = failure ?? "unauthenticated";
+    const status = denied === "unauthenticated" ? 401 : 403;
+    const error =
+      denied === "unauthenticated"
+        ? "Authentication required"
+        : capability === "use_mobile_booth"
+          ? "Mobile booth access requires an Officer or Governor account"
+          : "Forbidden";
     return {
       ok: false as const,
-      status: 403 as const,
-      error:
-        capability === "use_mobile_booth"
-          ? "Mobile booth access requires an Officer or Governor account"
-          : "Forbidden",
+      response: NextResponse.json({ error }, { status }),
     };
   }
 
