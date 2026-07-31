@@ -14,6 +14,7 @@ import {
 import { Dropdown } from "../components/Dropdown";
 import { ApiError, apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
+import { isReadableQrPayload } from "../lib/qr";
 import {
   addRecentScan,
   discardScan,
@@ -39,6 +40,14 @@ const BOOTH_MODES = [
 type BoothMode = (typeof BOOTH_MODES)[number]["value"];
 
 type ScannedStudent = { name: string; studentId: string; program: string };
+type ScannedResult = {
+  raw: string;
+  student: ScannedStudent | null;
+  scannedAt: string;
+  verified: boolean;
+  pendingVerification: boolean;
+  error?: string;
+};
 
 export function BoothScreen({
   officerId,
@@ -58,15 +67,7 @@ export function BoothScreen({
   const [events, setEvents] = useState<EventRow[]>([]);
   const [eventId, setEventId] = useState<string | null>(null);
   const [mode, setMode] = useState<BoothMode | null>(null);
-  const [scanned, setScanned] = useState<
-    {
-      raw: string;
-      student: ScannedStudent | null;
-      scannedAt: string;
-      verified: boolean;
-      error?: string;
-    } | null
-  >(null);
+  const [scanned, setScanned] = useState<ScannedResult | null>(null);
   const [validating, setValidating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -88,6 +89,60 @@ export function BoothScreen({
   const activeEvent = events.find((e) => e.id === eventId) ?? null;
   const ready = !!activeEvent && !!mode;
 
+  async function queueDecision(
+    decision: "accepted" | "rejected",
+    scan: ScannedResult,
+  ) {
+    if (!activeEvent || !mode) return;
+    if (
+      decision === "accepted" &&
+      !scan.verified &&
+      !scan.pendingVerification
+    ) return;
+    setSubmitting(true);
+    const id = Crypto.randomUUID();
+    const decisionAt = new Date().toISOString();
+    const queued: QueuedScan = {
+      id,
+      officerId,
+      type: decision === "accepted" ? "approve" : "reject",
+      eventId: activeEvent.id,
+      mode,
+      qrPayload: scan.raw,
+      scannedAt: scan.scannedAt,
+      decisionAt,
+      deliveryState: "pending",
+    };
+    try {
+      await enqueue(queued);
+      await addRecentScan({
+        id,
+        officerId,
+        studentName: scan.student?.name ?? "Untrusted QR",
+        studentId: scan.student?.studentId ?? "—",
+        eventName: activeEvent.name,
+        mode,
+        scannedAt: scan.scannedAt,
+        decisionAt,
+        decision,
+        deliveryState: "pending",
+      });
+      refreshRecent();
+      onQueueChanged();
+      setMessage(
+        decision === "accepted"
+          ? `Queued ${scan.student?.name ?? "scan for verification"}`
+          : `Queued rejection of ${scan.student?.name ?? "untrusted QR"}`,
+      );
+      setScanned(null);
+      flushQueue(officerId, onQueueChanged)
+        .then(refreshRecent)
+        .catch(() => {});
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function onBarcodeScanned(result: { data: string }) {
     if (scanned || validating) return;
     if (!ready) {
@@ -104,88 +159,46 @@ export function BoothScreen({
           body: JSON.stringify({ qrPayload: result.data }),
         },
       );
-      setScanned({ raw: result.data, student, scannedAt, verified: true });
+      setScanned({
+        raw: result.data,
+        student,
+        scannedAt,
+        verified: true,
+        pendingVerification: false,
+      });
     } catch (error) {
-      let qrStudent: ScannedStudent | null = null;
-      try {
-        const parsed = JSON.parse(result.data);
-        if (
-          typeof parsed?.name === "string" &&
-          typeof parsed?.studentId === "string" &&
-          typeof parsed?.program === "string"
-        ) {
-          qrStudent = parsed;
-        }
-      } catch {
-        // The server reports the canonical unreadable-QR error when reachable.
-      }
       const retryable =
         !(error instanceof ApiError) ||
         error.status === 408 ||
         error.status === 429 ||
         error.status >= 500;
-      setScanned({
+      const pendingVerification =
+        retryable && isReadableQrPayload(result.data);
+      const failed: ScannedResult = {
         raw: result.data,
-        student: retryable ? qrStudent : null,
+        student: null,
         scannedAt,
         verified: false,
+        pendingVerification,
         error:
-          retryable && qrStudent
-            ? "Offline identity — server verification pending"
+          pendingVerification
+            ? "Offline — Student identity will be verified on sync"
             : error instanceof Error
               ? error.message
               : "Unable to verify QR",
-      });
+      };
+      if (error instanceof ApiError && error.status === 422) {
+        await queueDecision("rejected", failed);
+      } else {
+        setScanned(failed);
+      }
     } finally {
       setValidating(false);
     }
   }
 
   async function decide(decision: "accepted" | "rejected") {
-    if (!scanned || !activeEvent || !mode) return;
-    if (decision === "accepted" && !scanned.student) return;
-    setSubmitting(true);
-    const id = Crypto.randomUUID();
-    const decisionAt = new Date().toISOString();
-    const queued: QueuedScan = {
-      id,
-      officerId,
-      type: decision === "accepted" ? "approve" : "reject",
-      eventId: activeEvent.id,
-      mode,
-      qrPayload: scanned.raw,
-      scannedAt: scanned.scannedAt,
-      decisionAt,
-      deliveryState: "pending",
-    };
-    try {
-      await enqueue(queued);
-      await addRecentScan({
-        id,
-        officerId,
-        studentName: scanned.student?.name ?? "Untrusted QR",
-        studentId: scanned.student?.studentId ?? "—",
-        eventName: activeEvent.name,
-        mode,
-        scannedAt: scanned.scannedAt,
-        decisionAt,
-        decision,
-        deliveryState: "pending",
-      });
-      refreshRecent();
-      onQueueChanged();
-      setMessage(
-        decision === "accepted"
-          ? `Queued ${scanned.student!.name}`
-          : `Queued rejection of ${scanned.student?.name ?? "untrusted QR"}`,
-      );
-      setScanned(null);
-      flushQueue(officerId, onQueueChanged)
-        .then(refreshRecent)
-        .catch(() => {});
-    } finally {
-      setSubmitting(false);
-    }
+    if (scanned) await queueDecision(decision, scanned);
   }
 
   async function retrySelectedReview() {
@@ -435,12 +448,16 @@ export function BoothScreen({
                     >
                       <Text style={styles.rejectText}>✕ Reject</Text>
                     </TouchableOpacity>
-                    {scanned.student && (
+                    {(scanned.verified || scanned.pendingVerification) && (
                       <TouchableOpacity
                         style={[styles.actionButton, styles.acceptButton]}
                         onPress={() => decide("accepted")}
                       >
-                        <Text style={styles.acceptText}>✓ Accept</Text>
+                        <Text style={styles.acceptText}>
+                          {scanned.pendingVerification
+                            ? "Queue for verification"
+                            : "✓ Accept"}
+                        </Text>
                       </TouchableOpacity>
                     )}
                   </View>

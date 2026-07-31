@@ -1,5 +1,5 @@
 import { attendanceSessions, events, payments, penalties } from "@attendance/db";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { isSessionAbsent } from "./scan";
 
@@ -60,4 +60,45 @@ export async function syncPenaltyForSession(
       .insert(penalties)
       .values({ attendanceSessionId: sessionId, studentId: session.studentId, amount });
   }
+}
+
+export async function correctAttendance(
+  sessionId: string,
+  field: "timeIn" | "timeOut",
+  present: boolean,
+): Promise<string | null> {
+  return db.transaction(async (tx) => {
+    const session = await tx.query.attendanceSessions.findFirst({
+      where: eq(attendanceSessions.id, sessionId),
+    });
+    if (!session) return null;
+
+    const event = await tx.query.events.findFirst({
+      where: eq(events.id, session.eventId),
+    });
+    if (!event) return null;
+
+    const value = present ? new Date(`${event.date}T12:00:00`) : null;
+    await tx
+      .update(attendanceSessions)
+      .set(field === "timeIn" ? { timeIn: value } : { timeOut: value })
+      .where(eq(attendanceSessions.id, sessionId));
+    await syncPenaltyForSession(sessionId, tx);
+    return event.id;
+  });
+}
+
+export async function recordPayments(
+  penaltyIds: string[],
+  officerId: string,
+): Promise<void> {
+  if (penaltyIds.length === 0) return;
+  const rows = await db.query.penalties.findMany({
+    where: inArray(penalties.id, penaltyIds),
+  });
+  if (rows.length === 0) return;
+  await db
+    .insert(payments)
+    .values(rows.map(({ id, amount }) => ({ penaltyId: id, amount, officerId })))
+    .onConflictDoNothing({ target: payments.penaltyId });
 }

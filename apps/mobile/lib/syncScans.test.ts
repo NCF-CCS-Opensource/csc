@@ -171,7 +171,7 @@ describe("flushQueue", () => {
     vi.useRealTimers();
   });
 
-  it("marks permanent failures Failed and continues with later decisions", async () => {
+  it("moves permanent failures to Needs Review and continues with later decisions", async () => {
     await enqueue(queued("1"));
     await enqueue(queued("2"));
     await addRecentScan(recent("1"));

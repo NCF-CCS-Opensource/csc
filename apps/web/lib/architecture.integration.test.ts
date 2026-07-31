@@ -21,7 +21,11 @@ import {
   SemesterLifecycleError,
   updateSemesterDates,
 } from "./semesters";
-import { syncPenaltyForSession } from "./penalties";
+import {
+  correctAttendance,
+  recordPayments,
+  syncPenaltyForSession,
+} from "./penalties";
 import {
   applyScanDecision,
   identifyScanStudent,
@@ -438,20 +442,11 @@ describe("Event lifecycle", () => {
       .returning();
     await syncPenaltyForSession(session.id);
     const penalty = await db.query.penalties.findFirst();
-    await db.insert(payments).values({
-      penaltyId: penalty!.id,
-      amount: penalty!.amount,
-      officerId: actor.id,
-    });
-
-    await db
-      .update(attendanceSessions)
-      .set({ timeOut: new Date("2026-07-15T17:00:00Z") })
-      .where(eq(attendanceSessions.id, session.id));
-    await syncPenaltyForSession(session.id);
+    await recordPayments([penalty!.id], actor.id);
+    await correctAttendance(session.id, "timeOut", true);
 
     expect(await db.query.attendanceSessions.findFirst()).toMatchObject({
-      timeOut: new Date("2026-07-15T17:00:00Z"),
+      timeOut: expect.any(Date),
     });
     expect(await db.query.penalties.findFirst()).toBeDefined();
     expect(await db.query.payments.findFirst()).toBeDefined();

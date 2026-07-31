@@ -168,7 +168,7 @@ describe("Offline Scan Queue ownership", () => {
     expect(await blockingScanCount("officer-a")).toBe(1);
   });
 
-  it("retries or discards only the selected failed decision", async () => {
+  it("retries or discards only the selected Needs Review decision", async () => {
     await enqueue({
       ...queued("1"),
       deliveryState: "needs_review",
@@ -201,7 +201,7 @@ describe("Offline Scan Queue ownership", () => {
     expect((await loadRecentScans("officer-a"))[0].discarded).toBe(true);
   });
 
-  it("keeps a Failed decision reviewable after normal Recent-scan eviction", async () => {
+  it("keeps a Needs Review decision reviewable after normal Recent-scan eviction", async () => {
     const failed = {
       ...queued("1"),
       deliveryState: "needs_review" as const,
