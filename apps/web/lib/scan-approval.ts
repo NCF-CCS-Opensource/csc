@@ -15,7 +15,16 @@ import {
 } from "./scan";
 import { hasCapability, type Role } from "./roles";
 
-export class ScanApprovalError extends Error {}
+export class ScanApprovalError extends Error {
+  constructor(
+    message: string,
+    readonly status = 422,
+  ) {
+    super(message);
+  }
+}
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type Database = typeof db | Transaction;
 
 export type ScanDecision = {
   scanId: string;
@@ -26,19 +35,68 @@ export type ScanDecision = {
   scannedAt: string;
 };
 
+async function findReferencedStudent(
+  database: Database,
+  qrPayload: string,
+) {
+  const decoded = decodeQrPayload(qrPayload);
+  const student = decoded
+    ? await database.query.students.findFirst({
+        where: eq(students.studentId, decoded.studentId),
+      })
+    : null;
+  return { decoded, student };
+}
+
+function qrError(
+  decoded: ReturnType<typeof decodeQrPayload>,
+  student: Awaited<ReturnType<typeof findReferencedStudent>>["student"],
+): string | null {
+  if (!decoded) return "Unreadable QR";
+  return !student ||
+    student.name !== decoded.name ||
+    student.program !== decoded.program
+    ? "QR does not match current Student record"
+    : null;
+}
+
+export async function identifyScanStudent(
+  actor: { role: Role },
+  qrPayload: string,
+) {
+  if (!hasCapability(actor.role, "manage_operations")) {
+    throw new ScanApprovalError("Forbidden", 403);
+  }
+  const { decoded, student } = await findReferencedStudent(db, qrPayload);
+  const error = qrError(decoded, student);
+  return error
+    ? { error }
+    : {
+        student: {
+          name: student!.name,
+          studentId: student!.studentId,
+          program: student!.program,
+        },
+      };
+}
+
 export async function applyScanDecision(
   actor: { id: string; role: Role },
   decision: ScanDecision,
 ) {
   if (!hasCapability(actor.role, "manage_operations")) {
-    throw new ScanApprovalError("Forbidden");
+    throw new ScanApprovalError("Forbidden", 403);
   }
   if (
     !["approve", "reject"].includes(decision.type) ||
     (decision.type === "approve" &&
       !BOOTH_MODES.includes(decision.mode as BoothMode))
   ) {
-    throw new ScanApprovalError("Invalid request");
+    throw new ScanApprovalError("Invalid request", 400);
+  }
+  const capturedAt = new Date(decision.scannedAt);
+  if (Number.isNaN(capturedAt.getTime())) {
+    throw new ScanApprovalError("Invalid request", 400);
   }
 
   const result = await db.transaction(async (transaction) => {
@@ -55,10 +113,11 @@ export async function applyScanDecision(
         existing.officerId === actor.id &&
         existing.qrPayload === decision.qrPayload &&
         existing.mode === mode &&
-        existing.scannedAt.getTime() === new Date(decision.scannedAt).getTime();
+        existing.scannedAt.getTime() === capturedAt.getTime();
       if (!identical) {
         throw new ScanApprovalError(
           "Scan UUID conflicts with a different decision",
+          409,
         );
       }
       if (existing.result === "rejected") {
@@ -76,7 +135,7 @@ export async function applyScanDecision(
       const student = await transaction.query.students.findFirst({
         where: eq(students.id, existing.studentId!),
       });
-      if (!student) throw new ScanApprovalError("Student not found");
+      if (!student) throw new ScanApprovalError("Student not found", 404);
       return {
         ok: true as const,
         outcome: "approved" as const,
@@ -91,14 +150,12 @@ export async function applyScanDecision(
     const event = await transaction.query.events.findFirst({
       where: eq(events.id, decision.eventId),
     });
-    if (!event) throw new ScanApprovalError("Event not found");
+    if (!event) throw new ScanApprovalError("Event not found", 404);
 
-    const decoded = decodeQrPayload(decision.qrPayload);
-    const student = decoded
-      ? await transaction.query.students.findFirst({
-          where: eq(students.studentId, decoded.studentId),
-        })
-      : null;
+    const { decoded, student } = await findReferencedStudent(
+      transaction,
+      decision.qrPayload,
+    );
     if (decision.type === "reject") {
       await transaction.insert(scans).values({
         id: decision.scanId,
@@ -107,19 +164,12 @@ export async function applyScanDecision(
         qrPayload: decision.qrPayload,
         result: "rejected",
         officerId: actor.id,
-        scannedAt: new Date(decision.scannedAt),
+        scannedAt: capturedAt,
       });
       return { ok: true as const, outcome: "rejected" as const };
     }
 
-    const rejection =
-      !decoded
-        ? "Unreadable QR"
-        : !student ||
-            student.name !== decoded.name ||
-            student.program !== decoded.program
-          ? "QR does not match current Student record"
-          : null;
+    const rejection = qrError(decoded, student);
     if (rejection) {
       await transaction.insert(scans).values({
         id: decision.scanId,
@@ -129,7 +179,7 @@ export async function applyScanDecision(
         result: "rejected",
         mode: decision.mode as BoothMode,
         officerId: actor.id,
-        scannedAt: new Date(decision.scannedAt),
+        scannedAt: capturedAt,
       });
       return {
         ok: false as const,
@@ -137,7 +187,7 @@ export async function applyScanDecision(
         error: rejection,
       };
     }
-    if (!student) throw new ScanApprovalError("Student not found");
+    if (!student) throw new ScanApprovalError("Student not found", 404);
 
     const mode = decision.mode as BoothMode;
     await transaction.insert(scans).values({
@@ -148,7 +198,7 @@ export async function applyScanDecision(
       result: "approved",
       mode,
       officerId: actor.id,
-      scannedAt: new Date(decision.scannedAt),
+      scannedAt: capturedAt,
     });
 
     const { half, field } = modeToHalfAndField(mode);
@@ -160,13 +210,13 @@ export async function applyScanDecision(
               eventId: event.id,
               studentId: student.id,
               half,
-              timeIn: new Date(decision.scannedAt),
+              timeIn: capturedAt,
             }
           : {
               eventId: event.id,
               studentId: student.id,
               half,
-              timeOut: new Date(decision.scannedAt),
+              timeOut: capturedAt,
             },
       )
       .onConflictDoUpdate({

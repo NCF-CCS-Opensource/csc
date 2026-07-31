@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { Dropdown } from "../components/Dropdown";
-import { apiFetch } from "../lib/api";
+import { ApiError, apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
 import {
   addRecentScan,
@@ -59,12 +59,19 @@ export function BoothScreen({
   const [eventId, setEventId] = useState<string | null>(null);
   const [mode, setMode] = useState<BoothMode | null>(null);
   const [scanned, setScanned] = useState<
-    { raw: string; student: ScannedStudent; scannedAt: string } | null
+    {
+      raw: string;
+      student: ScannedStudent | null;
+      scannedAt: string;
+      verified: boolean;
+      error?: string;
+    } | null
   >(null);
+  const [validating, setValidating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
-  const [selectedFailed, setSelectedFailed] = useState<RecentScan | null>(null);
+  const [selectedReview, setSelectedReview] = useState<RecentScan | null>(null);
 
   const refreshRecent = useCallback(() => {
     loadRecentScans(officerId).then(setRecentScans);
@@ -81,30 +88,62 @@ export function BoothScreen({
   const activeEvent = events.find((e) => e.id === eventId) ?? null;
   const ready = !!activeEvent && !!mode;
 
-  function onBarcodeScanned(result: { data: string }) {
-    if (scanned) return;
+  async function onBarcodeScanned(result: { data: string }) {
+    if (scanned || validating) return;
     if (!ready) {
       setMessage("Select an event and time first");
       return;
     }
+    const scannedAt = new Date().toISOString();
+    setValidating(true);
     try {
-      const parsed = JSON.parse(result.data);
-      if (
-        typeof parsed?.name === "string" &&
-        typeof parsed?.studentId === "string" &&
-        typeof parsed?.program === "string"
-      ) {
-        setScanned({ raw: result.data, student: parsed, scannedAt: new Date().toISOString() });
-        return;
+      const { student } = await apiFetch<{ student: ScannedStudent }>(
+        "/api/scan/identify",
+        {
+          method: "POST",
+          body: JSON.stringify({ qrPayload: result.data }),
+        },
+      );
+      setScanned({ raw: result.data, student, scannedAt, verified: true });
+    } catch (error) {
+      let qrStudent: ScannedStudent | null = null;
+      try {
+        const parsed = JSON.parse(result.data);
+        if (
+          typeof parsed?.name === "string" &&
+          typeof parsed?.studentId === "string" &&
+          typeof parsed?.program === "string"
+        ) {
+          qrStudent = parsed;
+        }
+      } catch {
+        // The server reports the canonical unreadable-QR error when reachable.
       }
-    } catch {
-      // fall through
+      const retryable =
+        !(error instanceof ApiError) ||
+        error.status === 408 ||
+        error.status === 429 ||
+        error.status >= 500;
+      setScanned({
+        raw: result.data,
+        student: retryable ? qrStudent : null,
+        scannedAt,
+        verified: false,
+        error:
+          retryable && qrStudent
+            ? "Offline identity — server verification pending"
+            : error instanceof Error
+              ? error.message
+              : "Unable to verify QR",
+      });
+    } finally {
+      setValidating(false);
     }
-    setMessage("Unreadable QR code");
   }
 
   async function decide(decision: "accepted" | "rejected") {
     if (!scanned || !activeEvent || !mode) return;
+    if (decision === "accepted" && !scanned.student) return;
     setSubmitting(true);
     const id = Crypto.randomUUID();
     const decisionAt = new Date().toISOString();
@@ -124,8 +163,8 @@ export function BoothScreen({
       await addRecentScan({
         id,
         officerId,
-        studentName: scanned.student.name,
-        studentId: scanned.student.studentId,
+        studentName: scanned.student?.name ?? "Untrusted QR",
+        studentId: scanned.student?.studentId ?? "—",
         eventName: activeEvent.name,
         mode,
         scannedAt: scanned.scannedAt,
@@ -137,8 +176,8 @@ export function BoothScreen({
       onQueueChanged();
       setMessage(
         decision === "accepted"
-          ? `Queued ${scanned.student.name}`
-          : `Queued rejection of ${scanned.student.name}`,
+          ? `Queued ${scanned.student!.name}`
+          : `Queued rejection of ${scanned.student?.name ?? "untrusted QR"}`,
       );
       setScanned(null);
       flushQueue(officerId, onQueueChanged)
@@ -149,10 +188,10 @@ export function BoothScreen({
     }
   }
 
-  async function retrySelected() {
-    if (!selectedFailed) return;
-    await retryScan(officerId, selectedFailed.id);
-    setSelectedFailed(null);
+  async function retrySelectedReview() {
+    if (!selectedReview) return;
+    await retryScan(officerId, selectedReview.id);
+    setSelectedReview(null);
     refreshRecent();
     onQueueChanged();
     flushQueue(officerId, onQueueChanged)
@@ -161,10 +200,10 @@ export function BoothScreen({
   }
 
   function confirmDiscard() {
-    if (!selectedFailed) return;
-    const scan = selectedFailed;
+    if (!selectedReview) return;
+    const scan = selectedReview;
     Alert.alert(
-      "Discard failed scan?",
+      "Discard Needs Review scan?",
       "This removes only its queued delivery. The Recent scan stays visible until normal five-item eviction.",
       [
         { text: "Cancel", style: "cancel" },
@@ -173,7 +212,7 @@ export function BoothScreen({
           style: "destructive",
           onPress: async () => {
             await discardScan(officerId, scan.id);
-            setSelectedFailed(null);
+            setSelectedReview(null);
             refreshRecent();
             onQueueChanged();
           },
@@ -248,6 +287,9 @@ export function BoothScreen({
           </Text>
         )}
         {message && <Text style={styles.messageHint}>{message}</Text>}
+        {validating && (
+          <Text style={styles.messageHint}>Verifying QR…</Text>
+        )}
 
         <View style={styles.dropdownRow}>
           <Dropdown
@@ -281,7 +323,7 @@ export function BoothScreen({
                 onPress={() =>
                   scan.deliveryState === "needs_review" &&
                   !scan.discarded &&
-                  setSelectedFailed(scan)
+                  setSelectedReview(scan)
                 }
               />
             ))}
@@ -296,27 +338,80 @@ export function BoothScreen({
             {scanned && (
               <>
                 <View style={styles.modalHeader}>
-                  <View style={[styles.avatar, { backgroundColor: colorOf(scanned.student.name) }]}>
-                    <Text style={styles.avatarText}>{initialsOf(scanned.student.name)}</Text>
+                  <View
+                    style={[
+                      styles.avatar,
+                      {
+                        backgroundColor: scanned.student
+                          ? scanned.verified
+                            ? colorOf(scanned.student.name)
+                            : colors.warningBg
+                          : colors.dangerBg,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.avatarText}>
+                      {scanned.student
+                        ? initialsOf(scanned.student.name)
+                        : "!"}
+                    </Text>
                   </View>
                   <View style={styles.modalHeaderText}>
-                    <Text style={styles.modalTitle}>{scanned.student.name}</Text>
-                    <Text style={styles.modalSubtitle}>Student | {scanned.student.program}</Text>
+                    <Text style={styles.modalTitle}>
+                      {scanned.student ? scanned.student.name : "Untrusted QR"}
+                    </Text>
+                    <Text style={styles.modalSubtitle}>
+                      {scanned.student
+                        ? scanned.verified
+                          ? `Student | ${scanned.student.program}`
+                          : scanned.error
+                        : scanned.error}
+                    </Text>
                   </View>
-                  <View style={styles.validBadge}>
-                    <Text style={styles.validBadgeText}>Valid</Text>
+                  <View
+                    style={[
+                      styles.validBadge,
+                      scanned.student && !scanned.verified
+                        ? styles.unverifiedBadge
+                        : !scanned.student && styles.invalidBadge,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.validBadgeText,
+                        scanned.student && !scanned.verified
+                          ? styles.unverifiedBadgeText
+                          : !scanned.student && styles.invalidBadgeText,
+                      ]}
+                    >
+                      {scanned.verified
+                        ? "Valid"
+                        : scanned.student
+                          ? "Unverified"
+                          : "Invalid"}
+                    </Text>
                   </View>
                 </View>
 
                 {/* Light gray details table container matching mockup 3 */}
                 <View style={styles.detailsContainer}>
-                  <DetailRow label="Student ID" value={scanned.student.studentId} styles={styles} />
-                  <View style={styles.divider} />
-                  <DetailRow label="Event" value={activeEvent?.name ?? "Foundation Day"} styles={styles} />
+                  {scanned.student && (
+                    <>
+                      <DetailRow
+                        label={
+                          scanned.verified ? "Student ID" : "QR Student ID"
+                        }
+                        value={scanned.student.studentId}
+                        styles={styles}
+                      />
+                      <View style={styles.divider} />
+                    </>
+                  )}
+                  <DetailRow label="Event" value={activeEvent?.name ?? "—"} styles={styles} />
                   <View style={styles.divider} />
                   <DetailRow
                     label="Log type"
-                    value={BOOTH_MODES.find((m) => m.value === mode)?.label ?? "Time in AM"}
+                    value={BOOTH_MODES.find((m) => m.value === mode)?.label ?? "—"}
                     styles={styles}
                   />
                   <View style={styles.divider} />
@@ -340,12 +435,14 @@ export function BoothScreen({
                     >
                       <Text style={styles.rejectText}>✕ Reject</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.acceptButton]}
-                      onPress={() => decide("accepted")}
-                    >
-                      <Text style={styles.acceptText}>✓ Accept</Text>
-                    </TouchableOpacity>
+                    {scanned.student && (
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.acceptButton]}
+                        onPress={() => decide("accepted")}
+                      >
+                        <Text style={styles.acceptText}>✓ Accept</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
               </>
@@ -355,15 +452,17 @@ export function BoothScreen({
       </Modal>
 
       <Modal
-        visible={!!selectedFailed}
+        visible={!!selectedReview}
         transparent
         animationType="fade"
-        onRequestClose={() => setSelectedFailed(null)}
+        onRequestClose={() => setSelectedReview(null)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.failedCard}>
+          <View style={styles.reviewCard}>
             <Text style={styles.modalTitle}>Needs Review</Text>
-            <Text style={styles.failedError}>{selectedFailed?.error ?? "Delivery was rejected."}</Text>
+            <Text style={styles.reviewError}>
+              {selectedReview?.error ?? "Delivery was rejected."}
+            </Text>
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.actionButton, styles.rejectButton]}
@@ -373,13 +472,13 @@ export function BoothScreen({
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, styles.acceptButton]}
-                onPress={retrySelected}
+                onPress={retrySelectedReview}
               >
                 <Text style={styles.acceptText}>Retry</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => setSelectedFailed(null)}>
-              <Text style={styles.closeFailed}>Close</Text>
+            <TouchableOpacity onPress={() => setSelectedReview(null)}>
+              <Text style={styles.closeReview}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -605,15 +704,15 @@ function makeStyles(c: ThemeColors) {
       paddingBottom: 28,
       gap: 16,
     },
-    failedCard: {
+    reviewCard: {
       backgroundColor: c.card,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       padding: 20,
       gap: 12,
     },
-    failedError: { fontSize: 13, color: c.danger },
-    closeFailed: { color: c.textMuted, textAlign: "center", paddingVertical: 6 },
+    reviewError: { fontSize: 13, color: c.danger },
+    closeReview: { color: c.textMuted, textAlign: "center", paddingVertical: 6 },
     modalHandle: {
       width: 44,
       height: 4,
@@ -630,6 +729,10 @@ function makeStyles(c: ThemeColors) {
     modalSubtitle: { fontSize: 13, color: c.textMuted, marginTop: 2 },
     validBadge: { backgroundColor: c.successBg, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
     validBadgeText: { fontSize: 12, fontWeight: "600", color: c.success },
+    invalidBadge: { backgroundColor: c.dangerBg },
+    invalidBadgeText: { color: c.danger },
+    unverifiedBadge: { backgroundColor: c.warningBg },
+    unverifiedBadgeText: { color: c.warning },
     detailsContainer: {
       backgroundColor: c.inputBackground,
       borderRadius: 16,

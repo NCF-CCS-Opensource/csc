@@ -21,8 +21,10 @@ import {
   SemesterLifecycleError,
   updateSemesterDates,
 } from "./semesters";
+import { syncPenaltyForSession } from "./penalties";
 import {
   applyScanDecision,
+  identifyScanStudent,
   ScanApprovalError,
 } from "./scan-approval";
 
@@ -421,9 +423,78 @@ describe("Event lifecycle", () => {
       ),
     );
   });
+
+  it("allows Attendance correction and Payment recording after closure", async () => {
+    const { actor, event, student } = await seedScanFixture();
+    await db.update(semesters).set({ closedAt: new Date() });
+    const [session] = await db
+      .insert(attendanceSessions)
+      .values({
+        eventId: event.id,
+        studentId: student.id,
+        half: "am",
+        timeIn: new Date("2026-07-15T08:00:00Z"),
+      })
+      .returning();
+    await syncPenaltyForSession(session.id);
+    const penalty = await db.query.penalties.findFirst();
+    await db.insert(payments).values({
+      penaltyId: penalty!.id,
+      amount: penalty!.amount,
+      officerId: actor.id,
+    });
+
+    await db
+      .update(attendanceSessions)
+      .set({ timeOut: new Date("2026-07-15T17:00:00Z") })
+      .where(eq(attendanceSessions.id, session.id));
+    await syncPenaltyForSession(session.id);
+
+    expect(await db.query.attendanceSessions.findFirst()).toMatchObject({
+      timeOut: new Date("2026-07-15T17:00:00Z"),
+    });
+    expect(await db.query.penalties.findFirst()).toBeDefined();
+    expect(await db.query.payments.findFirst()).toBeDefined();
+  });
 });
 
 describe("Scan Approval", () => {
+  it("reveals Student details only for a canonical QR payload", async () => {
+    const { actor, student } = await seedScanFixture();
+
+    await expect(
+      identifyScanStudent(
+        actor,
+        JSON.stringify({
+          name: student.name,
+          studentId: student.studentId,
+          program: student.program,
+        }),
+      ),
+    ).resolves.toEqual({
+      student: {
+        name: student.name,
+        studentId: student.studentId,
+        program: student.program,
+      },
+    });
+    await expect(
+      identifyScanStudent(
+        actor,
+        JSON.stringify({
+          name: "Wrong Name",
+          studentId: student.studentId,
+          program: student.program,
+        }),
+      ),
+    ).resolves.toEqual({
+      error: "QR does not match current Student record",
+    });
+    await expect(
+      identifyScanStudent(actor, "not-json"),
+    ).resolves.toEqual({ error: "Unreadable QR" });
+  });
+
   it("commits an approved Scan, Attendance Session, and Penalty together", async () => {
     const { actor, event, student } = await seedScanFixture();
     const scanId = randomUUID();
@@ -569,6 +640,7 @@ describe("Scan Approval", () => {
     ).rejects.toEqual(
       new ScanApprovalError(
         "Scan UUID conflicts with a different decision",
+        409,
       ),
     );
     expect(await db.query.scans.findMany()).toHaveLength(1);

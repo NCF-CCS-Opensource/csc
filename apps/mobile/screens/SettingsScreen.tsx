@@ -115,9 +115,9 @@ export function SettingsScreen({
     );
   }
 
-  function reviewFailedScan(scan: QueuedScan, total: number) {
+  function reviewNeedsReviewScan(scan: QueuedScan, total: number) {
     Alert.alert(
-      `Failed scan${total > 1 ? ` (1 of ${total})` : ""}`,
+      `Needs Review${total > 1 ? ` (1 of ${total})` : ""}`,
       `${scan.error ?? "Delivery was rejected."}\nCaptured ${new Date(scan.scannedAt).toLocaleString()}`,
       [
         { text: "Cancel", style: "cancel" },
@@ -126,7 +126,7 @@ export function SettingsScreen({
           style: "destructive",
           onPress: () =>
             Alert.alert(
-              "Discard failed scan?",
+              "Discard Needs Review scan?",
               "This removes only this queued delivery. This cannot be undone.",
               [
                 { text: "Cancel", style: "cancel" },
@@ -154,7 +154,7 @@ export function SettingsScreen({
   }
 
   async function logout() {
-    const [count, legacy, failed] = await Promise.all([
+    const [count, legacy, needsReview] = await Promise.all([
       blockingScanCount(officerId),
       legacyScans(),
       needsReviewScans(officerId),
@@ -181,8 +181,12 @@ export function SettingsScreen({
       "Can’t log out yet",
       `${count} scan${count === 1 ? "" : "s"} remain unresolved. Reconnect to retry Pending scans, or return to Scanner and review Needs Review rows.`,
       [
-        ...(failed[0]
-          ? [{ text: "Review Needs Review", onPress: () => reviewFailedScan(failed[0], failed.length) }]
+        ...(needsReview[0]
+          ? [{
+              text: "Review Needs Review",
+              onPress: () =>
+                reviewNeedsReviewScan(needsReview[0], needsReview.length),
+            }]
           : []),
         { text: "OK" },
       ],

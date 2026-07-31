@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { authorizeRequest } from "@/lib/api-auth";
 import {
-  applyScanDecision,
+  identifyScanStudent,
   ScanApprovalError,
 } from "@/lib/scan-approval";
 
@@ -9,34 +9,19 @@ export async function POST(request: Request) {
   const authorization = await authorizeRequest(request, "use_mobile_booth");
   if (!authorization.ok) return authorization.response;
 
-  const body = (await request.json()) as {
-    scanId?: string;
-    eventId?: string;
-    mode?: string;
-    qrPayload?: string;
-    scannedAt?: string;
-  };
-  if (
-    !body.scanId ||
-    !body.eventId ||
-    !body.mode ||
-    !body.qrPayload ||
-    !body.scannedAt
-  ) {
+  const { qrPayload } = (await request.json()) as { qrPayload?: string };
+  if (!qrPayload) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
   try {
-    return NextResponse.json(
-      await applyScanDecision(authorization.actor, {
-        scanId: body.scanId,
-        type: "approve",
-        eventId: body.eventId,
-        mode: body.mode,
-        qrPayload: body.qrPayload,
-        scannedAt: body.scannedAt,
-      }),
+    const result = await identifyScanStudent(
+      authorization.actor,
+      qrPayload,
     );
+    return "error" in result
+      ? NextResponse.json(result, { status: 422 })
+      : NextResponse.json(result);
   } catch (error) {
     if (error instanceof ScanApprovalError) {
       return NextResponse.json(

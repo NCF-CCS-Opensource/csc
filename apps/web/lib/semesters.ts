@@ -65,17 +65,27 @@ export async function updateSemesterDates(
   const errors = validateSemesterDates(dates.startDate, dates.endDate);
   if (errors[0]) throw new SemesterLifecycleError(errors[0].message);
 
-  const excludedEvent = await db.query.events.findFirst({
-    where: and(
-      eq(events.semesterId, id),
-      or(lt(events.date, dates.startDate), gt(events.date, dates.endDate)),
-    ),
-  });
-  if (excludedEvent) {
-    throw new SemesterLifecycleError(
-      "Semester dates must include every existing Event",
-    );
-  }
+  await db.transaction(async (transaction) => {
+    const [semester] = await transaction
+      .select()
+      .from(semesters)
+      .where(eq(semesters.id, id))
+      .limit(1)
+      .for("update");
+    if (!semester) throw new SemesterLifecycleError("Semester not found");
 
-  await db.update(semesters).set(dates).where(eq(semesters.id, id));
+    const excludedEvent = await transaction.query.events.findFirst({
+      where: and(
+        eq(events.semesterId, id),
+        or(lt(events.date, dates.startDate), gt(events.date, dates.endDate)),
+      ),
+    });
+    if (excludedEvent) {
+      throw new SemesterLifecycleError(
+        "Semester dates must include every existing Event",
+      );
+    }
+
+    await transaction.update(semesters).set(dates).where(eq(semesters.id, id));
+  });
 }

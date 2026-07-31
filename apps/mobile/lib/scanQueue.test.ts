@@ -130,6 +130,15 @@ describe("Offline Scan Queue ownership", () => {
     expect(await blockingScanCount("officer-b")).toBe(1);
   });
 
+  it("restores the owner queue after an app-module reload", async () => {
+    await enqueue(queued("1"));
+
+    vi.resetModules();
+    const { loadQueue: loadAfterRestart } = await import("./scanQueue");
+
+    expect(await loadAfterRestart("officer-a")).toEqual([queued("1")]);
+  });
+
   it("claims legacy queue data only for the verified mobile actor", async () => {
     await AsyncStorage.setItem(
       "attendance.scanQueue.v1",

@@ -53,7 +53,9 @@ function scheduleRetry(
     officerId,
     setTimeout(() => {
       retryTimers.delete(officerId);
-      void deliverQueue(officerId, onCountChange, attempt + 1);
+      void deliverQueue(officerId, onCountChange, attempt + 1).catch(() =>
+        scheduleRetry(officerId, onCountChange, attempt + 1),
+      );
     }, delay),
   );
 }

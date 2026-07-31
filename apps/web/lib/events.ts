@@ -10,6 +10,7 @@ import type { ValidationError } from "./registration";
 import { hasCapability, type Role } from "./roles";
 
 export class EventLifecycleError extends Error {}
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export const EVENT_TYPES = ["whole_day", "half_day"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
@@ -62,8 +63,8 @@ export function validateEventInput(
   return errors;
 }
 
-// Same rules as creation — an Event can be edited freely up until it's
-// removed from the open Semester, so there's nothing update-specific to check.
+// Field validation is shared with creation; lifecycle state is enforced by
+// updateEvent in the same transaction as the write.
 export function validateEventUpdate(
   input: EventInput,
   semesterRange: SemesterRange,
@@ -106,9 +107,12 @@ export async function createEvent(actor: { role: Role }, input: EventInput) {
   }
 
   return db.transaction(async (transaction) => {
-    const openSemester = await transaction.query.semesters.findFirst({
-      where: isNull(semesters.closedAt),
-    });
+    const [openSemester] = await transaction
+      .select()
+      .from(semesters)
+      .where(isNull(semesters.closedAt))
+      .limit(1)
+      .for("update");
     if (!openSemester) {
       throw new EventLifecycleError(
         "No open Semester — ask the Governor to open one",
@@ -126,6 +130,20 @@ export async function createEvent(actor: { role: Role }, input: EventInput) {
   });
 }
 
+async function hasAttendanceActivity(
+  transaction: Transaction,
+  eventId: string,
+): Promise<boolean> {
+  return Boolean(
+    (await transaction.query.scans.findFirst({
+      where: eq(scans.eventId, eventId),
+    })) ??
+      (await transaction.query.attendanceSessions.findFirst({
+        where: eq(attendanceSessions.eventId, eventId),
+      })),
+  );
+}
+
 export async function updateEvent(
   actor: { role: Role },
   id: string,
@@ -136,13 +154,19 @@ export async function updateEvent(
   }
 
   return db.transaction(async (transaction) => {
-    const existing = await transaction.query.events.findFirst({
-      where: eq(events.id, id),
-    });
+    const [existing] = await transaction
+      .select()
+      .from(events)
+      .where(eq(events.id, id))
+      .limit(1)
+      .for("update");
     if (!existing) throw new EventLifecycleError("Event not found");
-    const semester = await transaction.query.semesters.findFirst({
-      where: eq(semesters.id, existing.semesterId),
-    });
+    const [semester] = await transaction
+      .select()
+      .from(semesters)
+      .where(eq(semesters.id, existing.semesterId))
+      .limit(1)
+      .for("update");
     if (!semester) throw new EventLifecycleError("Semester not found");
     if (semester.closedAt) {
       throw new EventLifecycleError(
@@ -153,15 +177,8 @@ export async function updateEvent(
     const errors = validateEventUpdate(input, semester);
     if (errors[0]) throw new EventLifecycleError(errors[0].message);
 
-    const activity =
-      (await transaction.query.scans.findFirst({
-        where: eq(scans.eventId, id),
-      })) ??
-      (await transaction.query.attendanceSessions.findFirst({
-        where: eq(attendanceSessions.eventId, id),
-      }));
     if (
-      activity &&
+      (await hasAttendanceActivity(transaction, id)) &&
       (input.date !== existing.date ||
         input.type !== existing.type ||
         input.halfDayPenaltyAmount !== existing.halfDayPenaltyAmount)
@@ -189,26 +206,25 @@ export async function deleteEvent(
   }
 
   await db.transaction(async (transaction) => {
-    const existing = await transaction.query.events.findFirst({
-      where: eq(events.id, id),
-    });
+    const [existing] = await transaction
+      .select()
+      .from(events)
+      .where(eq(events.id, id))
+      .limit(1)
+      .for("update");
     if (!existing) throw new EventLifecycleError("Event not found");
-    const semester = await transaction.query.semesters.findFirst({
-      where: eq(semesters.id, existing.semesterId),
-    });
+    const [semester] = await transaction
+      .select()
+      .from(semesters)
+      .where(eq(semesters.id, existing.semesterId))
+      .limit(1)
+      .for("update");
     if (semester?.closedAt) {
       throw new EventLifecycleError(
         "Closed Semester Events cannot be deleted",
       );
     }
-    const activity =
-      (await transaction.query.scans.findFirst({
-        where: eq(scans.eventId, id),
-      })) ??
-      (await transaction.query.attendanceSessions.findFirst({
-        where: eq(attendanceSessions.eventId, id),
-      }));
-    if (activity) {
+    if (await hasAttendanceActivity(transaction, id)) {
       throw new EventLifecycleError(
         "Events with attendance history cannot be deleted",
       );

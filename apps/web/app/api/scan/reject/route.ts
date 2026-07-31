@@ -31,12 +31,10 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     if (error instanceof ScanApprovalError) {
-      const status = error.message.includes("conflicts")
-        ? 409
-        : error.message === "Event not found"
-          ? 404
-          : 400;
-      return NextResponse.json({ error: error.message }, { status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
     throw error;
   }

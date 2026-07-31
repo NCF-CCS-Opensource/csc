@@ -133,7 +133,6 @@ export default function App() {
         await apiFetch("/api/me");
         await claimLegacyScans(userId);
         await refreshQueue(userId);
-        flushQueue(userId, () => refreshQueue(userId)).catch(() => {});
         await AsyncStorage.setItem(MOBILE_ADMISSION_OWNER_KEY, userId).catch(
           () => {},
         );
