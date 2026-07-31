@@ -1,13 +1,18 @@
 import { events } from "@attendance/db";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { requireOfficerFromRequest } from "@/lib/api-auth";
+import { authorizeRequest } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { findOpenSemester, parseEventInput, validateEventUpdate } from "@/lib/events";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const officer = await requireOfficerFromRequest(request);
-  if (!officer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authorization = await authorizeRequest(request, "manage_operations");
+  if (!authorization.ok) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
 
   const { id } = await params;
   const existing = await db.query.events.findFirst({
@@ -46,8 +51,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const officer = await requireOfficerFromRequest(request);
-  if (!officer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authorization = await authorizeRequest(request, "manage_operations");
+  if (!authorization.ok) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
 
   const { id } = await params;
   const existing = await db.query.events.findFirst({

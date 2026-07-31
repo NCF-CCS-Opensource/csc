@@ -5,7 +5,8 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "test:integration": "pnpm --filter @attendance/db test:integration"
   },
   "devDependencies": {
     "turbo": "^2.3.0",

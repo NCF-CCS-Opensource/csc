@@ -2,6 +2,7 @@ import { students } from "@attendance/db";
 import { createClient } from "@supabase/supabase-js";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
+import { hasCapability, type Capability } from "./roles";
 
 // Mobile (apps/mobile) has no cookies to send — it authenticates API routes
 // with an `Authorization: Bearer <access_token>` header instead.
@@ -29,10 +30,28 @@ export async function getStudentFromRequest(request: Request) {
   );
 }
 
-export async function requireOfficerFromRequest(request: Request) {
-  const student = await getStudentFromRequest(request);
-  if (!student || (student.role !== "officer" && student.role !== "governor")) {
-    return null;
+export async function authorizeRequest(
+  request: Request,
+  capability: Capability,
+) {
+  const user = await getUserFromBearer(request);
+  if (!user) {
+    return { ok: false as const, status: 401 as const, error: "Authentication required" };
   }
-  return student;
+
+  const actor = await db.query.students.findFirst({
+    where: eq(students.authUserId, user.id),
+  });
+  if (!actor || !hasCapability(actor.role, capability)) {
+    return {
+      ok: false as const,
+      status: 403 as const,
+      error:
+        capability === "use_mobile_booth"
+          ? "Mobile booth access requires an Officer or Governor account"
+          : "Forbidden",
+    };
+  }
+
+  return { ok: true as const, actor };
 }

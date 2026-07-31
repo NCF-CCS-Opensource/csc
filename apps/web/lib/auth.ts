@@ -3,6 +3,11 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { db } from "./db";
+import {
+  dashboardDestination,
+  hasCapability,
+  type Capability,
+} from "./roles";
 import { createClient } from "./supabase/server";
 
 export const getCurrentStudent = cache(async () => {
@@ -23,16 +28,19 @@ export type Identity = Pick<
   "name" | "email" | "role"
 >;
 
-export async function requireGovernor() {
+export async function requireCapability(capability: Capability) {
   const student = await getCurrentStudent();
-  if (!student || student.role !== "governor") redirect("/");
+  if (!student) redirect("/login");
+  if (!hasCapability(student.role, capability)) {
+    redirect(dashboardDestination(student.role));
+  }
   return student;
 }
 
+export async function requireGovernor() {
+  return requireCapability("administer");
+}
+
 export async function requireOfficerOrGovernor() {
-  const student = await getCurrentStudent();
-  if (!student || (student.role !== "officer" && student.role !== "governor")) {
-    redirect("/");
-  }
-  return student;
+  return requireCapability("manage_operations");
 }

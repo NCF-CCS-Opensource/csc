@@ -1,13 +1,19 @@
 import { events, scans, students } from "@attendance/db";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { requireOfficerFromRequest } from "@/lib/api-auth";
+import { authorizeRequest } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { decodeQrPayload } from "@/lib/scan";
 
 export async function POST(request: Request) {
-  const officer = await requireOfficerFromRequest(request);
-  if (!officer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authorization = await authorizeRequest(request, "manage_operations");
+  if (!authorization.ok) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
+  const officer = authorization.actor;
 
   const body = (await request.json()) as {
     scanId?: string;
