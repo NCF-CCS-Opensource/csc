@@ -21,6 +21,7 @@ function LogoMark({ styles }: { styles: Styles }) {
       <View style={[styles.corner, styles.cornerTR]} />
       <View style={[styles.corner, styles.cornerBL]} />
       <View style={[styles.corner, styles.cornerBR]} />
+      <View style={styles.centerLine} />
     </View>
   );
 }
@@ -44,8 +45,6 @@ export function LoginScreen() {
     });
     setPending(false);
     if (error) setError(error.message);
-    // On success the client's session updates; App.tsx's auth listener
-    // swaps this screen out automatically.
   }
 
   return (
@@ -58,8 +57,8 @@ export function LoginScreen() {
         <View style={styles.form}>
           <TextInput
             style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={colors.textFaint}
+            placeholder="GBOX"
+            placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
@@ -68,7 +67,7 @@ export function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor={colors.textFaint}
+            placeholderTextColor={colors.textMuted}
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -107,47 +106,55 @@ function makeStyles(c: ThemeColors) {
     container: {
       flex: 1,
       backgroundColor: c.background,
-      padding: 24,
+      paddingHorizontal: 28,
+      paddingVertical: 24,
       justifyContent: "space-between",
     },
-    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 4 },
+    center: { flex: 1, alignItems: "center", justifyContent: "center" },
     logo: {
-      width: 72,
-      height: 72,
-      borderRadius: 20,
+      width: 76,
+      height: 76,
+      borderRadius: 22,
       backgroundColor: c.primary,
-      marginBottom: 16,
+      marginBottom: 20,
       alignItems: "center",
       justifyContent: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 10,
+      elevation: 4,
     },
-    corner: { position: "absolute", width: 12, height: 12, borderColor: c.primaryText },
-    cornerTL: { top: 20, left: 20, borderTopWidth: 2, borderLeftWidth: 2 },
-    cornerTR: { top: 20, right: 20, borderTopWidth: 2, borderRightWidth: 2 },
-    cornerBL: { bottom: 20, left: 20, borderBottomWidth: 2, borderLeftWidth: 2 },
-    cornerBR: { bottom: 20, right: 20, borderBottomWidth: 2, borderRightWidth: 2 },
-    title: { fontSize: 22, fontWeight: "700", marginTop: 4, color: c.text },
-    tagline: { fontSize: 13, color: c.textMuted, marginBottom: 28 },
-    form: { width: "100%", gap: 12 },
-    error: { fontSize: 13, color: c.danger },
+    corner: { position: "absolute", width: 14, height: 14, borderColor: c.primaryText },
+    cornerTL: { top: 21, left: 21, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 4 },
+    cornerTR: { top: 21, right: 21, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 4 },
+    cornerBL: { bottom: 21, left: 21, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 4 },
+    cornerBR: { bottom: 21, right: 21, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 4 },
+    centerLine: { width: 30, height: 2.5, backgroundColor: c.primaryText, borderRadius: 1.5 },
+    title: { fontSize: 24, fontWeight: "700", marginTop: 4, color: c.text, letterSpacing: -0.3 },
+    tagline: { fontSize: 13, color: c.textMuted, marginTop: 4, marginBottom: 32 },
+    form: { width: "100%", gap: 14 },
+    error: { fontSize: 13, color: c.danger, textAlign: "center" },
     input: {
       width: "100%",
       backgroundColor: c.inputBackground,
-      borderRadius: 8,
-      padding: 14,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
       fontSize: 15,
       color: c.text,
     },
-    forgotLink: { alignItems: "flex-end" },
+    forgotLink: { alignItems: "flex-end", marginTop: 2, marginBottom: 6 },
     forgotText: { fontSize: 13, color: c.textMuted },
     button: {
       backgroundColor: c.primary,
-      borderRadius: 8,
-      paddingVertical: 14,
+      borderRadius: 12,
+      paddingVertical: 15,
       alignItems: "center",
       width: "100%",
-      marginTop: 4,
+      marginTop: 6,
     },
     buttonText: { color: c.primaryText, fontWeight: "600", fontSize: 15 },
-    version: { textAlign: "center", fontSize: 12, color: c.textDisabled, paddingBottom: 8 },
+    version: { textAlign: "center", fontSize: 13, color: c.textFaint, paddingBottom: 8 },
   });
 }

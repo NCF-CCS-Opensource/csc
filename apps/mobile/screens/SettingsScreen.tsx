@@ -37,6 +37,8 @@ const THEME_LABEL: Record<ThemePreference, string> = {
 };
 
 function SettingsRow({
+  icon,
+  iconBg,
   label,
   value,
   onPress,
@@ -44,6 +46,8 @@ function SettingsRow({
   destructive,
   styles,
 }: {
+  icon: string;
+  iconBg: string;
   label: string;
   value?: string;
   onPress?: () => void;
@@ -53,9 +57,14 @@ function SettingsRow({
 }) {
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} disabled={disabled || !onPress}>
-      <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive, disabled && styles.rowLabelDisabled]}>
-        {label}
-      </Text>
+      <View style={styles.rowLeft}>
+        <View style={[styles.iconBadge, { backgroundColor: iconBg }]}>
+          <Text style={styles.iconBadgeText}>{icon}</Text>
+        </View>
+        <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive, disabled && styles.rowLabelDisabled]}>
+          {label}
+        </Text>
+      </View>
       {value ? (
         <Text style={styles.rowValue}>{value}</Text>
       ) : (
@@ -192,7 +201,7 @@ export function SettingsScreen({
         ) : (
           <View style={styles.avatar} />
         )}
-        <View>
+        <View style={styles.profileMeta}>
           <Text style={styles.profileName}>{me?.name ?? "—"}</Text>
           <Text style={styles.profileEmail}>{me?.email ?? ""}</Text>
         </View>
@@ -200,13 +209,33 @@ export function SettingsScreen({
 
       <Text style={styles.sectionLabel}>GENERAL</Text>
       <View style={styles.section}>
-        <SettingsRow label="Change theme" value={THEME_LABEL[preference]} onPress={cycleTheme} styles={styles} />
+        <SettingsRow
+          icon="🎨"
+          iconBg={colors.iconPurpleBg}
+          label="Change theme"
+          value={THEME_LABEL[preference]}
+          onPress={cycleTheme}
+          styles={styles}
+        />
       </View>
 
       <Text style={styles.sectionLabel}>ACCOUNT</Text>
       <View style={styles.section}>
-        <SettingsRow label="Change password" onPress={() => setPasswordModalOpen(true)} styles={styles} />
-        <SettingsRow label="Log out" destructive onPress={logout} styles={styles} />
+        <SettingsRow
+          icon="🔒"
+          iconBg={colors.iconGrayBg}
+          label="Change password"
+          onPress={() => setPasswordModalOpen(true)}
+          styles={styles}
+        />
+        <SettingsRow
+          icon="🚪"
+          iconBg={colors.iconPinkBg}
+          label="Log out"
+          destructive
+          onPress={logout}
+          styles={styles}
+        />
       </View>
 
       <Text style={styles.version}>AttendKita v1.0.0</Text>
@@ -217,6 +246,7 @@ export function SettingsScreen({
         colors={colors}
         styles={styles}
       />
+
     </ScrollView>
   );
 }
@@ -262,9 +292,9 @@ function ChangePasswordModal({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>Change password</Text>
 
@@ -286,7 +316,7 @@ function ChangePasswordModal({
               <TextInput
                 style={styles.input}
                 placeholder="New password"
-                placeholderTextColor={colors.textFaint}
+                placeholderTextColor={colors.textMuted}
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
@@ -294,7 +324,7 @@ function ChangePasswordModal({
               <TextInput
                 style={styles.input}
                 placeholder="Confirm password"
-                placeholderTextColor={colors.textFaint}
+                placeholderTextColor={colors.textMuted}
                 secureTextEntry
                 value={confirm}
                 onChangeText={setConfirm}
@@ -324,60 +354,72 @@ function ChangePasswordModal({
               </View>
             </>
           )}
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 }
 
+
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.background },
-    content: { padding: 20, gap: 8 },
-    title: { fontSize: 24, fontWeight: "700", marginBottom: 12, color: c.text },
+    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
+    title: { fontSize: 26, fontWeight: "700", marginBottom: 16, color: c.text, letterSpacing: -0.5 },
     profileRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
+      gap: 14,
+      backgroundColor: c.card,
       borderWidth: 1,
       borderColor: c.border,
-      borderRadius: 12,
-      padding: 14,
-      marginBottom: 20,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
     },
-    avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-    avatarText: { color: "#fff", fontWeight: "700" },
-    profileName: { fontSize: 15, fontWeight: "600", color: c.text },
-    profileEmail: { fontSize: 12, color: c.textMuted },
-    sectionLabel: { fontSize: 11, color: c.textFaint, fontWeight: "600", marginTop: 12, marginBottom: 6 },
-    section: { borderWidth: 1, borderColor: c.border, borderRadius: 12, overflow: "hidden" },
+    avatar: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+    avatarText: { color: "#ffffff", fontWeight: "700", fontSize: 16 },
+    profileMeta: { flex: 1 },
+    profileName: { fontSize: 16, fontWeight: "700", color: c.text },
+    profileEmail: { fontSize: 13, color: c.textMuted, marginTop: 2 },
+    sectionLabel: { fontSize: 12, color: c.textMuted, fontWeight: "600", marginTop: 18, marginBottom: 8, letterSpacing: 0.5 },
+    section: { borderWidth: 1, borderColor: c.border, borderRadius: 16, overflow: "hidden", backgroundColor: c.card },
     row: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: 14,
-      paddingVertical: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: c.borderSubtle,
       backgroundColor: c.card,
     },
-    rowLabel: { fontSize: 14, color: c.text },
+    rowLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+    iconBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    iconBadgeText: { fontSize: 16 },
+    rowLabel: { fontSize: 15, color: c.text, fontWeight: "500" },
     rowLabelDisabled: { color: c.textDisabled },
-    rowLabelDestructive: { color: c.danger },
-    rowChevron: { color: c.chevron, fontSize: 16 },
-    rowValue: { fontSize: 13, color: c.textFaint },
-    version: { textAlign: "center", fontSize: 12, color: c.textDisabled, marginTop: 24 },
+    rowLabelDestructive: { color: c.danger, fontWeight: "500" },
+    rowChevron: { color: c.chevron, fontSize: 18 },
+    rowValue: { fontSize: 14, color: c.textMuted },
+    version: { textAlign: "center", fontSize: 13, color: c.textFaint, marginTop: 32, marginBottom: 12 },
     modalBackdrop: { flex: 1, backgroundColor: c.backdrop, justifyContent: "flex-end" },
-    modalCard: { backgroundColor: c.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, gap: 10 },
+    modalCard: { backgroundColor: c.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 12 },
     modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.handle, alignSelf: "center", marginBottom: 4 },
-    modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 4, color: c.text },
-    input: { backgroundColor: c.inputBackground, borderRadius: 8, padding: 12, fontSize: 14, color: c.text },
+    modalTitle: { fontSize: 20, fontWeight: "700", marginBottom: 4, color: c.text },
+    input: { backgroundColor: c.inputBackground, borderRadius: 12, padding: 14, fontSize: 15, color: c.text },
     error: { fontSize: 13, color: c.danger },
     successText: { fontSize: 14, color: c.success },
-    modalActions: { flexDirection: "row", gap: 12, marginTop: 8 },
-    button: { flex: 1, borderRadius: 8, paddingVertical: 12, alignItems: "center", backgroundColor: c.primary },
+    modalActions: { flexDirection: "row", gap: 12, marginTop: 8, width: "100%" },
+    button: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: "center", backgroundColor: c.primary },
     buttonText: { color: c.primaryText, fontWeight: "600" },
-    cancelButton: { backgroundColor: c.cancelBackground },
+    cancelButton: { backgroundColor: c.cancelBackground, borderWidth: 1, borderColor: c.border },
     cancelButtonText: { fontWeight: "600", color: c.cancelText },
   });
 }
