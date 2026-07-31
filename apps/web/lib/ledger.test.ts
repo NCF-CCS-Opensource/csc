@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   computeEventGrid,
   computeLedger,
+  currentCampusDate,
   type EventGridInput,
   missingHalves,
   owedHalves,
   type LedgerInput,
 } from "./ledger";
+
+it("derives the Asia/Manila calendar date across the UTC boundary", () => {
+  expect(currentCampusDate(new Date("2024-03-09T16:00:00Z"))).toBe("2024-03-10");
+});
 
 describe("owedHalves", () => {
   const none = new Set<"am" | "pm">();
@@ -64,6 +69,7 @@ function base(): LedgerInput {
   // Far-future Semester end so no Student is excluded by default; tests that
   // exercise the boundary set their own semesterEndDate.
   return {
+    campusDate: "2099-01-01",
     semesterEndDate: "2099-12-31",
     events: [],
     students: [],
@@ -101,7 +107,9 @@ describe("computeLedger", () => {
     expect(standing.total).toBe(100); // both halves at 50
     expect(standing.outstanding).toBe(100);
     expect(standing.sessions.map((s) => s.half)).toEqual(["am", "pm"]);
-    expect(standing.sessions.every((s) => s.absent && s.amount === 50)).toBe(true);
+    expect(standing.sessions.every((s) => s.status === "absent" && s.amount === 50)).toBe(
+      true,
+    );
 
     const stats = ledger.events[0];
     expect(stats).toMatchObject({ present: 0, absent: 2, rate: 0 });
@@ -334,6 +342,152 @@ describe("computeLedger", () => {
     const ledger = computeLedger(input);
     expect(ledger.events[0]).toMatchObject({ present: 1, absent: 1, rate: 50 });
     expect(ledger.students.get("s1")!.total).toBe(50);
+  });
+
+  it("excludes an upcoming Event from counts, rates, and Student standing", () => {
+    const input = base();
+    input.campusDate = "2024-03-09";
+    input.events.push({
+      id: "future",
+      name: "Tomorrow",
+      date: "2024-03-10",
+      type: "whole_day",
+      halfDayPenaltyAmount: "50.00",
+    });
+    input.students.push({ id: "s1", createdAt: EARLY });
+
+    const ledger = computeLedger(input);
+
+    expect(ledger.students.get("s1")).toEqual({ total: 0, outstanding: 0, sessions: [] });
+    expect(ledger.events[0]).toMatchObject({
+      eventId: "future",
+      status: "upcoming",
+      present: 0,
+      incomplete: 0,
+      absent: 0,
+      rate: 0,
+      sessions: [],
+    });
+    expect(ledger.totals).toMatchObject({ present: 0, absent: 0, rate: 0 });
+  });
+
+  it("reports unfinished whole-day sessions as Incomplete today and Absent afterward", () => {
+    const input = base();
+    input.campusDate = "2024-03-10";
+    input.events.push({
+      id: "today",
+      name: "Foundation Day",
+      date: "2024-03-10",
+      type: "whole_day",
+      halfDayPenaltyAmount: "50.00",
+    });
+    input.students.push({ id: "s1", createdAt: EARLY });
+    input.sessions.push(present("am1", "today", "s1", "am"));
+
+    const today = computeLedger(input).events[0];
+    expect(today).toMatchObject({
+      status: "today",
+      present: 1,
+      incomplete: 1,
+      absent: 0,
+      rate: 100,
+      sessions: [
+        { label: "AM", present: 1, incomplete: 0, absent: 0 },
+        { label: "PM", present: 0, incomplete: 1, absent: 0 },
+      ],
+    });
+
+    input.campusDate = "2024-03-11";
+    const past = computeLedger(input).events[0];
+    expect(past).toMatchObject({
+      status: "past",
+      present: 1,
+      incomplete: 0,
+      absent: 1,
+      rate: 50,
+      sessions: [
+        { label: "AM", present: 1, incomplete: 0, absent: 0 },
+        { label: "PM", present: 0, incomplete: 0, absent: 1 },
+      ],
+    });
+  });
+
+  it("reports one neutral Session for a half-day Event completed through PM", () => {
+    const input = base();
+    input.campusDate = "2024-03-11";
+    input.events.push({
+      id: "half",
+      name: "Workshop",
+      date: "2024-03-10",
+      type: "half_day",
+      halfDayPenaltyAmount: "40.00",
+    });
+    input.students.push({ id: "s1", createdAt: EARLY });
+    input.sessions.push(present("pm1", "half", "s1", "pm"));
+
+    expect(computeLedger(input).events[0]).toMatchObject({
+      present: 1,
+      absent: 0,
+      sessions: [{ label: "Session", present: 1, incomplete: 0, absent: 0 }],
+    });
+  });
+
+  it("orders Today first, upcoming nearest-first, and past newest-first", () => {
+    const input = base();
+    input.campusDate = "2024-03-10";
+    input.events.push(
+      {
+        id: "old",
+        name: "Old",
+        date: "2024-03-01",
+        type: "half_day",
+        halfDayPenaltyAmount: "10.00",
+      },
+      {
+        id: "far",
+        name: "Far",
+        date: "2024-03-20",
+        type: "half_day",
+        halfDayPenaltyAmount: "10.00",
+      },
+      {
+        id: "today-b",
+        name: "Today B",
+        date: "2024-03-10",
+        type: "half_day",
+        halfDayPenaltyAmount: "10.00",
+      },
+      {
+        id: "today-a",
+        name: "Today A",
+        date: "2024-03-10",
+        type: "half_day",
+        halfDayPenaltyAmount: "10.00",
+      },
+      {
+        id: "recent",
+        name: "Recent",
+        date: "2024-03-09",
+        type: "half_day",
+        halfDayPenaltyAmount: "10.00",
+      },
+      {
+        id: "near",
+        name: "Near",
+        date: "2024-03-11",
+        type: "half_day",
+        halfDayPenaltyAmount: "10.00",
+      },
+    );
+
+    expect(computeLedger(input).events.map((event) => event.eventId)).toEqual([
+      "today-a",
+      "today-b",
+      "near",
+      "far",
+      "recent",
+      "old",
+    ]);
   });
 });
 

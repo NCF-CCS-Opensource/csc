@@ -1,6 +1,13 @@
 "use client";
 
-import { BarChart3, CalendarCheck, LayoutDashboard, LogOut, ScanLine, ShieldCheck } from "lucide-react";
+import {
+  CalendarCheck,
+  ClipboardCheck,
+  LayoutDashboard,
+  LogOut,
+  ScanLine,
+  ShieldCheck,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -17,7 +24,11 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
-import type { Role } from "@/lib/roles";
+import {
+  ROLE_DESTINATIONS,
+  type AppDestination,
+  type Role,
+} from "@/lib/roles";
 
 type Identity = { name: string; email: string; role: Role };
 
@@ -35,23 +46,20 @@ type NavItem = {
   icon: typeof LayoutDashboard;
 };
 
-const STUDENT_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-];
-
-const OFFICER_NAV: NavItem[] = [
-  { href: "/events", label: "My Events", icon: CalendarCheck },
-  { href: "/clearance", label: "Clearance", icon: ShieldCheck },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-];
-
-const GOVERNOR_NAV: NavItem[] = [{ href: "/admin", label: "Admin", icon: ShieldCheck }];
+const NAV_ITEMS: Record<AppDestination, NavItem> = {
+  "/dashboard": { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  "/events": { href: "/events", label: "Events", icon: CalendarCheck },
+  "/my-attendance": {
+    href: "/my-attendance",
+    label: "My Attendance",
+    icon: ClipboardCheck,
+  },
+  "/clearance": { href: "/clearance", label: "Clearance", icon: ShieldCheck },
+  "/admin": { href: "/admin", label: "Administration", icon: ShieldCheck },
+};
 
 function navForRole(role: Role | null): NavItem[] {
-  if (!role) return [];
-  if (role === "governor") return [...STUDENT_NAV, ...OFFICER_NAV, ...GOVERNOR_NAV];
-  if (role === "officer") return [...STUDENT_NAV, ...OFFICER_NAV];
-  return STUDENT_NAV;
+  return role ? ROLE_DESTINATIONS[role].map((href) => NAV_ITEMS[href]) : [];
 }
 
 export function AppSidebar() {
