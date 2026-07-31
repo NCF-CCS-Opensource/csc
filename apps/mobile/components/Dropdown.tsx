@@ -33,24 +33,28 @@ export function Dropdown<T extends string>({
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setOpen(false)}>
-          <View style={styles.sheet}>
+          <TouchableOpacity activeOpacity={1} style={styles.card} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.dialogTitle}>Select {label}</Text>
             <FlatList
               data={options}
               keyExtractor={(o) => o.value}
               ListEmptyComponent={<Text style={styles.empty}>No options</Text>}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={styles.option}
+                  style={[styles.option, item.value === value && styles.optionSelected]}
                   onPress={() => {
                     onChange(item.value);
                     setOpen(false);
                   }}
                 >
-                  <Text style={styles.optionText}>{item.label}</Text>
+                  <Text style={[styles.optionText, item.value === value && styles.optionTextSelected]}>
+                    {item.label}
+                  </Text>
+                  {item.value === value && <Text style={styles.checkMark}>✓</Text>}
                 </TouchableOpacity>
               )}
             />
-          </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -60,28 +64,63 @@ export function Dropdown<T extends string>({
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     container: { flex: 1 },
-    label: { fontSize: 12, color: c.textMuted, marginBottom: 4 },
+    label: { fontSize: 12, color: c.textMuted, marginBottom: 6 },
     trigger: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       backgroundColor: c.inputBackground,
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
     },
-    triggerText: { fontSize: 13, color: c.text, flexShrink: 1 },
+    triggerText: { fontSize: 14, color: c.text, flexShrink: 1, fontWeight: "400" },
     chevron: { fontSize: 14, color: c.textMuted, marginLeft: 6 },
-    backdrop: { flex: 1, backgroundColor: c.backdrop, justifyContent: "flex-end" },
-    sheet: {
-      backgroundColor: c.card,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      maxHeight: "60%",
-      paddingVertical: 8,
+    backdrop: {
+      flex: 1,
+      backgroundColor: c.backdrop,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 24,
     },
-    option: { paddingVertical: 14, paddingHorizontal: 20 },
-    optionText: { fontSize: 15, color: c.text },
+    card: {
+      width: "100%",
+      backgroundColor: c.card,
+      borderRadius: 20,
+      maxHeight: "60%",
+      paddingVertical: 16,
+      paddingHorizontal: 8,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.2,
+      shadowRadius: 16,
+      elevation: 8,
+    },
+    dialogTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: c.text,
+      paddingHorizontal: 16,
+      paddingBottom: 10,
+      marginBottom: 4,
+      borderBottomWidth: 1,
+      borderBottomColor: c.borderSubtle,
+    },
+    option: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      marginVertical: 2,
+    },
+    optionSelected: {
+      backgroundColor: c.inputBackground,
+    },
+    optionText: { fontSize: 15, color: c.text, fontWeight: "500" },
+    optionTextSelected: { fontWeight: "700", color: c.text },
+    checkMark: { fontSize: 15, color: c.text, fontWeight: "700" },
     empty: { padding: 20, color: c.textFaint, textAlign: "center" },
   });
 }

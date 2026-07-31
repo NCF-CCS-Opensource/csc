@@ -33,14 +33,16 @@ type MobileAdmission =
   | undefined;
 
 const TAB_ICONS: Record<string, string> = {
-  Scanner: "▦",
-  Events: "▤",
+  Scanner: "⛶",
+  Events: "📅",
   Settings: "⚙",
 };
 
 function TabIcon({ route, color }: { route: string; color: string }) {
-  return <Text style={{ fontSize: 20, color }}>{TAB_ICONS[route]}</Text>;
+  const icon = TAB_ICONS[route] ?? "•";
+  return <Text style={{ fontSize: 20, color, lineHeight: 22 }}>{icon}</Text>;
 }
+
 
 function AuthenticatedApp({
   pendingCount,
@@ -56,7 +58,19 @@ function AuthenticatedApp({
         headerShown: false,
         tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+          height: 64,
+          paddingBottom: 10,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "500",
+          marginTop: 2,
+        },
         tabBarIcon: ({ color }) => <TabIcon route={route.name} color={color} />,
       })}
     >
@@ -68,6 +82,7 @@ function AuthenticatedApp({
     </Tab.Navigator>
   );
 }
+
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);

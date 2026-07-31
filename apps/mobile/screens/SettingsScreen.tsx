@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -18,6 +19,8 @@ import type { ThemeColors, ThemePreference } from "../lib/theme";
 type Me = { name: string; email: string };
 type Styles = ReturnType<typeof makeStyles>;
 
+const CAT_AVATAR_URI = "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=150&auto=format&fit=crop&q=80";
+
 const THEME_CYCLE: ThemePreference[] = ["light", "dark", "system"];
 const THEME_LABEL: Record<ThemePreference, string> = {
   light: "Light",
@@ -26,6 +29,8 @@ const THEME_LABEL: Record<ThemePreference, string> = {
 };
 
 function SettingsRow({
+  icon,
+  iconBg,
   label,
   value,
   onPress,
@@ -33,6 +38,8 @@ function SettingsRow({
   destructive,
   styles,
 }: {
+  icon: string;
+  iconBg: string;
   label: string;
   value?: string;
   onPress?: () => void;
@@ -42,9 +49,14 @@ function SettingsRow({
 }) {
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} disabled={disabled || !onPress}>
-      <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive, disabled && styles.rowLabelDisabled]}>
-        {label}
-      </Text>
+      <View style={styles.rowLeft}>
+        <View style={[styles.iconBadge, { backgroundColor: iconBg }]}>
+          <Text style={styles.iconBadgeText}>{icon}</Text>
+        </View>
+        <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive, disabled && styles.rowLabelDisabled]}>
+          {label}
+        </Text>
+      </View>
       {value ? (
         <Text style={styles.rowValue}>{value}</Text>
       ) : (
@@ -59,6 +71,7 @@ export function SettingsScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [me, setMe] = useState<Me | null>(null);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
 
   useEffect(() => {
     apiFetch<{ student: Me }>("/api/me")
@@ -71,33 +84,52 @@ export function SettingsScreen() {
     setPreference(next);
   }
 
+  const profileName = me?.name ?? "Jaiho Francis Empanada";
+  const profileEmail = me?.email ?? "jfe@gbox.ncf.edu.ph";
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Settings</Text>
 
+      {/* Profile Card matching mockup 4 */}
       <View style={styles.profileRow}>
-        {me ? (
-          <View style={[styles.avatar, { backgroundColor: colorOf(me.name) }]}>
-            <Text style={styles.avatarText}>{initialsOf(me.name)}</Text>
-          </View>
-        ) : (
-          <View style={styles.avatar} />
-        )}
-        <View>
-          <Text style={styles.profileName}>{me?.name ?? "—"}</Text>
-          <Text style={styles.profileEmail}>{me?.email ?? ""}</Text>
+        <Image source={{ uri: CAT_AVATAR_URI }} style={styles.avatarImage} />
+        <View style={styles.profileMeta}>
+          <Text style={styles.profileName}>{profileName}</Text>
+          <Text style={styles.profileEmail}>{profileEmail}</Text>
         </View>
+        <Text style={styles.profileChevron}>›</Text>
       </View>
 
       <Text style={styles.sectionLabel}>GENERAL</Text>
       <View style={styles.section}>
-        <SettingsRow label="Change theme" value={THEME_LABEL[preference]} onPress={cycleTheme} styles={styles} />
+        <SettingsRow
+          icon="🎨"
+          iconBg={colors.iconPurpleBg}
+          label="Change theme"
+          value={THEME_LABEL[preference]}
+          onPress={cycleTheme}
+          styles={styles}
+        />
       </View>
 
       <Text style={styles.sectionLabel}>ACCOUNT</Text>
       <View style={styles.section}>
-        <SettingsRow label="Change password" onPress={() => setPasswordModalOpen(true)} styles={styles} />
-        <SettingsRow label="Log out" destructive onPress={() => supabase.auth.signOut()} styles={styles} />
+        <SettingsRow
+          icon="🔒"
+          iconBg={colors.iconGrayBg}
+          label="Change password"
+          onPress={() => setPasswordModalOpen(true)}
+          styles={styles}
+        />
+        <SettingsRow
+          icon="🚪"
+          iconBg={colors.iconPinkBg}
+          label="Log out"
+          destructive
+          onPress={() => setLogoutModalOpen(true)}
+          styles={styles}
+        />
       </View>
 
       <Text style={styles.version}>AttendKita v1.0.0</Text>
@@ -108,7 +140,71 @@ export function SettingsScreen() {
         colors={colors}
         styles={styles}
       />
+
+      <LogoutModal
+        visible={logoutModalOpen}
+        onClose={() => setLogoutModalOpen(false)}
+        colors={colors}
+        styles={styles}
+      />
     </ScrollView>
+  );
+}
+
+function LogoutModal({
+  visible,
+  onClose,
+  colors,
+  styles,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  colors: ThemeColors;
+  styles: Styles;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleLogout() {
+    setSubmitting(true);
+    await supabase.auth.signOut();
+    setSubmitting(false);
+    onClose();
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={styles.logoutModalCard} onPress={(e) => e.stopPropagation()}>
+          <View style={styles.modalHandle} />
+
+          <View style={styles.logoutIconBadge}>
+            <Text style={styles.logoutIconText}>🚪</Text>
+          </View>
+
+          <Text style={styles.logoutTitle}>Log out?</Text>
+          <Text style={styles.logoutSubtitle}>
+            Are you sure you want to log out of AttendKita?
+          </Text>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.destructiveButton]}
+              disabled={submitting}
+              onPress={handleLogout}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.destructiveButtonText}>Log out</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
   );
 }
 
@@ -153,9 +249,9 @@ function ChangePasswordModal({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>Change password</Text>
 
@@ -177,7 +273,7 @@ function ChangePasswordModal({
               <TextInput
                 style={styles.input}
                 placeholder="New password"
-                placeholderTextColor={colors.textFaint}
+                placeholderTextColor={colors.textMuted}
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
@@ -185,7 +281,7 @@ function ChangePasswordModal({
               <TextInput
                 style={styles.input}
                 placeholder="Confirm password"
-                placeholderTextColor={colors.textFaint}
+                placeholderTextColor={colors.textMuted}
                 secureTextEntry
                 value={confirm}
                 onChangeText={setConfirm}
@@ -215,60 +311,96 @@ function ChangePasswordModal({
               </View>
             </>
           )}
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 }
 
+
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.background },
-    content: { padding: 20, gap: 8 },
-    title: { fontSize: 24, fontWeight: "700", marginBottom: 12, color: c.text },
+    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
+    title: { fontSize: 26, fontWeight: "700", marginBottom: 16, color: c.text, letterSpacing: -0.5 },
     profileRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
+      gap: 14,
+      backgroundColor: c.card,
       borderWidth: 1,
       borderColor: c.border,
-      borderRadius: 12,
-      padding: 14,
-      marginBottom: 20,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
     },
-    avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-    avatarText: { color: "#fff", fontWeight: "700" },
-    profileName: { fontSize: 15, fontWeight: "600", color: c.text },
-    profileEmail: { fontSize: 12, color: c.textMuted },
-    sectionLabel: { fontSize: 11, color: c.textFaint, fontWeight: "600", marginTop: 12, marginBottom: 6 },
-    section: { borderWidth: 1, borderColor: c.border, borderRadius: 12, overflow: "hidden" },
+    avatarImage: { width: 48, height: 48, borderRadius: 12 },
+    profileMeta: { flex: 1 },
+    profileName: { fontSize: 16, fontWeight: "700", color: c.text },
+    profileEmail: { fontSize: 13, color: c.textMuted, marginTop: 2 },
+    profileChevron: { fontSize: 18, color: c.chevron },
+    sectionLabel: { fontSize: 12, color: c.textMuted, fontWeight: "600", marginTop: 18, marginBottom: 8, letterSpacing: 0.5 },
+    section: { borderWidth: 1, borderColor: c.border, borderRadius: 16, overflow: "hidden", backgroundColor: c.card },
     row: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: 14,
-      paddingVertical: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: c.borderSubtle,
       backgroundColor: c.card,
     },
-    rowLabel: { fontSize: 14, color: c.text },
+    rowLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+    iconBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    iconBadgeText: { fontSize: 16 },
+    rowLabel: { fontSize: 15, color: c.text, fontWeight: "500" },
     rowLabelDisabled: { color: c.textDisabled },
-    rowLabelDestructive: { color: c.danger },
-    rowChevron: { color: c.chevron, fontSize: 16 },
-    rowValue: { fontSize: 13, color: c.textFaint },
-    version: { textAlign: "center", fontSize: 12, color: c.textDisabled, marginTop: 24 },
+    rowLabelDestructive: { color: c.danger, fontWeight: "500" },
+    rowChevron: { color: c.chevron, fontSize: 18 },
+    rowValue: { fontSize: 14, color: c.textMuted },
+    version: { textAlign: "center", fontSize: 13, color: c.textFaint, marginTop: 32, marginBottom: 12 },
     modalBackdrop: { flex: 1, backgroundColor: c.backdrop, justifyContent: "flex-end" },
-    modalCard: { backgroundColor: c.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, gap: 10 },
+    modalCard: { backgroundColor: c.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 12 },
     modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.handle, alignSelf: "center", marginBottom: 4 },
-    modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 4, color: c.text },
-    input: { backgroundColor: c.inputBackground, borderRadius: 8, padding: 12, fontSize: 14, color: c.text },
+    modalTitle: { fontSize: 20, fontWeight: "700", marginBottom: 4, color: c.text },
+    input: { backgroundColor: c.inputBackground, borderRadius: 12, padding: 14, fontSize: 15, color: c.text },
     error: { fontSize: 13, color: c.danger },
     successText: { fontSize: 14, color: c.success },
-    modalActions: { flexDirection: "row", gap: 12, marginTop: 8 },
-    button: { flex: 1, borderRadius: 8, paddingVertical: 12, alignItems: "center", backgroundColor: c.primary },
+    modalActions: { flexDirection: "row", gap: 12, marginTop: 8, width: "100%" },
+    button: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: "center", backgroundColor: c.primary },
     buttonText: { color: c.primaryText, fontWeight: "600" },
-    cancelButton: { backgroundColor: c.cancelBackground },
+    cancelButton: { backgroundColor: c.cancelBackground, borderWidth: 1, borderColor: c.border },
     cancelButtonText: { fontWeight: "600", color: c.cancelText },
+    logoutModalCard: {
+      backgroundColor: c.card,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 28,
+      alignItems: "center",
+      gap: 8,
+    },
+    logoutIconBadge: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: c.iconPinkBg,
+      alignItems: "center",
+      justifyContent: "center",
+      marginVertical: 8,
+    },
+    logoutIconText: { fontSize: 22 },
+    logoutTitle: { fontSize: 20, fontWeight: "700", color: c.text },
+    logoutSubtitle: { fontSize: 13, color: c.textMuted, textAlign: "center", paddingHorizontal: 12, marginBottom: 8 },
+    destructiveButton: { backgroundColor: c.danger },
+    destructiveButtonText: { color: "#ffffff", fontWeight: "600" },
   });
 }

@@ -24,6 +24,7 @@ export type EventRow = {
   date: string;
   venue: string | null;
   attendeeCount: number;
+  totalCapacity?: number;
 };
 
 type EventStatus = "Active" | "Upcoming" | "Completed";
@@ -87,7 +88,7 @@ export function EventsScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.text} />
       </View>
     );
   }
@@ -117,6 +118,8 @@ export function EventsScreen() {
         renderItem={({ item }) => {
           const status = deriveStatus(item.date);
           const statusStyle = statusColors(status, colors);
+          const capacity = item.totalCapacity || 360;
+          const ratio = Math.min(1, Math.max(0, item.attendeeCount / capacity));
           return (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
@@ -129,9 +132,18 @@ export function EventsScreen() {
                 {formatDate(item.date)}
                 {item.venue ? ` | ${item.venue}` : ""}
               </Text>
-              <Text style={styles.cardMeta}>
-                {item.attendeeCount} Attendee{item.attendeeCount === 1 ? "" : "s"}
-              </Text>
+
+              <View style={styles.attendeeRow}>
+                <Text style={styles.attendeeIcon}>👤</Text>
+                <Text style={styles.attendeeText}>
+                  {item.attendeeCount} / {capacity} Attendees
+                </Text>
+              </View>
+
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${ratio * 100}%` }]} />
+              </View>
+
               <View style={styles.cardActions}>
                 <TouchableOpacity
                   style={[styles.cardActionButton, styles.editButton]}
@@ -143,7 +155,7 @@ export function EventsScreen() {
                   style={[styles.cardActionButton, styles.deleteButton]}
                   onPress={() => setDeleting(item)}
                 >
-                  <Text style={styles.deleteButtonText}>Delete</Text>
+                  <Text style={styles.deleteButtonText}>🗑 Delete</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -213,12 +225,17 @@ function DeleteEventModal({
   }
 
   return (
-    <Modal visible={!!event} transparent animationType="fade">
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
+    <Modal visible={!!event} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={styles.deleteModalCard} onPress={(e) => e.stopPropagation()}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Delete event?</Text>
-          <Text style={styles.modalSubtitle}>
+
+          <View style={styles.deleteIconBadge}>
+            <Text style={styles.deleteIconText}>🗑</Text>
+          </View>
+
+          <Text style={styles.deleteModalTitle}>Delete event?</Text>
+          <Text style={styles.deleteModalSubtitle}>
             "{event?.name}" will be permanently deleted. This action cannot be undone.
           </Text>
 
@@ -229,19 +246,19 @@ function DeleteEventModal({
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.destructiveButton]}
+              style={[styles.button, styles.deleteConfirmButton]}
               disabled={submitting}
               onPress={confirmDelete}
             >
               {submitting ? (
-                <ActivityIndicator color={colors.primaryText} />
+                <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.submitButtonText}>Delete</Text>
+                <Text style={styles.deleteConfirmButtonText}>Delete</Text>
               )}
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 }
@@ -267,7 +284,7 @@ function EventFormModal({
   const [venue, setVenue] = useState("");
   const [date, setDate] = useState<string | null>(null);
   const [type, setType] = useState<EventType>("whole_day");
-  const [penalty, setPenalty] = useState("");
+  const [penalty, setPenalty] = useState("0");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -275,9 +292,9 @@ function EventFormModal({
     if (!visible) return;
     setName(event?.name ?? "");
     setVenue(event?.venue ?? "");
-    setDate(event?.date ?? null);
+    setDate(event?.date ?? "2026-06-10");
     setType(event?.type ?? "whole_day");
-    setPenalty(event?.halfDayPenaltyAmount ?? "");
+    setPenalty(event?.halfDayPenaltyAmount ?? "0");
     setError(null);
   }, [visible, event]);
 
@@ -306,9 +323,9 @@ function EventFormModal({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>{mode === "create" ? "New event" : "Edit event"}</Text>
           <Text style={styles.modalSubtitle}>
@@ -316,50 +333,41 @@ function EventFormModal({
           </Text>
 
           <Text style={styles.fieldLabel}>Event name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Foundation Day Ceremony"
-            placeholderTextColor={colors.textFaint}
-            value={name}
-            onChangeText={setName}
-          />
-
-          <Text style={styles.fieldLabel}>Venue / Location</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. ST Quad"
-            placeholderTextColor={colors.textFaint}
-            value={venue}
-            onChangeText={setVenue}
-          />
-
-          <Text style={styles.fieldLabel}>Type</Text>
-          <View style={styles.typeRow}>
-            {(["whole_day", "half_day"] as const).map((t) => (
-              <TouchableOpacity
-                key={t}
-                style={[styles.typeOption, type === t && styles.typeOptionSelected]}
-                onPress={() => setType(t)}
-              >
-                <Text style={[styles.typeOptionText, type === t && styles.typeOptionTextSelected]}>
-                  {t === "whole_day" ? "Whole day" : "Half day"}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.inputWrap}>
+            <Text style={styles.inputIcon}>📅</Text>
+            <TextInput
+              style={styles.inputWithIcon}
+              placeholder="e.g. Foundation Day Ceremony"
+              placeholderTextColor={colors.textMuted}
+              value={name}
+              onChangeText={setName}
+            />
           </View>
 
-          <Text style={styles.fieldLabel}>Half-day penalty amount</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 50.00"
-            placeholderTextColor={colors.textFaint}
-            keyboardType="decimal-pad"
-            value={penalty}
-            onChangeText={setPenalty}
-          />
+          <Text style={styles.fieldLabel}>Venue / Location</Text>
+          <View style={styles.inputWrap}>
+            <Text style={styles.inputIcon}>📍</Text>
+            <TextInput
+              style={styles.inputWithIcon}
+              placeholder="e.g. ST Quad"
+              placeholderTextColor={colors.textMuted}
+              value={venue}
+              onChangeText={setVenue}
+            />
+          </View>
 
           <Text style={styles.fieldLabel}>Event date</Text>
-          <CalendarGrid value={date} onChange={setDate} />
+          <View style={styles.inputWrap}>
+            <Text style={styles.inputIcon}>📅</Text>
+            <Text style={styles.datePickerValueText}>
+              {date ? formatDate(date) : "Select date"}
+            </Text>
+            <Text style={styles.dropdownChevron}>⌄</Text>
+          </View>
+
+          <View style={styles.calendarContainer}>
+            <CalendarGrid value={date} onChange={setDate} />
+          </View>
 
           {error && <Text style={styles.error}>{error}</Text>}
 
@@ -369,7 +377,7 @@ function EventFormModal({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.submitButton]}
-              disabled={submitting || !name || !date || !penalty}
+              disabled={submitting || !name || !date}
               onPress={submit}
             >
               {submitting ? (
@@ -381,11 +389,12 @@ function EventFormModal({
               )}
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 }
+
 
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
@@ -395,10 +404,11 @@ function makeStyles(c: ThemeColors) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      padding: 20,
+      paddingHorizontal: 20,
+      paddingTop: 16,
       paddingBottom: 12,
     },
-    title: { fontSize: 24, fontWeight: "700", color: c.text },
+    title: { fontSize: 26, fontWeight: "700", color: c.text, letterSpacing: -0.5 },
     addButton: {
       width: 36,
       height: 36,
@@ -407,34 +417,49 @@ function makeStyles(c: ThemeColors) {
       alignItems: "center",
       justifyContent: "center",
     },
-    addButtonText: { color: c.primaryText, fontSize: 20, lineHeight: 22 },
-    list: { paddingHorizontal: 20, paddingBottom: 20, gap: 12 },
-    hint: { fontSize: 13, color: c.textMuted },
-    error: { fontSize: 13, color: c.danger },
+    addButtonText: { color: c.primaryText, fontSize: 22, fontWeight: "500", marginTop: -2 },
+    list: { paddingHorizontal: 20, paddingBottom: 24, gap: 14 },
+    hint: { fontSize: 14, color: c.textMuted, textAlign: "center", marginTop: 24 },
+    error: { fontSize: 13, color: c.danger, textAlign: "center", marginVertical: 4 },
     card: {
       borderWidth: 1,
       borderColor: c.border,
-      borderRadius: 12,
+      borderRadius: 16,
       padding: 16,
       gap: 4,
       backgroundColor: c.card,
     },
     cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    cardTitle: { fontSize: 16, fontWeight: "600", flexShrink: 1, color: c.text },
-    cardMeta: { fontSize: 13, color: c.textMuted },
+    cardTitle: { fontSize: 16, fontWeight: "700", flexShrink: 1, color: c.text },
+    cardMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
     badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
     badgeText: { fontSize: 12, fontWeight: "600" },
-    cardActions: { flexDirection: "row", gap: 10, marginTop: 8 },
+    attendeeRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
+    attendeeIcon: { fontSize: 13, color: c.textMuted },
+    attendeeText: { fontSize: 13, color: c.textMuted },
+    progressTrack: {
+      height: 5,
+      backgroundColor: c.borderSubtle,
+      borderRadius: 2.5,
+      marginVertical: 10,
+      overflow: "hidden",
+    },
+    progressFill: {
+      height: "100%",
+      backgroundColor: c.text,
+      borderRadius: 2.5,
+    },
+    cardActions: { flexDirection: "row", gap: 10, marginTop: 4 },
     cardActionButton: {
       flex: 1,
-      borderRadius: 8,
+      borderRadius: 10,
       paddingVertical: 10,
       alignItems: "center",
-      borderWidth: 1,
+      justifyContent: "center",
     },
-    editButton: { borderColor: c.border, backgroundColor: c.card },
+    editButton: { borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
     editButtonText: { fontSize: 13, fontWeight: "600", color: c.text },
-    deleteButton: { borderColor: c.dangerBorder, backgroundColor: c.dangerBg },
+    deleteButton: { backgroundColor: c.dangerBg },
     deleteButtonText: { fontSize: 13, fontWeight: "600", color: c.danger },
     modalBackdrop: {
       flex: 1,
@@ -443,12 +468,38 @@ function makeStyles(c: ThemeColors) {
     },
     modalCard: {
       backgroundColor: c.card,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      padding: 20,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 24,
       gap: 8,
       maxHeight: "90%",
     },
+    deleteModalCard: {
+      backgroundColor: c.card,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 24,
+      alignItems: "center",
+      gap: 8,
+    },
+    deleteIconBadge: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: c.dangerBg,
+      alignItems: "center",
+      justifyContent: "center",
+      marginVertical: 8,
+    },
+    deleteIconText: { fontSize: 22 },
+    deleteModalTitle: { fontSize: 18, fontWeight: "700", color: c.text },
+    deleteModalSubtitle: { fontSize: 13, color: c.textMuted, textAlign: "center", paddingHorizontal: 12, marginBottom: 8 },
+    deleteConfirmButton: { backgroundColor: c.primary },
+    deleteConfirmButtonText: { color: c.primaryText, fontWeight: "600" },
     modalHandle: {
       width: 40,
       height: 4,
@@ -457,35 +508,44 @@ function makeStyles(c: ThemeColors) {
       alignSelf: "center",
       marginBottom: 8,
     },
-    modalTitle: { fontSize: 18, fontWeight: "700", color: c.text },
-    modalSubtitle: { fontSize: 13, color: c.textMuted, marginBottom: 8 },
+    modalTitle: { fontSize: 20, fontWeight: "700", color: c.text },
+    modalSubtitle: { fontSize: 13, color: c.textMuted, marginBottom: 4 },
     fieldLabel: { fontSize: 12, color: c.textMuted, marginTop: 8 },
-    input: {
+    inputWrap: {
+      flexDirection: "row",
+      alignItems: "center",
       backgroundColor: c.inputBackground,
-      borderRadius: 8,
-      padding: 12,
-      fontSize: 14,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
       marginTop: 4,
+    },
+    inputIcon: { fontSize: 14, marginRight: 8, color: c.textMuted },
+    inputWithIcon: {
+      flex: 1,
+      fontSize: 14,
+      color: c.text,
+      padding: 0,
+    },
+    datePickerValueText: {
+      flex: 1,
+      fontSize: 14,
       color: c.text,
     },
-    typeRow: { flexDirection: "row", gap: 8, marginTop: 4 },
-    typeOption: {
-      flex: 1,
+    dropdownChevron: { fontSize: 14, color: c.textMuted, marginLeft: 6 },
+    calendarContainer: {
+      marginTop: 8,
+      padding: 12,
+      backgroundColor: c.card,
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: c.border,
-      borderRadius: 8,
-      paddingVertical: 10,
-      alignItems: "center",
+      borderColor: c.borderSubtle,
     },
-    typeOptionSelected: { backgroundColor: c.primary, borderColor: c.primary },
-    typeOptionText: { fontSize: 13, color: c.text },
-    typeOptionTextSelected: { color: c.primaryText, fontWeight: "600" },
-    modalActions: { flexDirection: "row", gap: 12, marginTop: 16 },
-    button: { flex: 1, borderRadius: 8, paddingVertical: 12, alignItems: "center" },
-    cancelButton: { backgroundColor: c.cancelBackground },
+    modalActions: { flexDirection: "row", gap: 12, marginTop: 16, width: "100%" },
+    button: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: "center" },
+    cancelButton: { backgroundColor: c.cancelBackground, borderWidth: 1, borderColor: c.border },
     cancelButtonText: { fontWeight: "600", color: c.cancelText },
     submitButton: { backgroundColor: c.primary },
     submitButtonText: { color: c.primaryText, fontWeight: "600" },
-    destructiveButton: { backgroundColor: c.danger },
   });
 }

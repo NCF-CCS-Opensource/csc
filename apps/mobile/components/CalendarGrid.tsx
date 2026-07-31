@@ -54,13 +54,13 @@ export function CalendarGrid({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={goPrevMonth} hitSlop={8}>
+        <TouchableOpacity onPress={goPrevMonth} hitSlop={12} style={styles.navBtn}>
           <Text style={styles.nav}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.monthLabel}>
           {MONTH_NAMES[viewMonth]} {viewYear}
         </Text>
-        <TouchableOpacity onPress={goNextMonth} hitSlop={8}>
+        <TouchableOpacity onPress={goNextMonth} hitSlop={12} style={styles.navBtn}>
           <Text style={styles.nav}>›</Text>
         </TouchableOpacity>
       </View>
@@ -95,23 +95,24 @@ const CELL_SIZE = `${100 / 7}%` as const;
 
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
-    container: { gap: 8 },
-    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    nav: { fontSize: 20, paddingHorizontal: 8, color: c.text },
-    monthLabel: { fontSize: 14, fontWeight: "600", color: c.text },
-    weekRow: { flexDirection: "row" },
-    weekday: { width: CELL_SIZE, textAlign: "center", fontSize: 12, color: c.textFaint },
+    container: { gap: 10, paddingVertical: 4 },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4 },
+    navBtn: { padding: 4 },
+    nav: { fontSize: 20, fontWeight: "600", color: c.text },
+    monthLabel: { fontSize: 14, fontWeight: "700", color: c.text },
+    weekRow: { flexDirection: "row", marginVertical: 4 },
+    weekday: { width: CELL_SIZE, textAlign: "center", fontSize: 12, fontWeight: "600", color: c.textMuted },
     grid: { flexDirection: "row", flexWrap: "wrap" },
     cell: { width: CELL_SIZE, alignItems: "center", justifyContent: "center", paddingVertical: 4 },
     dayCircle: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
     },
     daySelected: { backgroundColor: c.primary },
-    dayText: { fontSize: 13, color: c.text },
-    dayTextSelected: { color: c.primaryText, fontWeight: "600" },
+    dayText: { fontSize: 13, color: c.text, fontWeight: "400" },
+    dayTextSelected: { color: c.primaryText, fontWeight: "700" },
   });
 }
