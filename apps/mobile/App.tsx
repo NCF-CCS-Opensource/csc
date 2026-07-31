@@ -11,7 +11,7 @@ import { BoothScreen } from "./screens/BoothScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { loadQueue } from "./lib/scanQueue";
+import { blockingScanCount } from "./lib/scanQueue";
 import { supabase } from "./lib/supabase";
 import { flushQueue } from "./lib/syncScans";
 import { ThemeProvider, useTheme } from "./lib/theme-context";
@@ -30,11 +30,15 @@ function TabIcon({ route, color }: { route: string; color: string }) {
 }
 
 function AuthenticatedApp({
+  officerId,
   pendingCount,
-  refreshPendingCount,
+  queueRevision,
+  refreshQueue,
 }: {
+  officerId: string;
   pendingCount: number;
-  refreshPendingCount: () => void;
+  queueRevision: number;
+  refreshQueue: () => void;
 }) {
   const { colors } = useTheme();
   return (
@@ -48,10 +52,19 @@ function AuthenticatedApp({
       })}
     >
       <Tab.Screen name="Scanner">
-        {() => <BoothScreen pendingCount={pendingCount} onScanQueued={refreshPendingCount} />}
+        {() => (
+          <BoothScreen
+            officerId={officerId}
+            pendingCount={pendingCount}
+            queueRevision={queueRevision}
+            onQueueChanged={refreshQueue}
+          />
+        )}
       </Tab.Screen>
       <Tab.Screen name="Events" component={EventsScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Settings">
+        {() => <SettingsScreen officerId={officerId} onQueueChanged={refreshQueue} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }
@@ -59,10 +72,11 @@ function AuthenticatedApp({
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [pendingCount, setPendingCount] = useState(0);
+  const [queueRevision, setQueueRevision] = useState(0);
 
-  const refreshPendingCount = useCallback(async () => {
-    const queue = await loadQueue();
-    setPendingCount(queue.length);
+  const refreshQueue = useCallback(async (officerId: string) => {
+    setPendingCount(await blockingScanCount(officerId));
+    setQueueRevision((revision) => revision + 1);
   }, []);
 
   useEffect(() => {
@@ -74,14 +88,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    refreshPendingCount();
+    const officerId = session?.user.id;
+    if (!officerId) {
+      setPendingCount(0);
+      return;
+    }
+    refreshQueue(officerId);
     const unsubscribe = NetInfo.addEventListener((state) => {
       if (state.isConnected) {
-        flushQueue(setPendingCount).catch(() => {});
+        flushQueue(officerId, () => refreshQueue(officerId)).catch(() => {});
       }
     });
     return () => unsubscribe();
-  }, [refreshPendingCount]);
+  }, [refreshQueue, session?.user.id]);
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -90,7 +109,8 @@ export default function App() {
           <AppShell
             session={session}
             pendingCount={pendingCount}
-            refreshPendingCount={refreshPendingCount}
+            queueRevision={queueRevision}
+            refreshQueue={refreshQueue}
           />
         </ThemeProvider>
       </SafeAreaProvider>
@@ -116,11 +136,13 @@ function navTheme(colors: ThemeColors): Theme {
 function AppShell({
   session,
   pendingCount,
-  refreshPendingCount,
+  queueRevision,
+  refreshQueue,
 }: {
   session: Session | null | undefined;
   pendingCount: number;
-  refreshPendingCount: () => void;
+  queueRevision: number;
+  refreshQueue: (officerId: string) => void;
 }) {
   const { colors } = useTheme();
   return (
@@ -130,8 +152,10 @@ function AppShell({
       ) : (
         <NavigationContainer theme={navTheme(colors)}>
           <AuthenticatedApp
+            officerId={session.user.id}
             pendingCount={pendingCount}
-            refreshPendingCount={refreshPendingCount}
+            queueRevision={queueRevision}
+            refreshQueue={() => refreshQueue(session.user.id)}
           />
         </NavigationContainer>
       )}
