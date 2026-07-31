@@ -55,6 +55,31 @@ EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org
 
 `EXPO_PUBLIC_API_BASE_URL` points to the deployed Next.js module, not Supabase. Expo embeds these values at build time, so any change requires a rebuild.
 
+## Configure Resend for Supabase Auth email
+
+Supabase's built-in sender is for testing: it sends only to authorized team addresses and is currently limited to two auth emails per hour. Production signup confirmations and password resets must use custom SMTP.
+
+1. In [Resend Domains](https://resend.com/domains), add and verify a sending domain. Prefer a subdomain such as `auth.ncfccs.org`, then add the supplied DNS records in Cloudflare.
+2. Create a Resend API key for transactional email.
+3. In Supabase, open **Authentication → Emails → SMTP Settings**, enable custom SMTP, and enter:
+
+   | Setting | Value |
+   | --- | --- |
+   | Sender email | `no-reply@auth.ncfccs.org` |
+   | Sender name | `CCS Attendance` |
+   | Host | `smtp.resend.com` |
+   | Port | `465` |
+   | Username | `resend` |
+   | Password | Resend API key |
+
+4. Save the SMTP settings, then open **Authentication → Rate Limits**. Custom SMTP starts with a conservative Supabase auth-email limit; raise it only to the expected signup/reset volume.
+5. Use the same verified sender for application QR email by setting Vercel's `RESEND_FROM_EMAIL` to `CCS Attendance <no-reply@auth.ncfccs.org>`. `RESEND_API_KEY` remains server-only.
+6. Test a new signup confirmation and a password reset with non-team addresses. Confirm delivery in Resend Logs before opening registration.
+
+Resend's free transactional plan currently includes 3,000 emails per month but also has a 100-email daily limit. Auth and QR emails sent from the same Resend account share those quotas; multiple recipients count separately. Monitor the Resend Usage page and upgrade before either limit becomes operationally insufficient.
+
+References: [Supabase custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp), [Supabase Auth rate limits](https://supabase.com/docs/guides/auth/rate-limits), [Resend SMTP credentials](https://resend.com/docs/send-with-smtp), and [Resend quotas](https://resend.com/docs/knowledge-base/account-quotas-and-limits).
+
 ## Release
 
 ### 1. Validate the release
@@ -137,21 +162,23 @@ The repository has no `eas.json` or checked-in mobile release pipeline. Signing,
 Use disposable test data:
 
 1. Open the public web endpoint and sign in.
-2. Confirm Student navigation cannot open Officer/Governor pages.
-3. Confirm an Officer can load all shared Events on web and mobile.
-4. Create one Event and confirm it appears on both clients.
-5. Approve one test scan on a physical device and confirm it leaves the Offline Scan Queue.
-6. Retry the identical decision and confirm it does not change attendance again.
-7. Reuse its UUID with different content and confirm the server returns conflict without changing attendance.
-8. Force a disposable-test Penalty failure and confirm the Scan, Attendance Session, and Penalty transaction rolls back.
-9. Confirm the Attendance Session and Penalty result on the Event attendance grid.
-10. Try to update protected fields and delete the Event after attendance begins; confirm both are rejected without changing history.
-11. Reject one test scan and confirm it appears in Governor rejection review.
-12. Confirm a permanent queue rejection moves to Needs Review without blocking a later valid decision.
-13. Confirm logout is blocked while pending or Needs Review decisions remain.
-14. Confirm an Officer cannot open `/admin`.
-15. Confirm a Governor can manage the active Semester and Program list and can enter the mobile booth.
-16. Confirm a Student is rejected by mobile before booth tabs render.
+2. Register a disposable non-team email and confirm its signup email arrives through Resend.
+3. Request a password reset and confirm it also arrives through Resend.
+4. Confirm Student navigation cannot open Officer/Governor pages.
+5. Confirm an Officer can load all shared Events on web and mobile.
+6. Create one Event and confirm it appears on both clients.
+7. Approve one test scan on a physical device and confirm it leaves the Offline Scan Queue.
+8. Retry the identical decision and confirm it does not change attendance again.
+9. Reuse its UUID with different content and confirm the server returns conflict without changing attendance.
+10. Force a disposable-test Penalty failure and confirm the Scan, Attendance Session, and Penalty transaction rolls back.
+11. Confirm the Attendance Session and Penalty result on the Event attendance grid.
+12. Try to update protected fields and delete the Event after attendance begins; confirm both are rejected without changing history.
+13. Reject one test scan and confirm it appears in Governor rejection review.
+14. Confirm a permanent queue rejection moves to Needs Review without blocking a later valid decision.
+15. Confirm logout is blocked while pending or Needs Review decisions remain.
+16. Confirm an Officer cannot open `/admin`.
+17. Confirm a Governor can manage the active Semester and Program list and can enter the mobile booth.
+18. Confirm a Student is rejected by mobile before booth tabs render.
 
 Officer demotion, digital Clearance signing, a mobile Payment screen, and desktop viewport gates are outside this architecture refactor. Do not use them as release acceptance checks.
 
