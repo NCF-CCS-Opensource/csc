@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { apiFetch } from "./lib/api";
+import { ApiError, apiFetch } from "./lib/api";
 import { BoothScreen } from "./screens/BoothScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { LoginScreen } from "./screens/LoginScreen";
@@ -107,7 +107,14 @@ export default function App() {
         );
         if (current) setAdmission({ allowed: true });
       } catch (error: unknown) {
-        if (current && cachedOwner !== userId) {
+        const denied =
+          error instanceof ApiError && (error.status === 401 || error.status === 403);
+        if (denied) {
+          await AsyncStorage.removeItem(MOBILE_ADMISSION_OWNER_KEY).catch(
+            () => {},
+          );
+        }
+        if (current && (denied || cachedOwner !== userId)) {
           setAdmission({
             allowed: false,
             message:
