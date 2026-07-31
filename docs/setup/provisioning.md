@@ -6,7 +6,7 @@ Everything code-side is scaffolded. These steps need your own Supabase, Vercel, 
 
 1. Create a project at https://supabase.com/dashboard.
 2. Settings > API: copy `Project URL` and `anon public` key into `.env` as `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` (also `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` for `apps/mobile`). Copy `service_role` key as `SUPABASE_SERVICE_ROLE_KEY` (server-only, never ship to a client).
-3. Settings > Database > Connection string ("Transaction" pooler, port 6543): copy into `.env` as `DATABASE_URL`.
+3. Settings > Database > Connection string ("Transaction" pooler, port 6543): copy into `.env` as `DATABASE_URL`. This connects Drizzle to the same Supabase Postgres database; it is not a second database provider.
 
 ## 2. Run the Drizzle migrations
 

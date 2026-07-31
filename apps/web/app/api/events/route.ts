@@ -1,12 +1,12 @@
 import { events } from "@attendance/db";
 import { NextResponse } from "next/server";
-import { requireOfficerFromRequest } from "@/lib/api-auth";
+import { authorizeRequest } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { findOpenSemester, parseEventInput, validateEventInput } from "@/lib/events";
 
 export async function POST(request: Request) {
-  const officer = await requireOfficerFromRequest(request);
-  if (!officer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authorization = await authorizeRequest(request, "manage_operations");
+  if (!authorization.ok) return authorization.response;
 
   const input = parseEventInput(await request.json());
 

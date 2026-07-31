@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { dashboardDestination, determineRole, ROLE_DESTINATIONS } from "./roles";
+import {
+  capabilityFailure,
+  dashboardDestination,
+  destinationsForRole,
+  determineRole,
+  hasCapability,
+  type Capability,
+  type Role,
+} from "./roles";
 
 describe("determineRole", () => {
   it("assigns governor to an allowlisted email", () => {
@@ -33,16 +41,60 @@ describe("role destinations", () => {
   });
 
   it("shows staff navigation by role", () => {
-    expect(ROLE_DESTINATIONS.student).toEqual(["/my-attendance"]);
-    expect(ROLE_DESTINATIONS.officer).toEqual([
+    expect(destinationsForRole("student")).toEqual(["/my-attendance"]);
+    expect(destinationsForRole("officer")).toEqual([
       "/dashboard",
       "/events",
       "/my-attendance",
       "/clearance",
     ]);
-    expect(ROLE_DESTINATIONS.governor).toEqual([
-      ...ROLE_DESTINATIONS.officer,
+    expect(destinationsForRole("governor")).toEqual([
+      ...destinationsForRole("officer"),
       "/admin",
     ]);
+  });
+});
+
+describe("capability policy", () => {
+  const expected: Record<Role, Record<Capability, boolean>> = {
+    student: {
+      view_own_attendance: true,
+      manage_operations: false,
+      administer: false,
+      use_mobile_booth: false,
+    },
+    officer: {
+      view_own_attendance: true,
+      manage_operations: true,
+      administer: false,
+      use_mobile_booth: true,
+    },
+    governor: {
+      view_own_attendance: true,
+      manage_operations: true,
+      administer: true,
+      use_mobile_booth: true,
+    },
+  };
+
+  it("defines every application capability for every role", () => {
+    for (const [role, capabilities] of Object.entries(expected) as [
+      Role,
+      Record<Capability, boolean>,
+    ][]) {
+      for (const [capability, allowed] of Object.entries(capabilities) as [
+        Capability,
+        boolean,
+      ][]) {
+        expect(hasCapability(role, capability)).toBe(allowed);
+      }
+    }
+  });
+
+  it("distinguishes missing identity from forbidden capability", () => {
+    expect(capabilityFailure(null, "use_mobile_booth")).toBe("unauthenticated");
+    expect(capabilityFailure("student", "use_mobile_booth")).toBe("forbidden");
+    expect(capabilityFailure("officer", "use_mobile_booth")).toBeNull();
+    expect(capabilityFailure("governor", "use_mobile_booth")).toBeNull();
   });
 });

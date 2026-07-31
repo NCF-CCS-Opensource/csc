@@ -1,12 +1,12 @@
 import { attendanceSessions, events } from "@attendance/db";
 import { count, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { requireOfficerFromRequest } from "@/lib/api-auth";
+import { authorizeRequest } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 
 export async function GET(request: Request) {
-  const officer = await requireOfficerFromRequest(request);
-  if (!officer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authorization = await authorizeRequest(request, "manage_operations");
+  if (!authorization.ok) return authorization.response;
 
   const allEvents = await db
     .select({

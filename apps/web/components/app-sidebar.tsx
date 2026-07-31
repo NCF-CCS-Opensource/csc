@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
 import {
-  ROLE_DESTINATIONS,
+  destinationsForRole,
   type AppDestination,
   type Role,
 } from "@/lib/roles";
@@ -59,7 +59,7 @@ const NAV_ITEMS: Record<AppDestination, NavItem> = {
 };
 
 function navForRole(role: Role | null): NavItem[] {
-  return role ? ROLE_DESTINATIONS[role].map((href) => NAV_ITEMS[href]) : [];
+  return role ? destinationsForRole(role).map((href) => NAV_ITEMS[href]) : [];
 }
 
 export function AppSidebar() {

@@ -1,24 +1,19 @@
 import { programs, students } from "@attendance/db";
 import { count, inArray } from "drizzle-orm";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentStudent } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { findOpenSemester } from "@/lib/events";
 import { currentCampusDate, semesterLedger } from "@/lib/ledger";
-import { dashboardDestination } from "@/lib/roles";
 import { RefreshButton } from "./refresh-button";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const student = await getCurrentStudent();
-  if (!student) redirect("/register");
-  const destination = dashboardDestination(student.role);
-  if (destination !== "/dashboard") redirect(destination);
+  const student = await requireCapability("manage_operations");
 
   const campusDate = currentCampusDate();
   const openSemester = await findOpenSemester();
