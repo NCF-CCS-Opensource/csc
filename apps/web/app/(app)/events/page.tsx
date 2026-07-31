@@ -89,7 +89,7 @@ export default async function EventsPage({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="new-event">
         <CardHeader>
           <CardTitle>Create Event</CardTitle>
         </CardHeader>

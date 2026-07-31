@@ -1,181 +1,241 @@
-import { payments, penalties, students } from "@attendance/db";
-import { desc, eq } from "drizzle-orm";
+import { programs, students } from "@attendance/db";
+import { count, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { getCurrentStudent } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { findOpenSemester } from "@/lib/events";
-import { studentLedger } from "@/lib/ledger";
-import { createClient } from "@/lib/supabase/server";
+import { currentCampusDate, semesterLedger } from "@/lib/ledger";
+import { dashboardDestination } from "@/lib/roles";
+import { RefreshButton } from "./refresh-button";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const [
-    {
-      data: { user },
-    },
-    openSemester,
-  ] = await Promise.all([supabase.auth.getUser(), findOpenSemester()]);
-
-  if (!user) redirect("/register");
-
-  const student = await db.query.students.findFirst({
-    where: eq(students.authUserId, user.id),
-  });
+  const student = await getCurrentStudent();
   if (!student) redirect("/register");
+  const destination = dashboardDestination(student.role);
+  if (destination !== "/dashboard") redirect(destination);
 
-  // The Ledger folds full no-shows into the history and totals — no backfill,
-  // no write on load. Attendance history is the Ledger's session breakdown.
-  const [ledger, paymentHistory] = await Promise.all([
-    openSemester
-      ? studentLedger(openSemester.id, student.id)
-      : Promise.resolve({ total: 0, outstanding: 0, sessions: [] }),
-    db
-      .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })
-      .from(payments)
-      .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
-      .where(eq(penalties.studentId, student.id))
-      .orderBy(desc(payments.paidAt)),
-  ]);
-
-  const { total: totalPenalty, outstanding } = ledger;
-  const attendanceHistory = ledger.sessions;
+  const campusDate = currentCampusDate();
+  const openSemester = await findOpenSemester();
+  const ledger = openSemester
+    ? await semesterLedger(openSemester.id, campusDate)
+    : { events: [], totals: { present: 0, absent: 0, rate: 0, collected: 0 } };
+  const governorCounts =
+    student.role === "governor"
+      ? await Promise.all([
+          db
+            .select({ value: count() })
+            .from(students)
+            .where(inArray(students.role, ["officer", "governor"])),
+          db.select({ value: count() }).from(programs),
+        ])
+      : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Welcome, {student.name}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center gap-4">
-          <dl className="text-muted-foreground w-full text-sm">
-            <div>Email: {student.email}</div>
-            <div>Program: {student.program}</div>
-            <div>Student ID: {student.studentId}</div>
-          </dl>
-          {/* eslint-disable-next-line @next/next/no-img-element -- generated PNG, not an optimizable static asset */}
-          <img
-            src="/qr"
-            alt="Your attendance QR code"
-            width={200}
-            height={200}
-            className="rounded-lg border"
-          />
-          <Button asChild variant="outline">
-            <a href="/qr" download="attendance-qr.png">
-              Download QR code
-            </a>
-          </Button>
-          {(student.role === "officer" || student.role === "governor") && (
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button asChild variant="secondary" size="sm">
-                <Link href="/events">My Events</Link>
-              </Button>
-              <Button asChild variant="secondary" size="sm">
-                <Link href="/clearance">Clearance lookup</Link>
-              </Button>
-              <Button asChild variant="secondary" size="sm">
-                <Link href="/analytics">Analytics</Link>
-              </Button>
-              {student.role === "governor" && (
-                <Button asChild variant="secondary" size="sm">
-                  <Link href="/admin">Governor admin</Link>
-                </Button>
-              )}
-            </div>
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      <header className="flex flex-col justify-between gap-4 border-b pb-5 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-primary text-xs font-semibold tracking-[0.18em] uppercase">
+            CCS Event Operations
+          </p>
+          <h1 className="font-display mt-1 text-3xl font-semibold tracking-tight">
+            Dashboard
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Campus date: {campusDate}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <RefreshButton />
+          {openSemester && (
+            <Button asChild>
+              <Link href="/events#new-event">New Event</Link>
+            </Button>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>This Semester</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {openSemester ? (
-            <p className="text-muted-foreground text-sm">
-              Total penalties: ₱{totalPenalty.toFixed(2)} — Outstanding: ₱
-              {outstanding.toFixed(2)}
+      {!openSemester ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display text-xl">No open Semester</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-start gap-4">
+            <p className="text-muted-foreground">
+              {student.role === "governor"
+                ? "Open a Semester before Officers create Events."
+                : "Ask the Governor to open a Semester before starting Event operations."}
             </p>
-          ) : (
-            <p className="text-muted-foreground text-sm">No open Semester.</p>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <section aria-label="Semester overview" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Metric label="Open Semester" value={`${openSemester.startDate} — ${openSemester.endDate}`} />
+            <Metric label="Events" value={String(ledger.events.length)} />
+            <Metric
+              label="Resolved Sessions"
+              value={`${ledger.totals.present} present · ${ledger.totals.absent} absent`}
+            />
+            <Metric label="Attendance Rate" value={`${ledger.totals.rate.toFixed(1)}%`} />
+          </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Attendance history</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {attendanceHistory.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No attendance recorded yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Event</TableHead>
-                  <TableHead className="text-right">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {attendanceHistory.map((row) => (
-                  <TableRow key={`${row.eventId}:${row.half}`}>
-                    <TableCell>
-                      {row.eventName} ({row.half.toUpperCase()})
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant={row.absent ? "destructive" : "default"}>
-                        {row.absent ? "Absent" : "Present"}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader className="border-b">
+              <CardTitle className="font-display text-xl">Event operations</CardTitle>
+            </CardHeader>
+            <CardContent className="px-0">
+              {ledger.events.length === 0 ? (
+                <div className="flex flex-col items-start gap-3 px-4 py-8">
+                  <p className="text-muted-foreground">No Events in the open Semester.</p>
+                  <Button asChild>
+                    <Link href="/events#new-event">Create the first Event</Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {ledger.events.map((event) => (
+                    <article
+                      key={event.eventId}
+                      className="grid gap-4 px-4 py-5 lg:grid-cols-[minmax(12rem,1fr)_minmax(20rem,2fr)_7rem_9rem] lg:items-center"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h2 className="truncate font-medium">{event.name}</h2>
+                          <Badge
+                            variant={
+                              event.status === "today"
+                                ? "default"
+                                : event.status === "past"
+                                  ? "secondary"
+                                  : "outline"
+                            }
+                          >
+                            {event.status[0].toUpperCase() + event.status.slice(1)}
+                          </Badge>
+                        </div>
+                        <p className="text-muted-foreground mt-1 text-sm">
+                          {event.date}
+                          {event.venue ? ` · ${event.venue}` : ""}
+                          {" · "}
+                          {event.type === "whole_day" ? "Whole-day" : "Half-day"}
+                        </p>
+                      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment history</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {paymentHistory.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No payments yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paymentHistory.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell>{new Date(payment.paidAt).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-right">₱{payment.amount}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                      {event.status === "upcoming" ? (
+                        <p className="text-muted-foreground text-sm">
+                          Attendance counts will appear on the Event date.
+                        </p>
+                      ) : (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {event.sessions.map((session) => (
+                            <div
+                              key={session.label}
+                              className="overflow-hidden rounded-lg border bg-muted/20"
+                            >
+                              <div className="border-b px-3 py-1.5 text-xs font-semibold uppercase">
+                                {session.label}
+                              </div>
+                              <dl className="grid grid-cols-3 text-center text-xs">
+                                <Band value={session.present} label="Present" className="text-primary" />
+                                <Band value={session.incomplete} label="Incomplete" className="text-amber-700 dark:text-amber-300" />
+                                <Band value={session.absent} label="Absent" className="text-destructive" />
+                              </dl>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="lg:text-right">
+                        {event.status !== "upcoming" && (
+                          <>
+                            <p className="font-display text-2xl font-semibold">
+                              {event.rate.toFixed(1)}%
+                            </p>
+                            <p className="text-muted-foreground text-xs">resolved rate</p>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="lg:text-right">
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/events/${event.eventId}/attendance`}>
+                            Open attendance
+                          </Link>
+                        </Button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {governorCounts && (
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle className="font-display text-xl">Governor Controls</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <dl className="grid flex-1 grid-cols-3 gap-4 text-sm">
+              <GovernorCount label="Semester" value={openSemester ? "Open" : "Not open"} />
+              <GovernorCount label="Officers" value={String(governorCounts[0][0].value)} />
+              <GovernorCount label="Programs" value={String(governorCounts[1][0].value)} />
+            </dl>
+            <Button asChild variant="secondary">
+              <Link href="/admin">
+                {openSemester ? "Administration" : "Open a Semester"}
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </main>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+          {label}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="font-display text-xl font-semibold">{value}</CardContent>
+    </Card>
+  );
+}
+
+function Band({
+  value,
+  label,
+  className,
+}: {
+  value: number;
+  label: string;
+  className: string;
+}) {
+  return (
+    <div className="border-r px-1 py-2 last:border-r-0">
+      <dt className="text-muted-foreground text-[0.65rem]">{label}</dt>
+      <dd className={`mt-0.5 font-semibold ${className}`}>{value}</dd>
+    </div>
+  );
+}
+
+function GovernorCount({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-muted-foreground text-xs">{label}</dt>
+      <dd className="font-display mt-1 text-lg font-semibold">{value}</dd>
+    </div>
   );
 }

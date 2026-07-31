@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { determineRole } from "./roles";
+import { dashboardDestination, determineRole, ROLE_DESTINATIONS } from "./roles";
 
 describe("determineRole", () => {
   it("assigns governor to an allowlisted email", () => {
@@ -22,5 +22,27 @@ describe("determineRole", () => {
 
   it("defaults to student when the allowlist is empty", () => {
     expect(determineRole("anyone@gbox.ncf.edu.ph", [])).toBe("student");
+  });
+});
+
+describe("role destinations", () => {
+  it("separates Student attendance from staff operations", () => {
+    expect(dashboardDestination("student")).toBe("/my-attendance");
+    expect(dashboardDestination("officer")).toBe("/dashboard");
+    expect(dashboardDestination("governor")).toBe("/dashboard");
+  });
+
+  it("shows staff navigation by role", () => {
+    expect(ROLE_DESTINATIONS.student).toEqual(["/my-attendance"]);
+    expect(ROLE_DESTINATIONS.officer).toEqual([
+      "/dashboard",
+      "/events",
+      "/my-attendance",
+      "/clearance",
+    ]);
+    expect(ROLE_DESTINATIONS.governor).toEqual([
+      ...ROLE_DESTINATIONS.officer,
+      "/admin",
+    ]);
   });
 });

@@ -5,6 +5,27 @@ import type { EventType } from "./events";
 import { isSessionAbsent } from "./scan";
 
 type Half = "am" | "pm";
+export type EventStatus = "upcoming" | "today" | "past";
+type LedgerSessionStatus = "present" | "incomplete" | "absent";
+
+function attendanceStatus(
+  eventStatus: EventStatus,
+  present: boolean,
+): LedgerSessionStatus {
+  return present ? "present" : eventStatus === "today" ? "incomplete" : "absent";
+}
+
+export function currentCampusDate(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)!.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
 
 // The absences a Student owes for one Event: expected halves minus the ones
 // they actually *completed* (both Time-in and Time-out). Pure so it's unit-
@@ -48,6 +69,9 @@ export function owedHalves(
 // access — the DB wrappers (studentLedger / semesterLedger) load these and
 // delegate here so the no-show rule is exercised in exactly one place.
 export type LedgerInput = {
+  // Explicit so the pure projection never depends on the server's clock or
+  // timezone. DB wrappers pass the current Asia/Manila calendar date.
+  campusDate: string;
   // The end date (YYYY-MM-DD) of the Semester these Events belong to. A Student
   // owes for every Event in a Semester they registered into — including Events
   // before their registration — but nothing for a Semester that ended before
@@ -88,7 +112,7 @@ export type LedgerSession = {
   half: Half;
   timeIn: Date | null;
   timeOut: Date | null;
-  absent: boolean;
+  status: LedgerSessionStatus;
   amount: number;
   paid: boolean;
 };
@@ -101,7 +125,17 @@ export type StudentStanding = {
 
 export type EventStats = {
   eventId: string;
+  date: string;
+  type: EventType;
+  status: EventStatus;
+  sessions: {
+    label: "AM" | "PM" | "Session";
+    present: number;
+    incomplete: number;
+    absent: number;
+  }[];
   present: number;
+  incomplete: number;
   absent: number;
   rate: number;
   collected: number;
@@ -114,12 +148,24 @@ export type Ledger = {
 };
 
 // Unions real Attendance Sessions with virtual no-shows and returns both
-// projections: per-Student standing (dashboard, Clearance) and per-Event stats
-// (Analytics). No writes — loading a page never mutates shared state.
+// projections: per-Student standing (My Attendance, Clearance) and per-Event
+// operations stats (Dashboard). No writes — loading a page never mutates
+// shared state.
 export function computeLedger(input: LedgerInput): Ledger {
-  const { semesterEndDate, events, students, sessions, penalties, payments } = input;
+  const { campusDate, semesterEndDate, events, students, sessions, penalties, payments } =
+    input;
 
   const eventById = new Map(events.map((e) => [e.id, e]));
+  const statusByEventId = new Map(
+    events.map((event) => [
+      event.id,
+      event.date > campusDate
+        ? ("upcoming" as const)
+        : event.date === campusDate
+          ? ("today" as const)
+          : ("past" as const),
+    ]),
+  );
   const sessionById = new Map(sessions.map((s) => [s.id, s]));
   const penaltyById = new Map(penalties.map((p) => [p.id, p]));
   const penaltyBySession = new Map(penalties.map((p) => [p.attendanceSessionId, p]));
@@ -138,9 +184,6 @@ export function computeLedger(input: LedgerInput): Ledger {
     return standing;
   };
 
-  const eventStats = new Map<string, { present: number; absent: number; collected: number }>();
-  for (const e of events) eventStats.set(e.id, { present: 0, absent: 0, collected: 0 });
-
   // Real rows first — record present/absent, the halves already on file (so a
   // virtual no-show is never double-counted), and which halves were completed.
   const existingHalves = new Map<string, Set<Half>>();
@@ -155,9 +198,9 @@ export function computeLedger(input: LedgerInput): Ledger {
     if (!absent) completed[sess.half] = true;
     completedByKey.set(key, completed);
 
-    const stat = eventStats.get(sess.eventId)!;
-    if (absent) stat.absent++;
-    else stat.present++;
+    const eventStatus = statusByEventId.get(sess.eventId)!;
+    if (eventStatus === "upcoming") continue;
+    const status = attendanceStatus(eventStatus, !absent);
 
     const penalty = penaltyBySession.get(sess.id);
     standingFor(sess.studentId).sessions.push({
@@ -167,7 +210,7 @@ export function computeLedger(input: LedgerInput): Ledger {
       half: sess.half,
       timeIn: sess.timeIn,
       timeOut: sess.timeOut,
-      absent,
+      status,
       amount: penalty ? Number(penalty.amount) : 0,
       paid: penalty ? paidPenaltyIds.has(penalty.id) : false,
     });
@@ -175,6 +218,8 @@ export function computeLedger(input: LedgerInput): Ledger {
 
   // Virtual no-shows: halves a registered Student owes that have no real row.
   for (const event of events) {
+    const eventStatus = statusByEventId.get(event.id)!;
+    if (eventStatus === "upcoming") continue;
     const rate = Number(event.halfDayPenaltyAmount);
     for (const student of students) {
       // Liability is per-Semester, not per-Event: a Student owes for every
@@ -186,7 +231,7 @@ export function computeLedger(input: LedgerInput): Ledger {
       const existing = existingHalves.get(key) ?? new Set<Half>();
       const completed = completedByKey.get(key) ?? { am: false, pm: false };
       for (const half of owedHalves(event.type, completed, existing)) {
-        eventStats.get(event.id)!.absent++;
+        const status = attendanceStatus(eventStatus, false);
         standingFor(student.id).sessions.push({
           eventId: event.id,
           eventName: event.name,
@@ -194,7 +239,7 @@ export function computeLedger(input: LedgerInput): Ledger {
           half,
           timeIn: null,
           timeOut: null,
-          absent: true,
+          status,
           amount: rate,
           paid: false,
         });
@@ -203,11 +248,16 @@ export function computeLedger(input: LedgerInput): Ledger {
   }
 
   // Collected: a Payment maps to its Event via Penalty → Session → Event.
+  const collectedByEvent = new Map<string, number>();
   for (const pay of payments) {
     const penalty = penaltyById.get(pay.penaltyId);
     const sess = penalty && sessionById.get(penalty.attendanceSessionId);
-    const stat = sess && eventStats.get(sess.eventId);
-    if (stat) stat.collected += Number(pay.amount);
+    if (sess && statusByEventId.get(sess.eventId) !== "upcoming") {
+      collectedByEvent.set(
+        sess.eventId,
+        (collectedByEvent.get(sess.eventId) ?? 0) + Number(pay.amount),
+      );
+    }
   }
 
   for (const standing of standings.values()) {
@@ -219,17 +269,61 @@ export function computeLedger(input: LedgerInput): Ledger {
     );
   }
 
-  const eventsOut: EventStats[] = events.map((e) => {
-    const st = eventStats.get(e.id)!;
-    const total = st.present + st.absent;
-    return {
-      eventId: e.id,
-      present: st.present,
-      absent: st.absent,
-      rate: total > 0 ? (st.present / total) * 100 : 0,
-      collected: st.collected,
-    };
-  });
+  const eventsOut: EventStats[] = events
+    .map((event) => {
+      const status = statusByEventId.get(event.id)!;
+      const eventSessions: EventStats["sessions"] =
+        status === "upcoming"
+          ? []
+          : event.type === "whole_day"
+            ? [
+                { label: "AM", present: 0, incomplete: 0, absent: 0 },
+                { label: "PM", present: 0, incomplete: 0, absent: 0 },
+              ]
+            : [{ label: "Session", present: 0, incomplete: 0, absent: 0 }];
+
+      if (status !== "upcoming") {
+        for (const student of students) {
+          if (student.createdAt.toISOString().slice(0, 10) > semesterEndDate) continue;
+          const completed = completedByKey.get(`${event.id}:${student.id}`) ?? {
+            am: false,
+            pm: false,
+          };
+          if (event.type === "half_day") {
+            eventSessions[0][attendanceStatus(status, completed.am || completed.pm)]++;
+          } else {
+            eventSessions[0][attendanceStatus(status, completed.am)]++;
+            eventSessions[1][attendanceStatus(status, completed.pm)]++;
+          }
+        }
+      }
+
+      const present = eventSessions.reduce((sum, session) => sum + session.present, 0);
+      const incomplete = eventSessions.reduce((sum, session) => sum + session.incomplete, 0);
+      const absent = eventSessions.reduce((sum, session) => sum + session.absent, 0);
+      const resolved = present + absent;
+      return {
+        eventId: event.id,
+        date: event.date,
+        type: event.type,
+        status,
+        sessions: eventSessions,
+        present,
+        incomplete,
+        absent,
+        rate: resolved > 0 ? (present / resolved) * 100 : 0,
+        collected: collectedByEvent.get(event.id) ?? 0,
+      };
+    })
+    .sort((a, b) => {
+      const rank = { today: 0, upcoming: 1, past: 2 };
+      const byStatus = rank[a.status] - rank[b.status];
+      if (byStatus !== 0) return byStatus;
+      const byDate = a.status === "past"
+        ? b.date.localeCompare(a.date)
+        : a.date.localeCompare(b.date);
+      return byDate || a.eventId.localeCompare(b.eventId);
+    });
   const present = eventsOut.reduce((sum, e) => sum + e.present, 0);
   const absent = eventsOut.reduce((sum, e) => sum + e.absent, 0);
   const collected = eventsOut.reduce((sum, e) => sum + e.collected, 0);
@@ -361,9 +455,12 @@ export function computeEventGrid(input: EventGridInput): EventGridRow[] {
 // Idempotent: the unique (eventId, studentId, half) constraint plus
 // onConflictDoNothing means a repeated or concurrent run inserts each row at
 // most once. Uses the same no-double-count rule as computeLedger.
-export async function materializeEventNoShows(eventId: string): Promise<void> {
+export async function materializeEventNoShows(
+  eventId: string,
+  campusDate = currentCampusDate(),
+): Promise<void> {
   const event = await db.query.events.findFirst({ where: eq(events.id, eventId) });
-  if (!event) return;
+  if (!event || event.date > campusDate) return;
   const semester = await db.query.semesters.findFirst({
     where: eq(semesters.id, event.semesterId),
   });
@@ -427,17 +524,19 @@ const eventCols = {
   id: events.id,
   name: events.name,
   date: events.date,
+  venue: events.venue,
   type: events.type,
   halfDayPenaltyAmount: events.halfDayPenaltyAmount,
 };
 
 // One Student's Ledger standing for a Semester — total, outstanding, and the
 // full session breakdown including virtual no-shows. Reads only; delegates to
-// computeLedger. Consumed by the dashboard and by Clearance (per matched
+// computeLedger. Consumed by My Attendance and Clearance (per matched
 // Student). Empty when the Student or Semester's Events don't exist.
 export async function studentLedger(
   semesterId: string,
   studentId: string,
+  campusDate = currentCampusDate(),
 ): Promise<StudentStanding> {
   const empty: StudentStanding = { total: 0, outstanding: 0, sessions: [] };
 
@@ -489,6 +588,7 @@ export async function studentLedger(
       : [];
 
   const ledger = computeLedger({
+    campusDate,
     semesterEndDate: semester.endDate,
     events: eventRows,
     students: [{ id: student.id, createdAt: student.createdAt }],
@@ -499,14 +599,15 @@ export async function studentLedger(
   return ledger.students.get(studentId) ?? empty;
 }
 
-export type SemesterLedgerEvent = EventStats & { name: string };
+export type SemesterLedgerEvent = EventStats & { name: string; venue: string | null };
 
 // Per-Event present/absent/rate/collected plus Semester totals, no-show-
 // inclusive. Rolls up every Event in the Semester — there is no per-Officer
 // scope since every Officer shares all Events (ADR 0007). Reads only;
-// delegates to computeLedger. Consumed by Analytics.
+// delegates to computeLedger. Consumed by Dashboard.
 export async function semesterLedger(
   semesterId: string,
+  campusDate = currentCampusDate(),
 ): Promise<{ events: SemesterLedgerEvent[]; totals: Ledger["totals"] }> {
   const [semester, eventRows, studentRows] = await Promise.all([
     db.query.semesters.findFirst({ where: eq(semesters.id, semesterId) }),
@@ -555,6 +656,7 @@ export async function semesterLedger(
       : [];
 
   const ledger = computeLedger({
+    campusDate,
     semesterEndDate: semester.endDate,
     events: eventRows,
     students: studentRows,
@@ -563,9 +665,13 @@ export async function semesterLedger(
     payments: paymentRows,
   });
 
-  const nameById = new Map(eventRows.map((e) => [e.id, e.name]));
+  const eventById = new Map(eventRows.map((event) => [event.id, event]));
   return {
-    events: ledger.events.map((e) => ({ ...e, name: nameById.get(e.eventId)! })),
+    events: ledger.events.map((event) => ({
+      ...event,
+      name: eventById.get(event.eventId)!.name,
+      venue: eventById.get(event.eventId)!.venue,
+    })),
     totals: ledger.totals,
   };
 }
