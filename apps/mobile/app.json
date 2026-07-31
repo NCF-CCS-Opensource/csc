@@ -16,12 +16,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ],
-      "package": "com.anonymous.attendancemobile"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"

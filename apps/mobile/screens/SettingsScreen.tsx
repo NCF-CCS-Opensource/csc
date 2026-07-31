@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
+  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -12,14 +12,22 @@ import {
 } from "react-native";
 import { apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
+import {
+  blockingScanCount,
+  discardScan,
+  discardLegacyScans,
+  failedScans,
+  legacyScans,
+  retryScan,
+  type QueuedScan,
+} from "../lib/scanQueue";
 import { supabase } from "../lib/supabase";
+import { flushQueue } from "../lib/syncScans";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors, ThemePreference } from "../lib/theme";
 
 type Me = { name: string; email: string };
 type Styles = ReturnType<typeof makeStyles>;
-
-const CAT_AVATAR_URI = "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=150&auto=format&fit=crop&q=80";
 
 const THEME_CYCLE: ThemePreference[] = ["light", "dark", "system"];
 const THEME_LABEL: Record<ThemePreference, string> = {
@@ -66,12 +74,17 @@ function SettingsRow({
   );
 }
 
-export function SettingsScreen() {
+export function SettingsScreen({
+  officerId,
+  onQueueChanged,
+}: {
+  officerId: string;
+  onQueueChanged: () => void;
+}) {
   const { colors, preference, setPreference } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [me, setMe] = useState<Me | null>(null);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
 
   useEffect(() => {
     apiFetch<{ student: Me }>("/api/me")
@@ -84,21 +97,114 @@ export function SettingsScreen() {
     setPreference(next);
   }
 
-  const profileName = me?.name ?? "Jaiho Francis Empanada";
-  const profileEmail = me?.email ?? "jfe@gbox.ncf.edu.ph";
+  function confirmDiscardLegacy() {
+    Alert.alert(
+      "Discard older scans?",
+      "These scans cannot be safely attributed after the storage upgrade. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: async () => {
+            await discardLegacyScans();
+            onQueueChanged();
+          },
+        },
+      ],
+    );
+  }
+
+  function reviewFailedScan(scan: QueuedScan, total: number) {
+    Alert.alert(
+      `Failed scan${total > 1 ? ` (1 of ${total})` : ""}`,
+      `${scan.error ?? "Delivery was rejected."}\nCaptured ${new Date(scan.scannedAt).toLocaleString()}`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard scan",
+          style: "destructive",
+          onPress: () =>
+            Alert.alert(
+              "Discard failed scan?",
+              "This removes only this queued delivery. This cannot be undone.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Discard",
+                  style: "destructive",
+                  onPress: async () => {
+                    await discardScan(officerId, scan.id);
+                    onQueueChanged();
+                  },
+                },
+              ],
+            ),
+        },
+        {
+          text: "Retry",
+          onPress: async () => {
+            await retryScan(officerId, scan.id);
+            onQueueChanged();
+            flushQueue(officerId, onQueueChanged).catch(() => {});
+          },
+        },
+      ],
+    );
+  }
+
+  async function logout() {
+    const [count, legacy, failed] = await Promise.all([
+      blockingScanCount(officerId),
+      legacyScans(),
+      failedScans(officerId),
+    ]);
+    if (count === 0 && legacy.length === 0) {
+      await supabase.auth.signOut();
+      return;
+    }
+
+    if (count === 0) {
+      Alert.alert(
+        "Older scans quarantined",
+        `${legacy.length} scan${legacy.length === 1 ? "" : "s"} from the previous storage format cannot be safely attributed or delivered. You may log out without inheriting them.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Discard older scans", style: "destructive", onPress: confirmDiscardLegacy },
+          { text: "Log out", onPress: () => supabase.auth.signOut() },
+        ],
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Can’t log out yet",
+      `${count} scan${count === 1 ? "" : "s"} remain unresolved. Reconnect to retry Pending scans, or return to Scanner and review Failed rows.`,
+      [
+        ...(failed[0]
+          ? [{ text: "Review Failed", onPress: () => reviewFailedScan(failed[0], failed.length) }]
+          : []),
+        { text: "OK" },
+      ],
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Settings</Text>
 
-      {/* Profile Card matching mockup 4 */}
       <View style={styles.profileRow}>
-        <Image source={{ uri: CAT_AVATAR_URI }} style={styles.avatarImage} />
+        {me ? (
+          <View style={[styles.avatar, { backgroundColor: colorOf(me.name) }]}>
+            <Text style={styles.avatarText}>{initialsOf(me.name)}</Text>
+          </View>
+        ) : (
+          <View style={styles.avatar} />
+        )}
         <View style={styles.profileMeta}>
-          <Text style={styles.profileName}>{profileName}</Text>
-          <Text style={styles.profileEmail}>{profileEmail}</Text>
+          <Text style={styles.profileName}>{me?.name ?? "—"}</Text>
+          <Text style={styles.profileEmail}>{me?.email ?? ""}</Text>
         </View>
-        <Text style={styles.profileChevron}>›</Text>
       </View>
 
       <Text style={styles.sectionLabel}>GENERAL</Text>
@@ -127,7 +233,7 @@ export function SettingsScreen() {
           iconBg={colors.iconPinkBg}
           label="Log out"
           destructive
-          onPress={() => setLogoutModalOpen(true)}
+          onPress={logout}
           styles={styles}
         />
       </View>
@@ -141,70 +247,7 @@ export function SettingsScreen() {
         styles={styles}
       />
 
-      <LogoutModal
-        visible={logoutModalOpen}
-        onClose={() => setLogoutModalOpen(false)}
-        colors={colors}
-        styles={styles}
-      />
     </ScrollView>
-  );
-}
-
-function LogoutModal({
-  visible,
-  onClose,
-  colors,
-  styles,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  colors: ThemeColors;
-  styles: Styles;
-}) {
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleLogout() {
-    setSubmitting(true);
-    await supabase.auth.signOut();
-    setSubmitting(false);
-    onClose();
-  }
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={styles.logoutModalCard} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.modalHandle} />
-
-          <View style={styles.logoutIconBadge}>
-            <Text style={styles.logoutIconText}>🚪</Text>
-          </View>
-
-          <Text style={styles.logoutTitle}>Log out?</Text>
-          <Text style={styles.logoutSubtitle}>
-            Are you sure you want to log out of AttendKita?
-          </Text>
-
-          <View style={styles.modalActions}>
-            <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.destructiveButton]}
-              disabled={submitting}
-              onPress={handleLogout}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text style={styles.destructiveButtonText}>Log out</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
   );
 }
 
@@ -334,11 +377,11 @@ function makeStyles(c: ThemeColors) {
       padding: 16,
       marginBottom: 12,
     },
-    avatarImage: { width: 48, height: 48, borderRadius: 12 },
+    avatar: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+    avatarText: { color: "#ffffff", fontWeight: "700", fontSize: 16 },
     profileMeta: { flex: 1 },
     profileName: { fontSize: 16, fontWeight: "700", color: c.text },
     profileEmail: { fontSize: 13, color: c.textMuted, marginTop: 2 },
-    profileChevron: { fontSize: 18, color: c.chevron },
     sectionLabel: { fontSize: 12, color: c.textMuted, fontWeight: "600", marginTop: 18, marginBottom: 8, letterSpacing: 0.5 },
     section: { borderWidth: 1, borderColor: c.border, borderRadius: 16, overflow: "hidden", backgroundColor: c.card },
     row: {
@@ -378,29 +421,5 @@ function makeStyles(c: ThemeColors) {
     buttonText: { color: c.primaryText, fontWeight: "600" },
     cancelButton: { backgroundColor: c.cancelBackground, borderWidth: 1, borderColor: c.border },
     cancelButtonText: { fontWeight: "600", color: c.cancelText },
-    logoutModalCard: {
-      backgroundColor: c.card,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 28,
-      alignItems: "center",
-      gap: 8,
-    },
-    logoutIconBadge: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: c.iconPinkBg,
-      alignItems: "center",
-      justifyContent: "center",
-      marginVertical: 8,
-    },
-    logoutIconText: { fontSize: 22 },
-    logoutTitle: { fontSize: 20, fontWeight: "700", color: c.text },
-    logoutSubtitle: { fontSize: 13, color: c.textMuted, textAlign: "center", paddingHorizontal: 12, marginBottom: 8 },
-    destructiveButton: { backgroundColor: c.danger },
-    destructiveButtonText: { color: "#ffffff", fontWeight: "600" },
   });
 }

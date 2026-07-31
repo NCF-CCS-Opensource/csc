@@ -24,7 +24,6 @@ export type EventRow = {
   date: string;
   venue: string | null;
   attendeeCount: number;
-  totalCapacity?: number;
 };
 
 type EventStatus = "Active" | "Upcoming" | "Completed";
@@ -118,8 +117,6 @@ export function EventsScreen() {
         renderItem={({ item }) => {
           const status = deriveStatus(item.date);
           const statusStyle = statusColors(status, colors);
-          const capacity = item.totalCapacity || 360;
-          const ratio = Math.min(1, Math.max(0, item.attendeeCount / capacity));
           return (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
@@ -136,12 +133,8 @@ export function EventsScreen() {
               <View style={styles.attendeeRow}>
                 <Text style={styles.attendeeIcon}>👤</Text>
                 <Text style={styles.attendeeText}>
-                  {item.attendeeCount} / {capacity} Attendees
+                  {item.attendeeCount} Attendee{item.attendeeCount === 1 ? "" : "s"}
                 </Text>
-              </View>
-
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${ratio * 100}%` }]} />
               </View>
 
               <View style={styles.cardActions}>
@@ -284,7 +277,7 @@ function EventFormModal({
   const [venue, setVenue] = useState("");
   const [date, setDate] = useState<string | null>(null);
   const [type, setType] = useState<EventType>("whole_day");
-  const [penalty, setPenalty] = useState("0");
+  const [penalty, setPenalty] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -292,9 +285,9 @@ function EventFormModal({
     if (!visible) return;
     setName(event?.name ?? "");
     setVenue(event?.venue ?? "");
-    setDate(event?.date ?? "2026-06-10");
+    setDate(event?.date ?? null);
     setType(event?.type ?? "whole_day");
-    setPenalty(event?.halfDayPenaltyAmount ?? "0");
+    setPenalty(event?.halfDayPenaltyAmount ?? "");
     setError(null);
   }, [visible, event]);
 
@@ -356,6 +349,34 @@ function EventFormModal({
             />
           </View>
 
+          <Text style={styles.fieldLabel}>Type</Text>
+          <View style={styles.typeRow}>
+            {(["whole_day", "half_day"] as const).map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[styles.typeOption, type === option && styles.typeOptionSelected]}
+                onPress={() => setType(option)}
+              >
+                <Text style={[styles.typeOptionText, type === option && styles.typeOptionTextSelected]}>
+                  {option === "whole_day" ? "Whole day" : "Half day"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.fieldLabel}>Half-day penalty amount</Text>
+          <View style={styles.inputWrap}>
+            <Text style={styles.inputIcon}>₱</Text>
+            <TextInput
+              style={styles.inputWithIcon}
+              placeholder="e.g. 50.00"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="decimal-pad"
+              value={penalty}
+              onChangeText={setPenalty}
+            />
+          </View>
+
           <Text style={styles.fieldLabel}>Event date</Text>
           <View style={styles.inputWrap}>
             <Text style={styles.inputIcon}>📅</Text>
@@ -377,7 +398,7 @@ function EventFormModal({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.submitButton]}
-              disabled={submitting || !name || !date}
+              disabled={submitting || !name || !date || !penalty}
               onPress={submit}
             >
               {submitting ? (
@@ -437,18 +458,6 @@ function makeStyles(c: ThemeColors) {
     attendeeRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
     attendeeIcon: { fontSize: 13, color: c.textMuted },
     attendeeText: { fontSize: 13, color: c.textMuted },
-    progressTrack: {
-      height: 5,
-      backgroundColor: c.borderSubtle,
-      borderRadius: 2.5,
-      marginVertical: 10,
-      overflow: "hidden",
-    },
-    progressFill: {
-      height: "100%",
-      backgroundColor: c.text,
-      borderRadius: 2.5,
-    },
     cardActions: { flexDirection: "row", gap: 10, marginTop: 4 },
     cardActionButton: {
       flex: 1,
@@ -527,6 +536,18 @@ function makeStyles(c: ThemeColors) {
       color: c.text,
       padding: 0,
     },
+    typeRow: { flexDirection: "row", gap: 8, marginTop: 4 },
+    typeOption: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      paddingVertical: 12,
+      alignItems: "center",
+    },
+    typeOptionSelected: { backgroundColor: c.primary, borderColor: c.primary },
+    typeOptionText: { fontSize: 13, color: c.text },
+    typeOptionTextSelected: { color: c.primaryText, fontWeight: "600" },
     datePickerValueText: {
       flex: 1,
       fontSize: 14,
