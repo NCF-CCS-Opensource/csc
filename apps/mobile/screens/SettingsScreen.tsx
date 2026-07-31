@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -11,7 +12,17 @@ import {
 } from "react-native";
 import { apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
+import {
+  blockingScanCount,
+  discardScan,
+  discardLegacyScans,
+  failedScans,
+  legacyScans,
+  retryScan,
+  type QueuedScan,
+} from "../lib/scanQueue";
 import { supabase } from "../lib/supabase";
+import { flushQueue } from "../lib/syncScans";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors, ThemePreference } from "../lib/theme";
 
@@ -54,7 +65,13 @@ function SettingsRow({
   );
 }
 
-export function SettingsScreen() {
+export function SettingsScreen({
+  officerId,
+  onQueueChanged,
+}: {
+  officerId: string;
+  onQueueChanged: () => void;
+}) {
   const { colors, preference, setPreference } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [me, setMe] = useState<Me | null>(null);
@@ -69,6 +86,98 @@ export function SettingsScreen() {
   function cycleTheme() {
     const next = THEME_CYCLE[(THEME_CYCLE.indexOf(preference) + 1) % THEME_CYCLE.length];
     setPreference(next);
+  }
+
+  function confirmDiscardLegacy() {
+    Alert.alert(
+      "Discard older scans?",
+      "These scans cannot be safely attributed after the storage upgrade. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: async () => {
+            await discardLegacyScans();
+            onQueueChanged();
+          },
+        },
+      ],
+    );
+  }
+
+  function reviewFailedScan(scan: QueuedScan, total: number) {
+    Alert.alert(
+      `Failed scan${total > 1 ? ` (1 of ${total})` : ""}`,
+      `${scan.error ?? "Delivery was rejected."}\nCaptured ${new Date(scan.scannedAt).toLocaleString()}`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard scan",
+          style: "destructive",
+          onPress: () =>
+            Alert.alert(
+              "Discard failed scan?",
+              "This removes only this queued delivery. This cannot be undone.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Discard",
+                  style: "destructive",
+                  onPress: async () => {
+                    await discardScan(officerId, scan.id);
+                    onQueueChanged();
+                  },
+                },
+              ],
+            ),
+        },
+        {
+          text: "Retry",
+          onPress: async () => {
+            await retryScan(officerId, scan.id);
+            onQueueChanged();
+            flushQueue(officerId, onQueueChanged).catch(() => {});
+          },
+        },
+      ],
+    );
+  }
+
+  async function logout() {
+    const [count, legacy, failed] = await Promise.all([
+      blockingScanCount(officerId),
+      legacyScans(),
+      failedScans(officerId),
+    ]);
+    if (count === 0 && legacy.length === 0) {
+      await supabase.auth.signOut();
+      return;
+    }
+
+    if (count === 0) {
+      Alert.alert(
+        "Older scans quarantined",
+        `${legacy.length} scan${legacy.length === 1 ? "" : "s"} from the previous storage format cannot be safely attributed or delivered. You may log out without inheriting them.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Discard older scans", style: "destructive", onPress: confirmDiscardLegacy },
+          { text: "Log out", onPress: () => supabase.auth.signOut() },
+        ],
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Can’t log out yet",
+      `${count} scan${count === 1 ? "" : "s"} remain unresolved. Reconnect to retry Pending scans, or return to Scanner and review Failed rows.`,
+      [
+        ...(failed[0]
+          ? [{ text: "Review Failed", onPress: () => reviewFailedScan(failed[0], failed.length) }]
+          : []),
+        { text: "OK" },
+      ],
+    );
   }
 
   return (
@@ -97,7 +206,7 @@ export function SettingsScreen() {
       <Text style={styles.sectionLabel}>ACCOUNT</Text>
       <View style={styles.section}>
         <SettingsRow label="Change password" onPress={() => setPasswordModalOpen(true)} styles={styles} />
-        <SettingsRow label="Log out" destructive onPress={() => supabase.auth.signOut()} styles={styles} />
+        <SettingsRow label="Log out" destructive onPress={logout} styles={styles} />
       </View>
 
       <Text style={styles.version}>AttendKita v1.0.0</Text>

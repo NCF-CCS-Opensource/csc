@@ -1,9 +1,11 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Crypto from "expo-crypto";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -12,7 +14,15 @@ import {
 import { Dropdown } from "../components/Dropdown";
 import { apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
-import { enqueue } from "../lib/scanQueue";
+import {
+  addRecentScan,
+  discardScan,
+  enqueue,
+  loadRecentScans,
+  retryScan,
+  type QueuedScan,
+  type RecentScan,
+} from "../lib/scanQueue";
 import { flushQueue } from "../lib/syncScans";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
@@ -31,11 +41,15 @@ type BoothMode = (typeof BOOTH_MODES)[number]["value"];
 type ScannedStudent = { name: string; studentId: string; program: string };
 
 export function BoothScreen({
+  officerId,
   pendingCount,
-  onScanQueued,
+  queueRevision,
+  onQueueChanged,
 }: {
+  officerId: string;
   pendingCount: number;
-  onScanQueued: () => void;
+  queueRevision: number;
+  onQueueChanged: () => void;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -49,12 +63,20 @@ export function BoothScreen({
   >(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
+  const [selectedFailed, setSelectedFailed] = useState<RecentScan | null>(null);
+
+  const refreshRecent = useCallback(() => {
+    loadRecentScans(officerId).then(setRecentScans);
+  }, [officerId]);
 
   useEffect(() => {
     apiFetch<{ events: EventRow[] }>("/api/events/mine")
       .then((data) => setEvents(data.events))
       .catch(() => {});
   }, []);
+
+  useEffect(refreshRecent, [queueRevision, refreshRecent]);
 
   const activeEvent = events.find((e) => e.id === eventId) ?? null;
   const ready = !!activeEvent && !!mode;
@@ -81,43 +103,83 @@ export function BoothScreen({
     setMessage("Unreadable QR code");
   }
 
-  // Approve/reject always queue locally first, then attempt an immediate
-  // sync — so the flow works the same whether online or offline, and a scan
-  // is never lost to a dropped connection mid-request. Each scan is tagged
-  // with a client UUID so a retried sync upserts instead of duplicating.
-  async function approve() {
+  async function decide(decision: "accepted" | "rejected") {
     if (!scanned || !activeEvent || !mode) return;
     setSubmitting(true);
-    await enqueue({
-      id: Crypto.randomUUID(),
-      type: "approve",
+    const id = Crypto.randomUUID();
+    const decisionAt = new Date().toISOString();
+    const queued: QueuedScan = {
+      id,
+      officerId,
+      type: decision === "accepted" ? "approve" : "reject",
       eventId: activeEvent.id,
       mode,
       qrPayload: scanned.raw,
       scannedAt: scanned.scannedAt,
-    });
-    onScanQueued();
-    setMessage(`Queued ${scanned.student.name}`);
-    setSubmitting(false);
-    setScanned(null);
-    flushQueue(onScanQueued).catch(() => {});
+      decisionAt,
+      deliveryState: "pending",
+    };
+    try {
+      await enqueue(queued);
+      await addRecentScan({
+        id,
+        officerId,
+        studentName: scanned.student.name,
+        studentId: scanned.student.studentId,
+        eventName: activeEvent.name,
+        mode,
+        scannedAt: scanned.scannedAt,
+        decisionAt,
+        decision,
+        deliveryState: "pending",
+      });
+      refreshRecent();
+      onQueueChanged();
+      setMessage(
+        decision === "accepted"
+          ? `Queued ${scanned.student.name}`
+          : `Queued rejection of ${scanned.student.name}`,
+      );
+      setScanned(null);
+      flushQueue(officerId, onQueueChanged)
+        .then(refreshRecent)
+        .catch(() => {});
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  async function reject() {
-    if (!scanned || !activeEvent) return;
-    setSubmitting(true);
-    await enqueue({
-      id: Crypto.randomUUID(),
-      type: "reject",
-      eventId: activeEvent.id,
-      qrPayload: scanned.raw,
-      scannedAt: scanned.scannedAt,
-    });
-    onScanQueued();
-    setMessage(`Queued rejection of ${scanned.student.name}`);
-    setSubmitting(false);
-    setScanned(null);
-    flushQueue(onScanQueued).catch(() => {});
+  async function retrySelected() {
+    if (!selectedFailed) return;
+    await retryScan(officerId, selectedFailed.id);
+    setSelectedFailed(null);
+    refreshRecent();
+    onQueueChanged();
+    flushQueue(officerId, onQueueChanged)
+      .then(refreshRecent)
+      .catch(() => {});
+  }
+
+  function confirmDiscard() {
+    if (!selectedFailed) return;
+    const scan = selectedFailed;
+    Alert.alert(
+      "Discard failed scan?",
+      "This removes only its queued delivery. The Recent scan stays visible until normal five-item eviction.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: async () => {
+            await discardScan(officerId, scan.id);
+            setSelectedFailed(null);
+            refreshRecent();
+            onQueueChanged();
+          },
+        },
+      ],
+    );
   }
 
   if (!permission) return null;
@@ -156,7 +218,7 @@ export function BoothScreen({
 
       {pendingCount > 0 && (
         <Text style={styles.pending}>
-          {pendingCount} scan{pendingCount === 1 ? "" : "s"} pending sync
+          {pendingCount} scan{pendingCount === 1 ? "" : "s"} awaiting resolution
         </Text>
       )}
       {message && <Text style={styles.hint}>{message}</Text>}
@@ -176,6 +238,26 @@ export function BoothScreen({
           options={BOOTH_MODES.map((m) => ({ label: m.label, value: m.value }))}
           onChange={setMode}
         />
+      </View>
+
+      <View style={styles.recentSection}>
+        <Text style={styles.recentTitle}>Recent scans</Text>
+        {recentScans.length === 0 ? (
+          <Text style={styles.emptyRecent}>No scans yet</Text>
+        ) : (
+          <ScrollView style={styles.recentList} nestedScrollEnabled>
+            {recentScans.map((scan) => (
+              <RecentScanRow
+                key={scan.id}
+                scan={scan}
+                styles={styles}
+                onPress={() =>
+                  scan.deliveryState === "failed" && !scan.discarded && setSelectedFailed(scan)
+                }
+              />
+            ))}
+          </ScrollView>
+        )}
       </View>
 
       <Modal visible={!!scanned} transparent animationType="fade">
@@ -219,10 +301,16 @@ export function BoothScreen({
                   <ActivityIndicator style={{ marginTop: 12 }} />
                 ) : (
                   <View style={styles.modalActions}>
-                    <TouchableOpacity style={[styles.actionButton, styles.reject]} onPress={reject}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.reject]}
+                      onPress={() => decide("rejected")}
+                    >
                       <Text style={styles.rejectText}>✕ Reject</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.actionButton, styles.accept]} onPress={approve}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.accept]}
+                      onPress={() => decide("accepted")}
+                    >
                       <Text style={styles.acceptText}>✓ Accept</Text>
                     </TouchableOpacity>
                   </View>
@@ -232,7 +320,102 @@ export function BoothScreen({
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={!!selectedFailed}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedFailed(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.failedCard}>
+            <Text style={styles.modalTitle}>Failed scan</Text>
+            <Text style={styles.failedError}>{selectedFailed?.error ?? "Delivery was rejected."}</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.reject]}
+                onPress={confirmDiscard}
+              >
+                <Text style={styles.rejectText}>Discard scan</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.accept]}
+                onPress={retrySelected}
+              >
+                <Text style={styles.acceptText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity onPress={() => setSelectedFailed(null)}>
+              <Text style={styles.closeFailed}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
+  );
+}
+
+function RecentScanRow({
+  scan,
+  styles,
+  onPress,
+}: {
+  scan: RecentScan;
+  styles: Styles;
+  onPress: () => void;
+}) {
+  const decision = scan.decision === "accepted" ? "✓ Accepted" : "✕ Rejected";
+  const status = scan.discarded
+    ? "! Failed · Discarded"
+    : {
+        pending: "◷ Pending",
+        synced: "✓ Synced",
+        failed: "! Failed",
+      }[scan.deliveryState];
+  const mode = BOOTH_MODES.find(({ value }) => value === scan.mode)?.label ?? scan.mode;
+
+  return (
+    <TouchableOpacity
+      style={styles.recentRow}
+      onPress={onPress}
+      disabled={scan.deliveryState !== "failed" || scan.discarded}
+      accessibilityHint={
+        scan.deliveryState === "failed" && !scan.discarded
+          ? "Opens delivery error and actions"
+          : undefined
+      }
+    >
+      <View style={styles.recentMain}>
+        <Text style={styles.recentName} numberOfLines={1}>
+          {scan.studentName} · {scan.studentId}
+        </Text>
+        <Text style={styles.recentMeta} numberOfLines={1}>
+          {scan.eventName} · {mode} ·{" "}
+          {new Date(scan.scannedAt).toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </Text>
+      </View>
+      <View style={styles.recentState}>
+        <Text
+          style={scan.decision === "accepted" ? styles.acceptedLabel : styles.rejectedLabel}
+        >
+          {decision}
+        </Text>
+        <Text
+          style={
+            scan.deliveryState === "synced"
+              ? styles.syncedLabel
+              : scan.deliveryState === "failed"
+                ? styles.failedLabel
+                : styles.pendingLabel
+          }
+        >
+          {status}
+        </Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -293,6 +476,31 @@ function makeStyles(c: ThemeColors) {
     statusHint: { fontSize: 12, color: c.textMuted, marginLeft: "auto" },
     pending: { fontSize: 13, color: c.warning, fontWeight: "600", paddingHorizontal: 16, marginTop: 8 },
     dropdownRow: { flexDirection: "row", gap: 12, padding: 16 },
+    recentSection: {
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      paddingHorizontal: 16,
+      paddingBottom: 10,
+    },
+    recentTitle: { fontSize: 14, fontWeight: "700", color: c.text, paddingVertical: 8 },
+    emptyRecent: { fontSize: 13, color: c.textMuted, paddingBottom: 8 },
+    recentList: { maxHeight: 210 },
+    recentRow: {
+      flexDirection: "row",
+      gap: 8,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: c.borderSubtle,
+    },
+    recentMain: { flex: 1 },
+    recentName: { fontSize: 12, fontWeight: "600", color: c.text },
+    recentMeta: { fontSize: 11, color: c.textMuted, marginTop: 2 },
+    recentState: { alignItems: "flex-end", gap: 2 },
+    acceptedLabel: { fontSize: 11, color: c.success, fontWeight: "600" },
+    rejectedLabel: { fontSize: 11, color: c.danger, fontWeight: "600" },
+    pendingLabel: { fontSize: 11, color: c.warning, fontWeight: "600" },
+    syncedLabel: { fontSize: 11, color: c.success, fontWeight: "600" },
+    failedLabel: { fontSize: 11, color: c.danger, fontWeight: "600" },
     button: {
       backgroundColor: c.primary,
       borderRadius: 6,
@@ -313,6 +521,15 @@ function makeStyles(c: ThemeColors) {
       padding: 20,
       gap: 12,
     },
+    failedCard: {
+      backgroundColor: c.card,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      gap: 12,
+    },
+    failedError: { fontSize: 13, color: c.danger },
+    closeFailed: { color: c.textMuted, textAlign: "center", paddingVertical: 6 },
     modalHandle: {
       width: 40,
       height: 4,
