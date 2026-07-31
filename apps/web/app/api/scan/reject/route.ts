@@ -1,14 +1,13 @@
-import { events, scans, students } from "@attendance/db";
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { authorizeRequest } from "@/lib/api-auth";
-import { db } from "@/lib/db";
-import { decodeQrPayload } from "@/lib/scan";
+import {
+  applyScanDecision,
+  ScanApprovalError,
+} from "@/lib/scan-approval";
 
 export async function POST(request: Request) {
-  const authorization = await authorizeRequest(request, "manage_operations");
+  const authorization = await authorizeRequest(request, "use_mobile_booth");
   if (!authorization.ok) return authorization.response;
-  const officer = authorization.actor;
 
   const body = (await request.json()) as {
     scanId?: string;
@@ -16,36 +15,29 @@ export async function POST(request: Request) {
     qrPayload?: string;
     scannedAt?: string;
   };
-  const { scanId, eventId, qrPayload, scannedAt } = body;
-
-  if (!scanId || !eventId || !qrPayload || !scannedAt) {
+  if (!body.scanId || !body.eventId || !body.qrPayload || !body.scannedAt) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const event = await db.query.events.findFirst({
-    where: eq(events.id, eventId),
-  });
-  if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
-
-  const decoded = decodeQrPayload(qrPayload);
-  const student = decoded
-    ? await db.query.students.findFirst({ where: eq(students.studentId, decoded.studentId) })
-    : null;
-
-  // Idempotent on scanId — a retried offline-sync of the same rejection
-  // never inserts a second log row.
-  await db
-    .insert(scans)
-    .values({
-      id: scanId,
-      eventId: event.id,
-      studentId: student?.id ?? null,
-      qrPayload,
-      result: "rejected",
-      officerId: officer.id,
-      scannedAt: new Date(scannedAt),
-    })
-    .onConflictDoNothing({ target: scans.id });
-
-  return NextResponse.json({ ok: true });
+  try {
+    return NextResponse.json(
+      await applyScanDecision(authorization.actor, {
+        scanId: body.scanId,
+        type: "reject",
+        eventId: body.eventId,
+        qrPayload: body.qrPayload,
+        scannedAt: body.scannedAt,
+      }),
+    );
+  } catch (error) {
+    if (error instanceof ScanApprovalError) {
+      const status = error.message.includes("conflicts")
+        ? 409
+        : error.message === "Event not found"
+          ? 404
+          : 400;
+      return NextResponse.json({ error: error.message }, { status });
+    }
+    throw error;
+  }
 }

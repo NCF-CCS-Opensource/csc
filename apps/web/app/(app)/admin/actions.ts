@@ -1,45 +1,48 @@
 "use server";
 
 import { programs, semesters, students } from "@attendance/db";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { requireGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { validateSemesterDates } from "@/lib/semesters";
+import {
+  createSemester as createSemesterCommand,
+  SemesterLifecycleError,
+  updateSemesterDates,
+} from "@/lib/semesters";
 
 function fail(message: string): never {
   redirect(`/admin?error=${encodeURIComponent(message)}`);
 }
 
 export async function createSemester(formData: FormData) {
-  await requireGovernor();
+  const governor = await requireGovernor();
 
   const startDate = String(formData.get("startDate") ?? "");
   const endDate = String(formData.get("endDate") ?? "");
 
-  const errors = validateSemesterDates(startDate, endDate);
-  if (errors.length > 0) fail(errors[0].message);
-
-  const open = await db.query.semesters.findFirst({
-    where: isNull(semesters.closedAt),
-  });
-  if (open) fail("Close the current semester before opening a new one");
-
-  await db.insert(semesters).values({ startDate, endDate });
+  try {
+    await createSemesterCommand(governor, { startDate, endDate });
+  } catch (error) {
+    if (error instanceof SemesterLifecycleError) fail(error.message);
+    throw error;
+  }
   redirect("/admin");
 }
 
 export async function editSemester(formData: FormData) {
-  await requireGovernor();
+  const governor = await requireGovernor();
 
   const id = String(formData.get("id") ?? "");
   const startDate = String(formData.get("startDate") ?? "");
   const endDate = String(formData.get("endDate") ?? "");
 
-  const errors = validateSemesterDates(startDate, endDate);
-  if (errors.length > 0) fail(errors[0].message);
-
-  await db.update(semesters).set({ startDate, endDate }).where(eq(semesters.id, id));
+  try {
+    await updateSemesterDates(governor, id, { startDate, endDate });
+  } catch (error) {
+    if (error instanceof SemesterLifecycleError) fail(error.message);
+    throw error;
+  }
   redirect("/admin");
 }
 

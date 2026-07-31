@@ -1,15 +1,25 @@
-import { attendanceSessions, events, scans, students } from "@attendance/db";
-import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { authorizeRequest } from "@/lib/api-auth";
-import { db } from "@/lib/db";
-import { syncPenaltyForSession } from "@/lib/penalties";
-import { BOOTH_MODES, decodeQrPayload, modeToHalfAndField, type BoothMode } from "@/lib/scan";
+import {
+  applyScanDecision,
+  ScanApprovalError,
+} from "@/lib/scan-approval";
+
+function errorResponse(error: ScanApprovalError) {
+  const status =
+    error.message === "Event not found"
+      ? 404
+      : error.message.includes("conflicts")
+        ? 409
+        : error.message === "Invalid request"
+          ? 400
+          : 422;
+  return NextResponse.json({ error: error.message }, { status });
+}
 
 export async function POST(request: Request) {
-  const authorization = await authorizeRequest(request, "manage_operations");
+  const authorization = await authorizeRequest(request, "use_mobile_booth");
   if (!authorization.ok) return authorization.response;
-  const officer = authorization.actor;
 
   const body = (await request.json()) as {
     scanId?: string;
@@ -18,85 +28,29 @@ export async function POST(request: Request) {
     qrPayload?: string;
     scannedAt?: string;
   };
-  const { scanId, eventId, mode, qrPayload, scannedAt } = body;
-
   if (
-    !scanId ||
-    !eventId ||
-    !qrPayload ||
-    !scannedAt ||
-    !BOOTH_MODES.includes(mode as BoothMode)
+    !body.scanId ||
+    !body.eventId ||
+    !body.mode ||
+    !body.qrPayload ||
+    !body.scannedAt
   ) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const event = await db.query.events.findFirst({
-    where: eq(events.id, eventId),
-  });
-  if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
-
-  const decoded = decodeQrPayload(qrPayload);
-  if (!decoded) return NextResponse.json({ error: "Unreadable QR" }, { status: 422 });
-
-  const student = await db.query.students.findFirst({
-    where: eq(students.studentId, decoded.studentId),
-  });
-  if (!student) return NextResponse.json({ error: "Unknown student" }, { status: 404 });
-
-  // Idempotent on scanId: a retried offline-sync of the same scan is a no-op
-  // past this point, so it can never double-apply or duplicate-log.
-  const [inserted] = await db
-    .insert(scans)
-    .values({
-      id: scanId,
-      eventId: event.id,
-      studentId: student.id,
-      qrPayload,
-      result: "approved",
-      mode: mode as BoothMode,
-      officerId: officer.id,
-      scannedAt: new Date(scannedAt),
-    })
-    .onConflictDoNothing({ target: scans.id })
-    .returning();
-
-  if (inserted) {
-    const { half, field } = modeToHalfAndField(mode as BoothMode);
-    // Capture-time truth: the Officer's device timestamp, not server receipt time.
-    const capturedAt = new Date(scannedAt);
-
-    const existingSession = await db.query.attendanceSessions.findFirst({
-      where: and(
-        eq(attendanceSessions.eventId, event.id),
-        eq(attendanceSessions.studentId, student.id),
-        eq(attendanceSessions.half, half),
-      ),
-    });
-
-    let sessionId: string;
-    if (existingSession) {
-      sessionId = existingSession.id;
-      await db
-        .update(attendanceSessions)
-        .set(field === "timeIn" ? { timeIn: capturedAt } : { timeOut: capturedAt })
-        .where(eq(attendanceSessions.id, existingSession.id));
-    } else {
-      const [createdSession] = await db
-        .insert(attendanceSessions)
-        .values(
-          field === "timeIn"
-            ? { eventId: event.id, studentId: student.id, half, timeIn: capturedAt }
-            : { eventId: event.id, studentId: student.id, half, timeOut: capturedAt },
-        )
-        .returning();
-      sessionId = createdSession.id;
-    }
-
-    await syncPenaltyForSession(sessionId);
+  try {
+    return NextResponse.json(
+      await applyScanDecision(authorization.actor, {
+        scanId: body.scanId,
+        type: "approve",
+        eventId: body.eventId,
+        mode: body.mode,
+        qrPayload: body.qrPayload,
+        scannedAt: body.scannedAt,
+      }),
+    );
+  } catch (error) {
+    if (error instanceof ScanApprovalError) return errorResponse(error);
+    throw error;
   }
-
-  return NextResponse.json({
-    ok: true,
-    student: { name: student.name, studentId: student.studentId, program: student.program },
-  });
 }

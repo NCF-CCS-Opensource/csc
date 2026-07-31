@@ -1,4 +1,10 @@
+import { events, semesters } from "@attendance/db";
+import { and, eq, gt, lt, or } from "drizzle-orm";
+import { db } from "./db";
 import type { ValidationError } from "./registration";
+import { hasCapability, type Role } from "./roles";
+
+export class SemesterLifecycleError extends Error {}
 
 export function validateSemesterDates(
   startDate: string,
@@ -22,4 +28,54 @@ export function validateSemesterDates(
   }
 
   return errors;
+}
+
+export async function createSemester(
+  actor: { role: Role },
+  dates: { startDate: string; endDate: string },
+): Promise<void> {
+  if (!hasCapability(actor.role, "administer")) {
+    throw new SemesterLifecycleError("Forbidden");
+  }
+
+  const errors = validateSemesterDates(dates.startDate, dates.endDate);
+  if (errors[0]) throw new SemesterLifecycleError(errors[0].message);
+
+  try {
+    await db.insert(semesters).values(dates);
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") {
+      throw new SemesterLifecycleError(
+        "Close the current Semester before opening a new one",
+      );
+    }
+    throw error;
+  }
+}
+
+export async function updateSemesterDates(
+  actor: { role: Role },
+  id: string,
+  dates: { startDate: string; endDate: string },
+): Promise<void> {
+  if (!hasCapability(actor.role, "administer")) {
+    throw new SemesterLifecycleError("Forbidden");
+  }
+
+  const errors = validateSemesterDates(dates.startDate, dates.endDate);
+  if (errors[0]) throw new SemesterLifecycleError(errors[0].message);
+
+  const excludedEvent = await db.query.events.findFirst({
+    where: and(
+      eq(events.semesterId, id),
+      or(lt(events.date, dates.startDate), gt(events.date, dates.endDate)),
+    ),
+  });
+  if (excludedEvent) {
+    throw new SemesterLifecycleError(
+      "Semester dates must include every existing Event",
+    );
+  }
+
+  await db.update(semesters).set(dates).where(eq(semesters.id, id));
 }

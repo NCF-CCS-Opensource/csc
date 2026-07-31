@@ -3,12 +3,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const LEGACY_QUEUE_KEY = "attendance.scanQueue.v1";
 const QUEUE_KEY = "attendance.scanQueue.v2";
 const RECENT_KEY = "attendance.recentScans.v1";
-const LEGACY_ERROR =
-  "This scan predates Officer ownership and cannot be delivered safely. Review and discard it.";
 let storageMutation = Promise.resolve();
 // ponytail: one device has one scanner; split this lock per storage key only if write throughput matters.
 
-export type DeliveryState = "pending" | "synced" | "failed";
+export type DeliveryState = "pending" | "delivered" | "needs_review";
 
 export type QueuedScan = {
   id: string;
@@ -19,7 +17,7 @@ export type QueuedScan = {
   qrPayload: string;
   scannedAt: string;
   decisionAt: string;
-  deliveryState: "pending" | "failed";
+  deliveryState: "pending" | "needs_review";
   error?: string;
 };
 
@@ -59,7 +57,17 @@ function mutate<T>(operation: () => Promise<T>): Promise<T> {
 
 async function loadAllQueue(): Promise<QueuedScan[]> {
   const current = await AsyncStorage.getItem(QUEUE_KEY);
-  if (current !== null) return parseArray<QueuedScan>(current);
+  if (current !== null) {
+    return parseArray<
+      Omit<QueuedScan, "deliveryState"> & { deliveryState: string }
+    >(current).map((scan) => ({
+      ...scan,
+      deliveryState:
+        scan.deliveryState === "failed"
+          ? "needs_review"
+          : scan.deliveryState,
+    })) as QueuedScan[];
+  }
 
   const legacyRaw = await AsyncStorage.getItem(LEGACY_QUEUE_KEY);
   const legacy = parseArray<Record<string, unknown>>(legacyRaw).map(
@@ -68,8 +76,7 @@ async function loadAllQueue(): Promise<QueuedScan[]> {
       mode: typeof scan.mode === "string" ? scan.mode : "unknown",
       decisionAt: typeof scan.decisionAt === "string" ? scan.decisionAt : String(scan.scannedAt),
       officerId: null,
-      deliveryState: "failed",
-      error: LEGACY_ERROR,
+      deliveryState: "pending",
     }),
   );
   await saveQueue(legacy);
@@ -81,9 +88,8 @@ async function saveQueue(queue: QueuedScan[]): Promise<void> {
   await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 }
 
-export async function loadQueue(officerId?: string): Promise<QueuedScan[]> {
-  const queue = await loadAllQueue();
-  return officerId === undefined ? queue : queue.filter((scan) => scan.officerId === officerId);
+export async function loadQueue(officerId: string): Promise<QueuedScan[]> {
+  return (await loadAllQueue()).filter((scan) => scan.officerId === officerId);
 }
 
 export async function enqueue(scan: QueuedScan): Promise<number> {
@@ -95,20 +101,18 @@ export async function enqueue(scan: QueuedScan): Promise<number> {
   });
 }
 
-export async function dequeue(id: string, officerId?: string): Promise<number> {
+export async function dequeue(id: string, officerId: string): Promise<number> {
   return mutate(async () => {
     const queue = await loadAllQueue();
     const next = queue.filter(
-      (scan) => scan.id !== id || (officerId !== undefined && scan.officerId !== officerId),
+      (scan) => scan.id !== id || scan.officerId !== officerId,
     );
     await saveQueue(next);
-    return officerId === undefined
-      ? next.length
-      : next.filter((scan) => scan.officerId === officerId).length;
+    return next.filter((scan) => scan.officerId === officerId).length;
   });
 }
 
-export async function failScan(
+export async function markNeedsReview(
   officerId: string,
   id: string,
   error: string,
@@ -118,7 +122,7 @@ export async function failScan(
     await saveQueue(
       queue.map((scan) =>
         scan.id === id && scan.officerId === officerId
-          ? { ...scan, deliveryState: "failed", error }
+          ? { ...scan, deliveryState: "needs_review", error }
           : scan,
       ),
     );
@@ -149,7 +153,10 @@ export async function retryScan(officerId: string, id: string): Promise<boolean>
 
 export async function discardScan(officerId: string, id: string): Promise<number> {
   const remaining = await dequeue(id, officerId);
-  await updateRecentScan(officerId, id, { deliveryState: "failed", discarded: true });
+  await updateRecentScan(officerId, id, {
+    deliveryState: "needs_review",
+    discarded: true,
+  });
   return remaining;
 }
 
@@ -168,8 +175,20 @@ export async function legacyScans(): Promise<QueuedScan[]> {
   return (await loadAllQueue()).filter((scan) => scan.officerId === null);
 }
 
-export async function failedScans(officerId: string): Promise<QueuedScan[]> {
-  return (await loadQueue(officerId)).filter((scan) => scan.deliveryState === "failed");
+export async function claimLegacyScans(officerId: string): Promise<number> {
+  return mutate(async () => {
+    const queue = (await loadAllQueue()).map((scan) =>
+      scan.officerId === null ? { ...scan, officerId } : scan,
+    );
+    await saveQueue(queue);
+    return queue.filter((scan) => scan.officerId === officerId).length;
+  });
+}
+
+export async function needsReviewScans(officerId: string): Promise<QueuedScan[]> {
+  return (await loadQueue(officerId)).filter(
+    (scan) => scan.deliveryState === "needs_review",
+  );
 }
 
 function recentKey(officerId: string): string {
@@ -177,7 +196,19 @@ function recentKey(officerId: string): string {
 }
 
 export async function loadRecentScans(officerId: string): Promise<RecentScan[]> {
-  return parseArray<RecentScan>(await AsyncStorage.getItem(recentKey(officerId)));
+  return parseArray<
+    Omit<RecentScan, "deliveryState"> & { deliveryState: string }
+  >(
+    await AsyncStorage.getItem(recentKey(officerId)),
+  ).map((scan) => ({
+    ...scan,
+    deliveryState:
+      scan.deliveryState === "synced"
+        ? "delivered"
+        : scan.deliveryState === "failed"
+          ? "needs_review"
+          : scan.deliveryState,
+  })) as RecentScan[];
 }
 
 export async function addRecentScan(scan: RecentScan): Promise<void> {

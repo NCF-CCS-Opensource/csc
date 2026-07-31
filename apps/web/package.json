@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --exclude lib/architecture.integration.test.ts",
+    "test:integration": "vitest run lib/architecture.integration.test.ts"
   },
   "dependencies": {
     "@attendance/db": "workspace:*",

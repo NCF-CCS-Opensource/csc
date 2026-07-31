@@ -19,9 +19,9 @@ import { BoothScreen } from "./screens/BoothScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { blockingScanCount } from "./lib/scanQueue";
+import { blockingScanCount, claimLegacyScans } from "./lib/scanQueue";
 import { supabase } from "./lib/supabase";
-import { flushQueue } from "./lib/syncScans";
+import { flushQueue, stopQueueRetries } from "./lib/syncScans";
 import { ThemeProvider, useTheme } from "./lib/theme-context";
 import type { ThemeColors } from "./lib/theme";
 
@@ -131,6 +131,9 @@ export default function App() {
 
       try {
         await apiFetch("/api/me");
+        await claimLegacyScans(userId);
+        await refreshQueue(userId);
+        flushQueue(userId, () => refreshQueue(userId)).catch(() => {});
         await AsyncStorage.setItem(MOBILE_ADMISSION_OWNER_KEY, userId).catch(
           () => {},
         );
@@ -157,7 +160,7 @@ export default function App() {
     return () => {
       current = false;
     };
-  }, [admissionAttempt, session]);
+  }, [admissionAttempt, refreshQueue, session]);
 
   useEffect(() => {
     const officerId = session?.user.id;
@@ -166,14 +169,19 @@ export default function App() {
       return;
     }
     refreshQueue(officerId);
+    if (!admission?.allowed) return;
+    flushQueue(officerId, () => refreshQueue(officerId)).catch(() => {});
     const unsubscribe = NetInfo.addEventListener((state) => {
       if (state.isConnected) {
         flushQueue(officerId, () => refreshQueue(officerId)).catch(() => {});
         setAdmissionAttempt((attempt) => attempt + 1);
       }
     });
-    return () => unsubscribe();
-  }, [refreshQueue, session?.user.id]);
+    return () => {
+      unsubscribe();
+      stopQueueRetries(officerId);
+    };
+  }, [admission?.allowed, refreshQueue, session?.user.id]);
 
   return (
     <GestureHandlerRootView style={styles.container}>

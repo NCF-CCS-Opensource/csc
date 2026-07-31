@@ -3,11 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addRecentScan,
   blockingScanCount,
+  claimLegacyScans,
   discardScan,
   enqueue,
-  failedScans,
   loadQueue,
   loadRecentScans,
+  needsReviewScans,
   retryScan,
   updateRecentScan,
   type QueuedScan,
@@ -88,13 +89,17 @@ describe("Recent scans", () => {
     await addRecentScan(recent("2"));
 
     await updateRecentScan("officer-a", "1", {
-      deliveryState: "failed",
+      deliveryState: "needs_review",
       error: "Unknown student",
     });
 
     expect(await loadRecentScans("officer-a")).toEqual([
       recent("2"),
-      { ...recent("1"), deliveryState: "failed", error: "Unknown student" },
+      {
+        ...recent("1"),
+        deliveryState: "needs_review",
+        error: "Unknown student",
+      },
     ]);
   });
 
@@ -103,12 +108,12 @@ describe("Recent scans", () => {
 
     await Promise.all([
       addRecentScan(recent("2")),
-      updateRecentScan("officer-a", "1", { deliveryState: "synced" }),
+      updateRecentScan("officer-a", "1", { deliveryState: "delivered" }),
     ]);
 
     expect(await loadRecentScans("officer-a")).toEqual([
       recent("2"),
-      { ...recent("1"), deliveryState: "synced" },
+      { ...recent("1"), deliveryState: "delivered" },
     ]);
   });
 });
@@ -125,7 +130,7 @@ describe("Offline Scan Queue ownership", () => {
     expect(await blockingScanCount("officer-b")).toBe(1);
   });
 
-  it("quarantines existing ownerless queue data without losing or attributing it", async () => {
+  it("claims legacy queue data only for the verified mobile actor", async () => {
     await AsyncStorage.setItem(
       "attendance.scanQueue.v1",
       JSON.stringify([
@@ -140,22 +145,34 @@ describe("Offline Scan Queue ownership", () => {
     );
 
     expect(await loadQueue("officer-a")).toEqual([]);
-    expect(await loadQueue()).toEqual([
+
+    await claimLegacyScans("officer-a");
+
+    expect(await loadQueue("officer-a")).toEqual([
       expect.objectContaining({
         id: "legacy",
-        officerId: null,
-        deliveryState: "failed",
+        officerId: "officer-a",
+        deliveryState: "pending",
       }),
     ]);
-    expect(await blockingScanCount("officer-a")).toBe(0);
+    expect(await loadQueue("officer-b")).toEqual([]);
+    expect(await blockingScanCount("officer-a")).toBe(1);
   });
 
   it("retries or discards only the selected failed decision", async () => {
-    await enqueue({ ...queued("1"), deliveryState: "failed", error: "Bad request" });
-    await enqueue({ ...queued("2"), deliveryState: "failed", error: "Unknown student" });
+    await enqueue({
+      ...queued("1"),
+      deliveryState: "needs_review",
+      error: "Bad request",
+    });
+    await enqueue({
+      ...queued("2"),
+      deliveryState: "needs_review",
+      error: "Unknown student",
+    });
     await addRecentScan({
       ...recent("2"),
-      deliveryState: "failed",
+      deliveryState: "needs_review",
       error: "Unknown student",
     });
 
@@ -166,7 +183,7 @@ describe("Offline Scan Queue ownership", () => {
     expect(await loadRecentScans("officer-a")).toEqual([
       {
         ...recent("2"),
-        deliveryState: "failed",
+        deliveryState: "needs_review",
         error: "Unknown student",
         discarded: true,
       },
@@ -176,12 +193,20 @@ describe("Offline Scan Queue ownership", () => {
   });
 
   it("keeps a Failed decision reviewable after normal Recent-scan eviction", async () => {
-    const failed = { ...queued("1"), deliveryState: "failed" as const, error: "Invalid request" };
+    const failed = {
+      ...queued("1"),
+      deliveryState: "needs_review" as const,
+      error: "Invalid request",
+    };
     await enqueue(failed);
-    await addRecentScan({ ...recent("1"), deliveryState: "failed", error: "Invalid request" });
+    await addRecentScan({
+      ...recent("1"),
+      deliveryState: "needs_review",
+      error: "Invalid request",
+    });
     for (let id = 2; id <= 6; id += 1) await addRecentScan(recent(String(id)));
 
     expect((await loadRecentScans("officer-a")).some(({ id }) => id === "1")).toBe(false);
-    expect(await failedScans("officer-a")).toEqual([failed]);
+    expect(await needsReviewScans("officer-a")).toEqual([failed]);
   });
 });

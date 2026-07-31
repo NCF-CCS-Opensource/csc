@@ -16,8 +16,8 @@ import {
   blockingScanCount,
   discardScan,
   discardLegacyScans,
-  failedScans,
   legacyScans,
+  needsReviewScans,
   retryScan,
   type QueuedScan,
 } from "../lib/scanQueue";
@@ -157,7 +157,7 @@ export function SettingsScreen({
     const [count, legacy, failed] = await Promise.all([
       blockingScanCount(officerId),
       legacyScans(),
-      failedScans(officerId),
+      needsReviewScans(officerId),
     ]);
     if (count === 0 && legacy.length === 0) {
       await supabase.auth.signOut();
@@ -179,10 +179,10 @@ export function SettingsScreen({
 
     Alert.alert(
       "Can’t log out yet",
-      `${count} scan${count === 1 ? "" : "s"} remain unresolved. Reconnect to retry Pending scans, or return to Scanner and review Failed rows.`,
+      `${count} scan${count === 1 ? "" : "s"} remain unresolved. Reconnect to retry Pending scans, or return to Scanner and review Needs Review rows.`,
       [
         ...(failed[0]
-          ? [{ text: "Review Failed", onPress: () => reviewFailedScan(failed[0], failed.length) }]
+          ? [{ text: "Review Needs Review", onPress: () => reviewFailedScan(failed[0], failed.length) }]
           : []),
         { text: "OK" },
       ],

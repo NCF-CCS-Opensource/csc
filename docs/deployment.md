@@ -63,10 +63,7 @@ From the repository root:
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm lint
-pnpm typecheck
-pnpm --filter web test
-pnpm build
+pnpm release:check
 ```
 
 Stop if any check fails.
@@ -144,14 +141,17 @@ Use disposable test data:
 3. Confirm an Officer can load all shared Events on web and mobile.
 4. Create one Event and confirm it appears on both clients.
 5. Approve one test scan on a physical device and confirm it leaves the Offline Scan Queue.
-6. Retry the same decision and confirm it does not change attendance again.
-7. Confirm the Attendance Session and Penalty result on the Event attendance grid.
-8. Reject one test scan and confirm it appears in Governor rejection review.
-9. Confirm a permanent queue rejection moves to Needs Review without blocking a later valid decision.
-10. Confirm logout is blocked while pending or Needs Review decisions remain.
-11. Confirm an Officer cannot open `/admin`.
-12. Confirm a Governor can manage the active Semester and Program list and can enter the mobile booth.
-13. Confirm a Student is rejected by mobile before booth tabs render.
+6. Retry the identical decision and confirm it does not change attendance again.
+7. Reuse its UUID with different content and confirm the server returns conflict without changing attendance.
+8. Force a disposable-test Penalty failure and confirm the Scan, Attendance Session, and Penalty transaction rolls back.
+9. Confirm the Attendance Session and Penalty result on the Event attendance grid.
+10. Try to update protected fields and delete the Event after attendance begins; confirm both are rejected without changing history.
+11. Reject one test scan and confirm it appears in Governor rejection review.
+12. Confirm a permanent queue rejection moves to Needs Review without blocking a later valid decision.
+13. Confirm logout is blocked while pending or Needs Review decisions remain.
+14. Confirm an Officer cannot open `/admin`.
+15. Confirm a Governor can manage the active Semester and Program list and can enter the mobile booth.
+16. Confirm a Student is rejected by mobile before booth tabs render.
 
 Officer demotion, digital Clearance signing, a mobile Payment screen, and desktop viewport gates are outside this architecture refactor. Do not use them as release acceptance checks.
 

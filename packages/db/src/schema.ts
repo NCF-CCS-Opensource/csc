@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   date,
   numeric,
@@ -6,6 +7,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -35,23 +37,29 @@ export const students = pgTable("students", {
 
 // Governor-managed, date-ranged period. At most one open (closedAt is null)
 // at a time — see CONTEXT.md's Semester entry.
-export const semesters = pgTable("semesters", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  startDate: date("start_date").notNull(),
-  endDate: date("end_date").notNull(),
-  closedAt: timestamp("closed_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const semesters = pgTable(
+  "semesters",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date").notNull(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("semesters_one_open")
+      .on(sql`(1)`)
+      .where(sql`${table.closedAt} is null`),
+  ],
+);
 
 export const eventTypeEnum = pgEnum("event_type", ["whole_day", "half_day"]);
 
 // Scoped to one Semester — see CONTEXT.md's Event entry. No per-Officer
 // ownership: every Officer sees and CRUDs every Event (ADR 0007), so there is
 // no officer_id here. Whole-day penalty is derived (2x half-day), never stored
-// — see lib/events.ts's deriveWholeDayPenalty(). Deletion is a confirmed hard
-// delete (no soft-delete/undo) that cascades through scans, attendanceSessions,
-// penalties, and payments — deleting an Event wipes its entire attendance and
-// billing trail, not just the top-level row.
+// — see lib/events.ts's deriveWholeDayPenalty(). The Event lifecycle command
+// permits hard deletion only before any Scan or Attendance Session exists.
 export const events = pgTable("events", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -116,7 +124,8 @@ export const scans = pgTable("scans", {
   studentId: uuid("student_id").references(() => students.id),
   qrPayload: text("qr_payload").notNull(),
   result: scanResultEnum("result").notNull(),
-  // Which booth mode was selected — null for rejects, which don't target a half.
+  // Which booth mode was selected. Null for an explicit rejection; retained
+  // on invalid approval attempts so replay preserves the original decision.
   mode: boothModeEnum("mode"),
   officerId: uuid("officer_id")
     .notNull()

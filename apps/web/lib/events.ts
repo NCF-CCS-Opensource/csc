@@ -1,7 +1,15 @@
-import { semesters } from "@attendance/db";
-import { isNull } from "drizzle-orm";
+import {
+  attendanceSessions,
+  events,
+  scans,
+  semesters,
+} from "@attendance/db";
+import { eq, isNull } from "drizzle-orm";
 import { db } from "./db";
 import type { ValidationError } from "./registration";
+import { hasCapability, type Role } from "./roles";
+
+export class EventLifecycleError extends Error {}
 
 export const EVENT_TYPES = ["whole_day", "half_day"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
@@ -90,6 +98,123 @@ export async function findOpenSemester(): Promise<(SemesterRange & { id: string 
       where: isNull(semesters.closedAt),
     })) ?? null
   );
+}
+
+export async function createEvent(actor: { role: Role }, input: EventInput) {
+  if (!hasCapability(actor.role, "manage_operations")) {
+    throw new EventLifecycleError("Forbidden");
+  }
+
+  return db.transaction(async (transaction) => {
+    const openSemester = await transaction.query.semesters.findFirst({
+      where: isNull(semesters.closedAt),
+    });
+    if (!openSemester) {
+      throw new EventLifecycleError(
+        "No open Semester — ask the Governor to open one",
+      );
+    }
+
+    const errors = validateEventInput(input, openSemester);
+    if (errors[0]) throw new EventLifecycleError(errors[0].message);
+
+    const [created] = await transaction
+      .insert(events)
+      .values({ ...input, semesterId: openSemester.id })
+      .returning();
+    return created;
+  });
+}
+
+export async function updateEvent(
+  actor: { role: Role },
+  id: string,
+  input: EventInput,
+) {
+  if (!hasCapability(actor.role, "manage_operations")) {
+    throw new EventLifecycleError("Forbidden");
+  }
+
+  return db.transaction(async (transaction) => {
+    const existing = await transaction.query.events.findFirst({
+      where: eq(events.id, id),
+    });
+    if (!existing) throw new EventLifecycleError("Event not found");
+    const semester = await transaction.query.semesters.findFirst({
+      where: eq(semesters.id, existing.semesterId),
+    });
+    if (!semester) throw new EventLifecycleError("Semester not found");
+    if (semester.closedAt) {
+      throw new EventLifecycleError(
+        "Closed Semester Events cannot be changed",
+      );
+    }
+
+    const errors = validateEventUpdate(input, semester);
+    if (errors[0]) throw new EventLifecycleError(errors[0].message);
+
+    const activity =
+      (await transaction.query.scans.findFirst({
+        where: eq(scans.eventId, id),
+      })) ??
+      (await transaction.query.attendanceSessions.findFirst({
+        where: eq(attendanceSessions.eventId, id),
+      }));
+    if (
+      activity &&
+      (input.date !== existing.date ||
+        input.type !== existing.type ||
+        input.halfDayPenaltyAmount !== existing.halfDayPenaltyAmount)
+    ) {
+      throw new EventLifecycleError(
+        "Only name and venue may change after attendance begins",
+      );
+    }
+
+    const [updated] = await transaction
+      .update(events)
+      .set(input)
+      .where(eq(events.id, id))
+      .returning();
+    return updated;
+  });
+}
+
+export async function deleteEvent(
+  actor: { role: Role },
+  id: string,
+): Promise<void> {
+  if (!hasCapability(actor.role, "manage_operations")) {
+    throw new EventLifecycleError("Forbidden");
+  }
+
+  await db.transaction(async (transaction) => {
+    const existing = await transaction.query.events.findFirst({
+      where: eq(events.id, id),
+    });
+    if (!existing) throw new EventLifecycleError("Event not found");
+    const semester = await transaction.query.semesters.findFirst({
+      where: eq(semesters.id, existing.semesterId),
+    });
+    if (semester?.closedAt) {
+      throw new EventLifecycleError(
+        "Closed Semester Events cannot be deleted",
+      );
+    }
+    const activity =
+      (await transaction.query.scans.findFirst({
+        where: eq(scans.eventId, id),
+      })) ??
+      (await transaction.query.attendanceSessions.findFirst({
+        where: eq(attendanceSessions.eventId, id),
+      }));
+    if (activity) {
+      throw new EventLifecycleError(
+        "Events with attendance history cannot be deleted",
+      );
+    }
+    await transaction.delete(events).where(eq(events.id, id));
+  });
 }
 
 // Whole-day absence penalty derives as 2x the half-day amount — never stored,

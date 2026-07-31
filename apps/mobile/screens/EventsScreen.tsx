@@ -398,7 +398,9 @@ function EventFormModal({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.submitButton]}
-              disabled={submitting || !name || !date || !penalty}
+              disabled={
+                submitting || !name || !date || !(Number(penalty) > 0)
+              }
               onPress={submit}
             >
               {submitting ? (

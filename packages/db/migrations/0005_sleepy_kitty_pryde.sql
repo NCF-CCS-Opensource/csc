@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "semesters_one_open" ON "semesters" USING btree ((1)) WHERE "semesters"."closed_at" is null;

@@ -279,7 +279,9 @@ export function BoothScreen({
                 scan={scan}
                 styles={styles}
                 onPress={() =>
-                  scan.deliveryState === "failed" && !scan.discarded && setSelectedFailed(scan)
+                  scan.deliveryState === "needs_review" &&
+                  !scan.discarded &&
+                  setSelectedFailed(scan)
                 }
               />
             ))}
@@ -360,7 +362,7 @@ export function BoothScreen({
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.failedCard}>
-            <Text style={styles.modalTitle}>Failed scan</Text>
+            <Text style={styles.modalTitle}>Needs Review</Text>
             <Text style={styles.failedError}>{selectedFailed?.error ?? "Delivery was rejected."}</Text>
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -397,11 +399,11 @@ function RecentScanRow({
 }) {
   const decision = scan.decision === "accepted" ? "✓ Accepted" : "✕ Rejected";
   const status = scan.discarded
-    ? "! Failed · Discarded"
+    ? "! Needs Review · Discarded"
     : {
         pending: "◷ Pending",
-        synced: "✓ Synced",
-        failed: "! Failed",
+        delivered: "✓ Delivered",
+        needs_review: "! Needs Review",
       }[scan.deliveryState];
   const mode = BOOTH_MODES.find(({ value }) => value === scan.mode)?.label ?? scan.mode;
 
@@ -409,9 +411,9 @@ function RecentScanRow({
     <TouchableOpacity
       style={styles.recentRow}
       onPress={onPress}
-      disabled={scan.deliveryState !== "failed" || scan.discarded}
+      disabled={scan.deliveryState !== "needs_review" || scan.discarded}
       accessibilityHint={
-        scan.deliveryState === "failed" && !scan.discarded
+        scan.deliveryState === "needs_review" && !scan.discarded
           ? "Opens delivery error and actions"
           : undefined
       }
@@ -436,9 +438,9 @@ function RecentScanRow({
         </Text>
         <Text
           style={
-            scan.deliveryState === "synced"
+            scan.deliveryState === "delivered"
               ? styles.syncedLabel
-              : scan.deliveryState === "failed"
+              : scan.deliveryState === "needs_review"
                 ? styles.failedLabel
                 : styles.pendingLabel
           }

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { createDb } from "../src/client";
-import { programs } from "../src/schema";
+import { programs, semesters } from "../src/schema";
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) throw new Error("TEST_DATABASE_URL is required");
@@ -37,5 +37,19 @@ describe("disposable Postgres", () => {
     await expect(db.insert(programs).values({ name })).rejects.toMatchObject({
       code: "23505",
     });
+  });
+
+  it("allows only one open Semester", async () => {
+    await db.insert(semesters).values({
+      startDate: "2026-01-01",
+      endDate: "2026-05-31",
+    });
+
+    await expect(
+      db.insert(semesters).values({
+        startDate: "2026-06-01",
+        endDate: "2026-10-31",
+      }),
+    ).rejects.toMatchObject({ code: "23505" });
   });
 });

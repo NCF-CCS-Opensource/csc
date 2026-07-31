@@ -36,6 +36,13 @@
       "when": 1784198549312,
       "tag": "0004_chief_medusa",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785474160661,
+      "tag": "0005_sleepy_kitty_pryde",
+      "breakpoints": true
     }
   ]
 }

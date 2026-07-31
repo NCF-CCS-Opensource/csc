@@ -1,39 +1,25 @@
-import { events } from "@attendance/db";
 import { NextResponse } from "next/server";
 import { authorizeRequest } from "@/lib/api-auth";
-import { db } from "@/lib/db";
-import { findOpenSemester, parseEventInput, validateEventInput } from "@/lib/events";
+import {
+  createEvent,
+  EventLifecycleError,
+  parseEventInput,
+} from "@/lib/events";
 
 export async function POST(request: Request) {
   const authorization = await authorizeRequest(request, "manage_operations");
   if (!authorization.ok) return authorization.response;
 
-  const input = parseEventInput(await request.json());
-
-  const openSemester = await findOpenSemester();
-  if (!openSemester) {
-    return NextResponse.json(
-      { error: "No open Semester — ask the Governor to open one" },
-      { status: 422 },
+  try {
+    const created = await createEvent(
+      authorization.actor,
+      parseEventInput(await request.json()),
     );
+    return NextResponse.json({ event: { ...created, attendeeCount: 0 } });
+  } catch (error) {
+    if (error instanceof EventLifecycleError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
+    throw error;
   }
-
-  const errors = validateEventInput(input, openSemester);
-  if (errors.length > 0) {
-    return NextResponse.json({ error: errors[0].message, errors }, { status: 422 });
-  }
-
-  const [created] = await db
-    .insert(events)
-    .values({
-      name: input.name,
-      type: input.type,
-      halfDayPenaltyAmount: input.halfDayPenaltyAmount,
-      date: input.date,
-      venue: input.venue,
-      semesterId: openSemester.id,
-    })
-    .returning();
-
-  return NextResponse.json({ event: { ...created, attendeeCount: 0 } });
 }

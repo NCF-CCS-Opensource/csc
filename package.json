@@ -6,6 +6,8 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
+    "test": "turbo run test",
+    "release:check": "pnpm test && pnpm test:integration && pnpm typecheck && pnpm lint && pnpm build",
     "test:integration": "pnpm --filter @attendance/db test:integration"
   },
   "devDependencies": {
