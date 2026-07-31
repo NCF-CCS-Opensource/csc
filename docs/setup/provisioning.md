@@ -2,6 +2,8 @@
 
 Everything code-side is scaffolded. These steps need your own Supabase, Vercel, and Resend accounts — an agent can't run them without your credentials.
 
+The current public test-production web/API domain is `https://attendance.ncfccs.org`. For repeat deployments to that environment, use the [test-production deployment runbook](./README.md).
+
 ## 1. Supabase project
 
 1. Create a project at https://supabase.com/dashboard.
@@ -48,13 +50,13 @@ Supabase dashboard > Authentication > Providers > Email: **Confirm email** must 
 1. https://vercel.com/new, import this repo, set **Root Directory** to `apps/web`.
 2. Framework preset: Next.js (auto-detected).
 3. Add all `.env.example` vars in Vercel project settings — Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`), `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL`, Resend, `GOVERNOR_EMAILS`. Vercel doesn't read your local `.env` — these must be entered in the dashboard, and adding/editing one after the first deploy needs a redeploy to take effect. `EXPO_PUBLIC_*` vars don't belong here — they're mobile-only, go in `apps/mobile/.env`.
-4. Deploy. `NEXT_PUBLIC_SITE_URL` is chicken-and-egg — deploy once to get the `*.vercel.app` URL, then set it and redeploy. If you're putting a custom domain on it (below), use that domain, not the `*.vercel.app` one.
+4. Deploy. For the current test-production environment, set `NEXT_PUBLIC_SITE_URL=https://attendance.ncfccs.org` and redeploy. For a new environment, deploy once to get its URL, set `NEXT_PUBLIC_SITE_URL`, then redeploy.
 5. **If `/register` (or any DB-backed page) fails to load after deploy**: it's almost always step 2's migration never having actually run against this Supabase project (check Table Editor for the 8 tables), or a missing/stale env var in this Vercel project (not your local `.env`).
 6. **If registration "succeeds" but no confirmation/reset email ever arrives**: check, in order — (a) `NEXT_PUBLIC_SITE_URL` is actually set in *this* Vercel project (not just local `.env`) and matches the domain you're testing against, redeployed after setting it; (b) Supabase dashboard > Authentication > URL Configuration > **Redirect URLs** includes `<NEXT_PUBLIC_SITE_URL>/auth/callback` — Supabase silently drops the email if the redirect isn't on this allow-list, no error surfaces to the app; (c) step 4a's SMTP is actually saved (send a test email from that same Supabase screen); (d) spam folder.
 
 ### Custom domain via Cloudflare DNS
 
-Vercel > Project Settings > Domains > add your domain shows the exact records it needs. Common failure: Cloudflare's proxy (orange cloud) intercepts the record, so Vercel can't verify it.
+The current test-production domain is `attendance.ncfccs.org`. Vercel > Project Settings > Domains > add your domain shows the exact records it needs. Common failure: Cloudflare's proxy (orange cloud) intercepts the record, so Vercel can't verify it.
 
 1. In Cloudflare DNS, click the record's cloud icon to set it to **grey ("DNS only")** — at least until verified.
 2. Match Vercel's listed records exactly: root domain → `A` → `76.76.21.21`; `www`/subdomain → `CNAME` → `cname.vercel-dns.com`.
@@ -83,7 +85,7 @@ Same Resend account, two different credentials:
 
 ## 5. apps/mobile (Officer booth app)
 
-1. Set `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` (same Supabase project) and `EXPO_PUBLIC_API_BASE_URL` (the deployed `apps/web` URL from step 3 — this is what `/api/events/mine` and `/api/scan/*` resolve against) in `apps/mobile/.env`.
+1. Set `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` (same Supabase project) and `EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org` in `apps/mobile/.env`. The API base is the deployed `apps/web` URL, not the Supabase URL; `/api/events/mine` and `/api/scan/*` resolve against it.
 2. Officers sign in with an email OTP code (not a clickable link — avoids deep-linking setup), sent through the same SMTP configured in step 4a.
 3. `npx expo run:ios` / `run:android` for a dev build (`expo-camera` needs a native build, not Expo Go), or `eas build` for a real device.
-4. Not verifiable without a live Supabase project and a physical device/camera — this repo's checks only cover typecheck and app-level logic (`pnpm --filter web test`).
+4. Verify against the live test-production Supabase project and a physical device/camera; repository checks only cover typecheck and app-level logic (`pnpm --filter web test`).
