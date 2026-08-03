@@ -57,6 +57,7 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
     if (reportType === "per-event" && !selectedEventId) return;
     if (reportType === "per-student" && (!selectedStudentId || !selectedSemesterId)) return;
     if (reportType === "per-semester" && !selectedSemesterId) return;
+    if (reportType === "financial" && !selectedSemesterId) return;
 
     setIsGenerating(true);
     setNotice(null);
@@ -66,7 +67,9 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
         ? `/api/reports/per-event/${selectedEventId}/pdf`
         : reportType === "per-student"
         ? `/api/reports/per-student/${selectedStudentId}/pdf?semesterId=${selectedSemesterId}`
-        : `/api/reports/per-semester/${selectedSemesterId}/pdf`;
+        : reportType === "per-semester"
+        ? `/api/reports/per-semester/${selectedSemesterId}/pdf`
+        : `/api/reports/financial/${selectedSemesterId}/pdf`;
 
     const selectedSem = semesters.find((s) => s.id === selectedSemesterId);
     const filename =
@@ -74,7 +77,9 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
         ? `${selectedEvent?.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-report.pdf`
         : reportType === "per-student"
         ? `${selectedStudent?.studentId.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-per-student-report.pdf`
-        : `per-semester-report-${selectedSem?.startDate}-to-${selectedSem?.endDate}.pdf`;
+        : reportType === "per-semester"
+        ? `per-semester-report-${selectedSem?.startDate}-to-${selectedSem?.endDate}.pdf`
+        : `financial-report-${selectedSem?.startDate}-to-${selectedSem?.endDate}.pdf`;
 
     try {
       const res = await fetch(url);
@@ -127,7 +132,7 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
                 <SelectItem value="per-event">Per-Event Report</SelectItem>
                 <SelectItem value="per-student">Per-Student Report</SelectItem>
                 <SelectItem value="per-semester">Per-Semester Report</SelectItem>
-                <SelectItem value="financial">Financial Report (Coming soon)</SelectItem>
+                <SelectItem value="financial">Financial Report</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -233,7 +238,7 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
             </div>
           )}
 
-          {reportType === "per-semester" && (
+          {(reportType === "per-semester" || reportType === "financial") && (
             <div className="flex flex-col gap-2 max-w-sm">
               <Label htmlFor="semester-select">Semester</Label>
               <Select
@@ -255,15 +260,11 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
             </div>
           )}
 
-          {reportType === "financial" && (
-            <div className="rounded-md border border-dashed p-6 text-center text-muted-foreground">
-              This report type is coming soon.
-            </div>
-          )}
-
           {((reportType === "per-event" && selectedEvent?.isPast) ||
             (reportType === "per-student" && selectedStudentId && selectedSemesterId) ||
-            (reportType === "per-semester" && selectedSemesterId)) && (
+            (reportType === "per-semester" && selectedSemesterId) ||
+            (reportType === "financial" && selectedSemesterId)) && (
+
 
             <div className="flex flex-col gap-3 pt-2">
               <div>

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeFinancialReport,
   computePerEventReport,
   computePerSemesterReport,
   computePerStudentReport,
   isEventPastInManila,
   type PerEventReportInput,
 } from "./reports";
+
 
 
 
@@ -238,5 +240,62 @@ describe("computePerSemesterReport", () => {
     expect(bscsClearance).toMatchObject({ clearedCount: 1, notClearedCount: 0 });
   });
 });
+
+describe("computeFinancialReport", () => {
+  it("computes financial overview, program breakdown, event breakdown, outstanding balance list, and payment log", () => {
+    const semester = {
+      id: "sem1",
+      name: "2023-2024 2nd Semester",
+      startDate: "2024-01-01",
+      endDate: "2024-05-31",
+      closedAt: null,
+    };
+    const students = [
+      { id: "s1", name: "Alice Smith", studentId: "2024-0001", program: "BSCS" },
+      { id: "s2", name: "Bob Jones", studentId: "2024-0002", program: "BSIT" },
+    ];
+    const events = [
+      { id: "e1", name: "Assembly", date: "2024-02-01", type: "half_day" as const, halfDayPenaltyAmount: "50.00" },
+    ];
+    const sessions = [
+      { id: "sess1", eventId: "e1", studentId: "s2", half: "am" as const, timeIn: null, timeOut: null },
+    ];
+    const penalties = [
+      { id: "p1", attendanceSessionId: "sess1", studentId: "s2", amount: "50.00" },
+    ];
+    const payments = [
+      { id: "pay1", penaltyId: "p1", amount: "20.00", officerName: "Officer Jane", createdAt: new Date("2024-02-02T10:00:00Z") },
+    ];
+
+    const report = computeFinancialReport({
+      semester,
+      students,
+      events,
+      sessions,
+      penalties,
+      payments,
+      programs: ["BSCS", "BSIT"],
+      asOfTimestamp: "2024-03-20 10:00:00",
+    });
+
+    expect(report.semester).toEqual(semester);
+    expect(report.overview.totalPenaltiesCharged).toBe(50);
+    expect(report.overview.totalPaymentsCollected).toBe(20);
+    expect(report.overview.totalOutstandingBalance).toBe(30);
+    expect(report.overview.collectionRate).toBe(40); // 20 / 50 * 100
+
+    expect(report.outstandingBalancesList).toHaveLength(1);
+    expect(report.outstandingBalancesList[0]).toMatchObject({
+      studentId: "2024-0002",
+      name: "Bob Jones",
+      program: "BSIT",
+      amountOwed: 30,
+    });
+
+    expect(report.paymentLogSummary.totalTransactions).toBe(1);
+    expect(report.paymentLogSummary.receivingOfficers).toContain("Officer Jane");
+  });
+});
+
 
 

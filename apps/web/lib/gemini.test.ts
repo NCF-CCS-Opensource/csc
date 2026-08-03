@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  buildFinancialReportPrompt,
   buildPerEventReportPrompt,
   buildPerSemesterReportPrompt,
   buildPerStudentReportPrompt,
   generateReportNarrative,
 } from "./gemini";
-import type { PerEventReportData, PerSemesterReportData, PerStudentReportData } from "./reports";
+import type { FinancialReportData, PerEventReportData, PerSemesterReportData, PerStudentReportData } from "./reports";
+
 
 
 
@@ -141,6 +143,50 @@ describe("buildPerSemesterReportPrompt", () => {
     expect(prompt).toContain("Orientation");
   });
 });
+
+describe("buildFinancialReportPrompt", () => {
+  it("produces a prompt with aggregate financial statistics without student PII", () => {
+    const finData: FinancialReportData = {
+      semester: {
+        id: "sem1",
+        name: "2023-2024 2nd Semester",
+        startDate: "2024-01-01",
+        endDate: "2024-05-31",
+        closedAt: null,
+      },
+      asOfTimestamp: "2024-03-20 10:00:00",
+      overview: {
+        totalPenaltiesCharged: 10000,
+        totalPaymentsCollected: 7500,
+        totalOutstandingBalance: 2500,
+        collectionRate: 75,
+      },
+      programBreakdown: [
+        { program: "BSCS", totalPenalties: 5000, totalCollected: 4000, outstanding: 1000, collectionRate: 80 },
+      ],
+      eventBreakdown: [
+        { id: "e1", name: "Assembly", penaltiesGenerated: 3000, amountCollected: 2500, outstanding: 500 },
+      ],
+      outstandingBalancesList: [
+        { studentId: "2024-0001", name: "Alice Smith", program: "BSCS", amountOwed: 500 },
+      ],
+      paymentLogSummary: {
+        totalTransactions: 10,
+        dateRange: "2024-01-01 to 2024-03-20",
+        receivingOfficers: ["Officer Jane"],
+      },
+    };
+
+    const prompt = buildFinancialReportPrompt(finData);
+    expect(prompt).toContain("2023-2024 2nd Semester");
+    expect(prompt).toContain("75.0%");
+    expect(prompt).toContain("BSCS");
+    expect(prompt).toContain("Assembly");
+    expect(prompt).not.toContain("Alice Smith");
+    expect(prompt).not.toContain("2024-0001");
+  });
+});
+
 
 
 

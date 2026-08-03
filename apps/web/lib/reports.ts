@@ -669,4 +669,264 @@ export function computePerSemesterReport(input: PerSemesterReportInput): PerSeme
   };
 }
 
+export type FinancialProgramBreakdown = {
+  program: string;
+  totalPenalties: number;
+  totalCollected: number;
+  outstanding: number;
+  collectionRate: number;
+};
+
+export type FinancialEventBreakdown = {
+  id: string;
+  name: string;
+  penaltiesGenerated: number;
+  amountCollected: number;
+  outstanding: number;
+};
+
+export type FinancialOutstandingBalance = {
+  studentId: string;
+  name: string;
+  program: string;
+  amountOwed: number;
+};
+
+export type FinancialPaymentLogSummary = {
+  totalTransactions: number;
+  dateRange: string;
+  receivingOfficers: string[];
+};
+
+export type FinancialReportInput = {
+  semester: {
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    closedAt: Date | null;
+  };
+  students: {
+    id: string;
+    name: string;
+    studentId: string;
+    program: string;
+  }[];
+  events: {
+    id: string;
+    name: string;
+    date: string;
+    type: EventType;
+    halfDayPenaltyAmount: string;
+  }[];
+  sessions: {
+    id: string;
+    eventId: string;
+    studentId: string;
+    half: Half;
+    timeIn: Date | null;
+    timeOut: Date | null;
+  }[];
+  penalties: {
+    id: string;
+    attendanceSessionId: string | null;
+    studentId: string;
+    amount: string;
+  }[];
+  payments: {
+    id: string;
+    penaltyId: string;
+    amount: string;
+    officerName?: string;
+    createdAt?: Date;
+  }[];
+  programs: string[];
+  asOfTimestamp: string;
+};
+
+export type FinancialReportData = {
+  semester: FinancialReportInput["semester"];
+  asOfTimestamp: string;
+  overview: {
+    totalPenaltiesCharged: number;
+    totalPaymentsCollected: number;
+    totalOutstandingBalance: number;
+    collectionRate: number;
+  };
+  programBreakdown: FinancialProgramBreakdown[];
+  eventBreakdown: FinancialEventBreakdown[];
+  outstandingBalancesList: FinancialOutstandingBalance[];
+  paymentLogSummary: FinancialPaymentLogSummary;
+  aiNarrative?: string | null;
+};
+
+export function computeFinancialReport(input: FinancialReportInput): FinancialReportData {
+  const { semester, students, events, sessions, penalties, payments, programs, asOfTimestamp } = input;
+
+  const totalPenaltiesCharged = penalties.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalPaymentsCollected = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalOutstandingBalance = Math.max(0, totalPenaltiesCharged - totalPaymentsCollected);
+  const collectionRate = totalPenaltiesCharged > 0 ? (totalPaymentsCollected / totalPenaltiesCharged) * 100 : 0;
+
+  const penaltyToStudentMap = new Map<string, string>();
+  const penaltyToEventMap = new Map<string, string>();
+  for (const p of penalties) {
+    penaltyToStudentMap.set(p.id, p.studentId);
+    if (p.attendanceSessionId) {
+      const sess = sessions.find((s) => s.id === p.attendanceSessionId);
+      if (sess) {
+        penaltyToEventMap.set(p.id, sess.eventId);
+      }
+    }
+  }
+
+  // Program Breakdown
+  const progMap = new Map<string, { penalties: number; collected: number }>();
+  for (const pr of programs) {
+    progMap.set(pr, { penalties: 0, collected: 0 });
+  }
+
+  const studentProgramMap = new Map<string, string>();
+  for (const st of students) {
+    studentProgramMap.set(st.id, st.program);
+  }
+
+  for (const p of penalties) {
+    const prog = studentProgramMap.get(p.studentId);
+    if (prog) {
+      const prev = progMap.get(prog) ?? { penalties: 0, collected: 0 };
+      prev.penalties += Number(p.amount);
+      progMap.set(prog, prev);
+    }
+  }
+
+  for (const pay of payments) {
+    const studentId = penaltyToStudentMap.get(pay.penaltyId);
+    if (studentId) {
+      const prog = studentProgramMap.get(studentId);
+      if (prog) {
+        const prev = progMap.get(prog) ?? { penalties: 0, collected: 0 };
+        prev.collected += Number(pay.amount);
+        progMap.set(prog, prev);
+      }
+    }
+  }
+
+  const programBreakdown: FinancialProgramBreakdown[] = Array.from(progMap.entries()).map(
+    ([prog, stats]) => {
+      const out = Math.max(0, stats.penalties - stats.collected);
+      const rate = stats.penalties > 0 ? (stats.collected / stats.penalties) * 100 : 0;
+      return {
+        program: prog,
+        totalPenalties: stats.penalties,
+        totalCollected: stats.collected,
+        outstanding: out,
+        collectionRate: rate,
+      };
+    },
+  );
+
+  // Event Breakdown
+  const eventPenaltiesMap = new Map<string, number>();
+  const eventCollectedMap = new Map<string, number>();
+
+  for (const p of penalties) {
+    const eventId = penaltyToEventMap.get(p.id);
+    if (eventId) {
+      const prev = eventPenaltiesMap.get(eventId) ?? 0;
+      eventPenaltiesMap.set(eventId, prev + Number(p.amount));
+    }
+  }
+
+  for (const pay of payments) {
+    const eventId = penaltyToEventMap.get(pay.penaltyId);
+    if (eventId) {
+      const prev = eventCollectedMap.get(eventId) ?? 0;
+      eventCollectedMap.set(eventId, prev + Number(pay.amount));
+    }
+  }
+
+  const eventBreakdown: FinancialEventBreakdown[] = events.map((ev) => {
+    const pen = eventPenaltiesMap.get(ev.id) ?? 0;
+    const col = eventCollectedMap.get(ev.id) ?? 0;
+    return {
+      id: ev.id,
+      name: ev.name,
+      penaltiesGenerated: pen,
+      amountCollected: col,
+      outstanding: Math.max(0, pen - col),
+    };
+  });
+
+  // Outstanding Balances List
+  const studentPenaltiesSum = new Map<string, number>();
+  for (const p of penalties) {
+    const prev = studentPenaltiesSum.get(p.studentId) ?? 0;
+    studentPenaltiesSum.set(p.studentId, prev + Number(p.amount));
+  }
+
+  const studentPaymentsSum = new Map<string, number>();
+  for (const pay of payments) {
+    const stId = penaltyToStudentMap.get(pay.penaltyId);
+    if (stId) {
+      const prev = studentPaymentsSum.get(stId) ?? 0;
+      studentPaymentsSum.set(stId, prev + Number(pay.amount));
+    }
+  }
+
+  const outstandingBalancesList: FinancialOutstandingBalance[] = [];
+  for (const st of students) {
+    const pen = studentPenaltiesSum.get(st.id) ?? 0;
+    const pay = studentPaymentsSum.get(st.id) ?? 0;
+    const owed = Math.max(0, pen - pay);
+    if (owed > 0) {
+      outstandingBalancesList.push({
+        studentId: st.studentId,
+        name: st.name,
+        program: st.program,
+        amountOwed: owed,
+      });
+    }
+  }
+  outstandingBalancesList.sort((a, b) => b.amountOwed - a.amountOwed);
+
+  // Payment Log Summary
+  const officersSet = new Set<string>();
+  let minDate: Date | null = null;
+  let maxDate: Date | null = null;
+
+  for (const pay of payments) {
+    if (pay.officerName) officersSet.add(pay.officerName);
+    if (pay.createdAt) {
+      if (!minDate || pay.createdAt < minDate) minDate = pay.createdAt;
+      if (!maxDate || pay.createdAt > maxDate) maxDate = pay.createdAt;
+    }
+  }
+
+  const dateRange =
+    minDate && maxDate
+      ? `${minDate.toISOString().slice(0, 10)} to ${maxDate.toISOString().slice(0, 10)}`
+      : `${semester.startDate} to ${semester.endDate}`;
+
+  return {
+    semester,
+    asOfTimestamp,
+    overview: {
+      totalPenaltiesCharged,
+      totalPaymentsCollected,
+      totalOutstandingBalance,
+      collectionRate,
+    },
+    programBreakdown,
+    eventBreakdown,
+    outstandingBalancesList,
+    paymentLogSummary: {
+      totalTransactions: payments.length,
+      dateRange,
+      receivingOfficers: Array.from(officersSet),
+    },
+  };
+}
+
+
 

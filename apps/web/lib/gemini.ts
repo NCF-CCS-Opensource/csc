@@ -99,6 +99,47 @@ ${clearanceText}
 `.trim();
 }
 
+export function buildFinancialReportPrompt(data: import("./reports").FinancialReportData): string {
+  const { semester, overview, programBreakdown, eventBreakdown, paymentLogSummary } = data;
+
+  const progText = programBreakdown
+    .map(
+      (pb) =>
+        `- ${pb.program}: ₱${pb.totalPenalties.toFixed(2)} penalties, ₱${pb.totalCollected.toFixed(2)} collected, ₱${pb.outstanding.toFixed(2)} outstanding, ${pb.collectionRate.toFixed(1)}% collection rate`,
+    )
+    .join("\n");
+
+  const evText = eventBreakdown
+    .map(
+      (ev) =>
+        `- ${ev.name}: ₱${ev.penaltiesGenerated.toFixed(2)} generated, ₱${ev.amountCollected.toFixed(2)} collected, ₱${ev.outstanding.toFixed(2)} outstanding`,
+    )
+    .join("\n");
+
+  return `
+You are an institutional report analyst for Naga College Foundation Inc. College of Computer Studies.
+Analyze the financial picture of penalty generation, payment collections, collection rates, and outstanding balances for ${semester.name}.
+Do NOT mention individual student names or IDs. Use only the provided aggregate figures.
+
+Financial Overview:
+- Total Penalties Charged: ₱${overview.totalPenaltiesCharged.toFixed(2)}
+- Total Payments Collected: ₱${overview.totalPaymentsCollected.toFixed(2)}
+- Total Outstanding Balance: ₱${overview.totalOutstandingBalance.toFixed(2)}
+- Collection Rate: ${overview.collectionRate.toFixed(1)}%
+
+Program Financial Breakdown:
+${progText}
+
+Event Financial Breakdown:
+${evText}
+
+Payment Log Summary:
+- Total Transactions: ${paymentLogSummary.totalTransactions}
+- Date Range: ${paymentLogSummary.dateRange}
+`.trim();
+}
+
+
 
 
 export async function generateReportNarrative(prompt: string): Promise<string | null> {
