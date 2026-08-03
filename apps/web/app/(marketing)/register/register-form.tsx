@@ -77,18 +77,22 @@ export function RegisterForm({ programs }: { programs: string[] }) {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="program">Program</Label>
-              <Select name="program" required>
-                <SelectTrigger id="program" className="w-full">
-                  <SelectValue placeholder="Select a Program" />
-                </SelectTrigger>
-                <SelectContent>
-                  {programs.map((program) => (
-                    <SelectItem key={program} value={program}>
-                      {program}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                id="program"
+                name="program"
+                required
+                className="border-input bg-transparent text-sm rounded-lg border p-2 w-full focus:outline-none focus:ring-2 focus:ring-ring"
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  Select a Program
+                </option>
+                {programs.map((program) => (
+                  <option key={program} value={program}>
+                    {program}
+                  </option>
+                ))}
+              </select>
               {errorFor("program") && (
                 <p className="text-destructive text-xs">{errorFor("program")}</p>
               )}

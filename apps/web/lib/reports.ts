@@ -1,5 +1,7 @@
-import { currentCampusDate, missingHalves, type EventType } from "./ledger";
+import type { EventType } from "./events";
+import { currentCampusDate, missingHalves } from "./ledger";
 import { isSessionAbsent } from "./scan";
+
 
 export type Half = "am" | "pm";
 export type SessionStatus = "present" | "incomplete" | "absent";
@@ -73,7 +75,9 @@ export type PerEventReportData = {
   programBreakdowns: ProgramBreakdown[];
   studentDetails: StudentReportDetail[];
   totalPenalties: number;
+  aiNarrative?: string | null;
 };
+
 
 export function computePerEventReport(input: PerEventReportInput): PerEventReportData {
   const { event, students, sessions, penalties, programs } = input;

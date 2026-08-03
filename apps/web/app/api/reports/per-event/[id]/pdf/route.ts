@@ -5,8 +5,10 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import { requireCapability } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { buildPerEventReportPrompt, generateReportNarrative } from "@/lib/gemini";
 import { computePerEventReport, isEventPastInManila } from "@/lib/reports";
 import { PerEventPdfDocument } from "@/components/reports/per-event-pdf-document";
+
 
 export async function GET(
   request: Request,
@@ -98,16 +100,23 @@ export async function GET(
     programs: allPrograms.map((p) => p.name),
   });
 
+  const prompt = buildPerEventReportPrompt(reportData);
+  const aiNarrative = await generateReportNarrative(prompt);
+  reportData.aiNarrative = aiNarrative;
+
   const pdfBuffer = await renderToBuffer(
-    React.createElement(PerEventPdfDocument, { data: reportData }),
+    PerEventPdfDocument({ data: reportData }) as any,
   );
 
   const filename = `${event.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-report.pdf`;
 
-  return new NextResponse(pdfBuffer, {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-    },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `attachment; filename="${filename}"`,
+    "X-AI-Narrative-Status": aiNarrative ? "generated" : "unavailable",
+  };
+
+  return new NextResponse(new Uint8Array(pdfBuffer), { headers });
+
+
 }

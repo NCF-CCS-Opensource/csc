@@ -42,22 +42,41 @@ export function ReportsClient({ semesters, events, currentCampusDate }: ReportsC
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
 
-  const handleGeneratePdf = () => {
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const handleGeneratePdf = async () => {
     if (!selectedEventId) return;
     setIsGenerating(true);
+    setNotice(null);
 
-    // Trigger download via route
-    const link = document.createElement("a");
-    link.href = `/api/reports/per-event/${selectedEventId}/pdf`;
-    link.download = "";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const res = await fetch(`/api/reports/per-event/${selectedEventId}/pdf`);
+      if (!res.ok) {
+        throw new Error("Failed to generate PDF");
+      }
 
-    setTimeout(() => {
+      const aiStatus = res.headers.get("X-AI-Narrative-Status");
+      if (aiStatus === "unavailable") {
+        setNotice("AI analysis was unavailable. The PDF was generated without the narrative section.");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${selectedEvent?.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-report.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      setNotice("Failed to download PDF report.");
+    } finally {
       setIsGenerating(false);
-    }, 2000);
+    }
   };
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -162,6 +181,12 @@ export function ReportsClient({ semesters, events, currentCampusDate }: ReportsC
                       </>
                     )}
                   </Button>
+                  {notice && (
+                    <div className="mt-3 rounded-md bg-blue-50 dark:bg-blue-950/30 p-3 text-sm text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50">
+                      {notice}
+                    </div>
+                  )}
+
                 </div>
               )}
             </div>
