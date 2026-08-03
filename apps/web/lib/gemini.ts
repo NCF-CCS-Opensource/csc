@@ -57,6 +57,49 @@ Aggregate Standing:
 `.trim();
 }
 
+export function buildPerSemesterReportPrompt(data: import("./reports").PerSemesterReportData): string {
+  const { semester, overall, programBreakdown, eventSummary, clearanceReadiness } = data;
+
+  const progText = programBreakdown
+    .map(
+      (pb) =>
+        `- ${pb.program}: ${pb.studentCount} students, ${pb.attendanceRate.toFixed(1)}% rate, ₱${pb.totalPenalties.toFixed(2)} penalties, ₱${pb.totalPaid.toFixed(2)} paid, ₱${pb.outstanding.toFixed(2)} outstanding`,
+    )
+    .join("\n");
+
+  const evText = eventSummary
+    .map((ev) => `- ${ev.name} (${ev.date}): ${ev.attendanceRate.toFixed(1)}% rate, ₱${ev.penaltiesGenerated.toFixed(2)} penalties`)
+    .join("\n");
+
+  const clearanceText = clearanceReadiness
+    .map((c) => `- ${c.program}: ${c.clearedCount} cleared, ${c.notClearedCount} not cleared`)
+    .join("\n");
+
+  return `
+You are an institutional report analyst for Naga College Foundation Inc. College of Computer Studies.
+Analyze cross-semester attendance trends, program comparisons, event attendance patterns, and clearance readiness for ${semester.name}.
+Do NOT mention individual student names or IDs. Use only the provided aggregate figures.
+
+Overall Semester Statistics:
+- Total Registered Students: ${overall.totalRegisteredStudents}
+- Total Events: ${overall.totalEvents}
+- Overall Attendance Rate: ${overall.overallAttendanceRate.toFixed(1)}%
+- Total Penalties Charged: ₱${overall.totalPenaltiesCharged.toFixed(2)}
+- Total Payments Collected: ₱${overall.totalCollected.toFixed(2)}
+- Total Outstanding Balance: ₱${overall.totalOutstanding.toFixed(2)}
+
+Program Breakdown:
+${progText}
+
+Event Summary:
+${evText}
+
+Clearance Readiness:
+${clearanceText}
+`.trim();
+}
+
+
 
 export async function generateReportNarrative(prompt: string): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY;

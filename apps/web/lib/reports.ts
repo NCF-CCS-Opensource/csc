@@ -423,3 +423,250 @@ export function computePerStudentReport(input: PerStudentReportInput): PerStuden
   };
 }
 
+export type PerSemesterProgramBreakdown = {
+  program: string;
+  studentCount: number;
+  attendanceRate: number;
+  totalPenalties: number;
+  totalPaid: number;
+  outstanding: number;
+};
+
+export type PerSemesterEventSummary = {
+  id: string;
+  date: string;
+  name: string;
+  attendanceRate: number;
+  penaltiesGenerated: number;
+};
+
+export type PerSemesterClearanceReadiness = {
+  program: string;
+  clearedCount: number;
+  notClearedCount: number;
+};
+
+export type PerSemesterReportInput = {
+  semester: {
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    closedAt: Date | null;
+  };
+  students: {
+    id: string;
+    name: string;
+    studentId: string;
+    program: string;
+  }[];
+  events: {
+    id: string;
+    name: string;
+    date: string;
+    type: EventType;
+    halfDayPenaltyAmount: string;
+  }[];
+  sessions: {
+    id: string;
+    eventId: string;
+    studentId: string;
+    half: Half;
+    timeIn: Date | null;
+    timeOut: Date | null;
+  }[];
+  penalties: {
+    id: string;
+    attendanceSessionId: string | null;
+    studentId: string;
+    amount: string;
+  }[];
+  payments: {
+    id: string;
+    penaltyId: string;
+    amount: string;
+  }[];
+  programs: string[];
+  asOfTimestamp: string;
+};
+
+export type PerSemesterReportData = {
+  semester: PerSemesterReportInput["semester"];
+  asOfTimestamp: string;
+  overall: {
+    totalRegisteredStudents: number;
+    totalEvents: number;
+    overallAttendanceRate: number;
+    totalPenaltiesCharged: number;
+    totalCollected: number;
+    totalOutstanding: number;
+  };
+  programBreakdown: PerSemesterProgramBreakdown[];
+  eventSummary: PerSemesterEventSummary[];
+  clearanceReadiness: PerSemesterClearanceReadiness[];
+  aiNarrative?: string | null;
+};
+
+export function computePerSemesterReport(input: PerSemesterReportInput): PerSemesterReportData {
+  const { semester, students, events, sessions, penalties, payments, programs, asOfTimestamp } = input;
+
+  const totalPenaltiesCharged = penalties.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalCollected = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalOutstanding = Math.max(0, totalPenaltiesCharged - totalCollected);
+
+  // Map student penalties and payments
+  const studentPenaltiesMap = new Map<string, number>();
+  for (const p of penalties) {
+    const prev = studentPenaltiesMap.get(p.studentId) ?? 0;
+    studentPenaltiesMap.set(p.studentId, prev + Number(p.amount));
+  }
+
+  const penaltyToStudentMap = new Map<string, string>();
+  for (const p of penalties) {
+    penaltyToStudentMap.set(p.id, p.studentId);
+  }
+
+  const studentPaymentsMap = new Map<string, number>();
+  for (const pay of payments) {
+    const studentId = penaltyToStudentMap.get(pay.penaltyId);
+    if (studentId) {
+      const prev = studentPaymentsMap.get(studentId) ?? 0;
+      studentPaymentsMap.set(studentId, prev + Number(pay.amount));
+    }
+  }
+
+  // Attendance sessions calculation
+  const sessionByStudentEventHalf = new Set<string>();
+  for (const s of sessions) {
+    if (!isSessionAbsent(s)) {
+      sessionByStudentEventHalf.add(`${s.studentId}:${s.eventId}:${s.half}`);
+    }
+  }
+
+  let totalAttended = 0;
+  let totalResolvedHalves = 0;
+
+  const progMap = new Map<
+    string,
+    { studentCount: number; attendedHalves: number; resolvedHalves: number; penalties: number; paid: number }
+  >();
+  for (const p of programs) {
+    progMap.set(p, { studentCount: 0, attendedHalves: 0, resolvedHalves: 0, penalties: 0, paid: 0 });
+  }
+
+  const clearanceMap = new Map<string, { cleared: number; notCleared: number }>();
+  for (const p of programs) {
+    clearanceMap.set(p, { cleared: 0, notCleared: 0 });
+  }
+
+  for (const st of students) {
+    const progData = progMap.get(st.program) ?? { studentCount: 0, attendedHalves: 0, resolvedHalves: 0, penalties: 0, paid: 0 };
+    progData.studentCount++;
+
+    const stPenalties = studentPenaltiesMap.get(st.id) ?? 0;
+    const stPayments = studentPaymentsMap.get(st.id) ?? 0;
+    progData.penalties += stPenalties;
+    progData.paid += stPayments;
+
+    const stBalance = Math.max(0, stPenalties - stPayments);
+    const cData = clearanceMap.get(st.program) ?? { cleared: 0, notCleared: 0 };
+    if (stBalance === 0) {
+      cData.cleared++;
+    } else {
+      cData.notCleared++;
+    }
+    clearanceMap.set(st.program, cData);
+
+    for (const ev of events) {
+      const halvesCount = ev.type === "whole_day" ? 2 : 1;
+      progData.resolvedHalves += halvesCount;
+      totalResolvedHalves += halvesCount;
+
+      if (ev.type === "half_day") {
+        if (sessionByStudentEventHalf.has(`${st.id}:${ev.id}:am`) || sessionByStudentEventHalf.has(`${st.id}:${ev.id}:pm`)) {
+          progData.attendedHalves++;
+          totalAttended++;
+        }
+      } else {
+        if (sessionByStudentEventHalf.has(`${st.id}:${ev.id}:am`)) {
+          progData.attendedHalves++;
+          totalAttended++;
+        }
+        if (sessionByStudentEventHalf.has(`${st.id}:${ev.id}:pm`)) {
+          progData.attendedHalves++;
+          totalAttended++;
+        }
+      }
+    }
+
+    progMap.set(st.program, progData);
+  }
+
+  const overallAttendanceRate = totalResolvedHalves > 0 ? (totalAttended / totalResolvedHalves) * 100 : 0;
+
+  const programBreakdown: PerSemesterProgramBreakdown[] = Array.from(progMap.entries()).map(
+    ([prog, stats]) => ({
+      program: prog,
+      studentCount: stats.studentCount,
+      attendanceRate: stats.resolvedHalves > 0 ? (stats.attendedHalves / stats.resolvedHalves) * 100 : 0,
+      totalPenalties: stats.penalties,
+      totalPaid: stats.paid,
+      outstanding: Math.max(0, stats.penalties - stats.paid),
+    }),
+  );
+
+  const eventSummary: PerSemesterEventSummary[] = events.map((ev) => {
+    let evAttended = 0;
+    const evResolved = students.length * (ev.type === "whole_day" ? 2 : 1);
+    for (const st of students) {
+      if (ev.type === "half_day") {
+        if (sessionByStudentEventHalf.has(`${st.id}:${ev.id}:am`) || sessionByStudentEventHalf.has(`${st.id}:${ev.id}:pm`)) {
+          evAttended++;
+        }
+      } else {
+        if (sessionByStudentEventHalf.has(`${st.id}:${ev.id}:am`)) evAttended++;
+        if (sessionByStudentEventHalf.has(`${st.id}:${ev.id}:pm`)) evAttended++;
+      }
+    }
+    const evPenalties = penalties
+      .filter((p) => {
+        const sess = sessions.find((s) => s.id === p.attendanceSessionId);
+        return sess?.eventId === ev.id;
+      })
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+
+    return {
+      id: ev.id,
+      date: ev.date,
+      name: ev.name,
+      attendanceRate: evResolved > 0 ? (evAttended / evResolved) * 100 : 0,
+      penaltiesGenerated: evPenalties,
+    };
+  });
+
+  const clearanceReadiness: PerSemesterClearanceReadiness[] = Array.from(clearanceMap.entries()).map(
+    ([prog, stats]) => ({
+      program: prog,
+      clearedCount: stats.cleared,
+      notClearedCount: stats.notCleared,
+    }),
+  );
+
+  return {
+    semester,
+    asOfTimestamp,
+    overall: {
+      totalRegisteredStudents: students.length,
+      totalEvents: events.length,
+      overallAttendanceRate,
+      totalPenaltiesCharged,
+      totalCollected,
+      totalOutstanding,
+    },
+    programBreakdown,
+    eventSummary,
+    clearanceReadiness,
+  };
+}
+
+

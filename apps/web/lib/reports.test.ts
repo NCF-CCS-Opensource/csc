@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   computePerEventReport,
+  computePerSemesterReport,
   computePerStudentReport,
   isEventPastInManila,
   type PerEventReportInput,
 } from "./reports";
+
 
 
 describe("isEventPastInManila", () => {
@@ -183,4 +185,58 @@ describe("computePerStudentReport", () => {
     expect(report.eventsBreakdown).toHaveLength(2);
   });
 });
+
+describe("computePerSemesterReport", () => {
+  it("aggregates semester stats, program breakdown, event summary, and clearance readiness correctly", () => {
+    const semester = {
+      id: "sem1",
+      startDate: "2024-01-01",
+      endDate: "2024-05-31",
+      closedAt: null,
+      name: "2023-2024 2nd Semester",
+    };
+    const students = [
+      { id: "s1", name: "Alice Smith", studentId: "2024-0001", program: "BSCS" },
+      { id: "s2", name: "Bob Jones", studentId: "2024-0002", program: "BSIT" },
+    ];
+    const events = [
+      { id: "e1", name: "Orientation", date: "2024-01-15", type: "half_day" as const, halfDayPenaltyAmount: "50.00" },
+    ];
+    const sessions = [
+      { id: "sess1", eventId: "e1", studentId: "s1", half: "am" as const, timeIn: new Date(), timeOut: new Date() },
+    ];
+    const penalties = [
+      { id: "p1", attendanceSessionId: null, studentId: "s2", amount: "50.00" },
+    ];
+    const payments = [
+      { id: "pay1", penaltyId: "p1", amount: "50.00" },
+    ];
+
+    const report = computePerSemesterReport({
+      semester,
+      students,
+      events,
+      sessions,
+      penalties,
+      payments,
+      programs: ["BSCS", "BSIT"],
+      asOfTimestamp: "2024-03-20 10:00:00",
+    });
+
+    expect(report.semester).toEqual(semester);
+    expect(report.overall.totalRegisteredStudents).toBe(2);
+    expect(report.overall.totalEvents).toBe(1);
+    expect(report.overall.overallAttendanceRate).toBe(50); // s1 present, s2 absent
+    expect(report.overall.totalPenaltiesCharged).toBe(50);
+    expect(report.overall.totalCollected).toBe(50);
+    expect(report.overall.totalOutstanding).toBe(0);
+
+    expect(report.programBreakdown).toHaveLength(2);
+    expect(report.eventSummary).toHaveLength(1);
+    expect(report.clearanceReadiness).toHaveLength(2);
+    const bscsClearance = report.clearanceReadiness.find((c) => c.program === "BSCS")!;
+    expect(bscsClearance).toMatchObject({ clearedCount: 1, notClearedCount: 0 });
+  });
+});
+
 

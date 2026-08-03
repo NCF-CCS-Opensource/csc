@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildPerEventReportPrompt,
+  buildPerSemesterReportPrompt,
   buildPerStudentReportPrompt,
   generateReportNarrative,
 } from "./gemini";
-import type { PerEventReportData, PerStudentReportData } from "./reports";
+import type { PerEventReportData, PerSemesterReportData, PerStudentReportData } from "./reports";
+
 
 
 describe("buildPerEventReportPrompt", () => {
@@ -101,6 +103,45 @@ describe("buildPerStudentReportPrompt", () => {
     expect(prompt).not.toContain("2024-0001");
   });
 });
+
+describe("buildPerSemesterReportPrompt", () => {
+  it("produces a prompt with cross-semester aggregate statistics without student PII", () => {
+    const semData: PerSemesterReportData = {
+      semester: {
+        id: "sem1",
+        name: "2023-2024 2nd Semester",
+        startDate: "2024-01-01",
+        endDate: "2024-05-31",
+        closedAt: null,
+      },
+      asOfTimestamp: "2024-03-20 10:00:00",
+      overall: {
+        totalRegisteredStudents: 100,
+        totalEvents: 4,
+        overallAttendanceRate: 85.5,
+        totalPenaltiesCharged: 5000,
+        totalCollected: 3000,
+        totalOutstanding: 2000,
+      },
+      programBreakdown: [
+        { program: "BSCS", studentCount: 40, attendanceRate: 90, totalPenalties: 2000, totalPaid: 1500, outstanding: 500 },
+      ],
+      eventSummary: [
+        { id: "e1", date: "2024-01-15", name: "Orientation", attendanceRate: 95, penaltiesGenerated: 500 },
+      ],
+      clearanceReadiness: [
+        { program: "BSCS", clearedCount: 30, notClearedCount: 10 },
+      ],
+    };
+
+    const prompt = buildPerSemesterReportPrompt(semData);
+    expect(prompt).toContain("2023-2024 2nd Semester");
+    expect(prompt).toContain("85.5%");
+    expect(prompt).toContain("BSCS");
+    expect(prompt).toContain("Orientation");
+  });
+});
+
 
 
 describe("generateReportNarrative", () => {
