@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildPerEventReportPrompt,
+  buildPerStudentReportPrompt,
   generateReportNarrative,
 } from "./gemini";
-import type { PerEventReportData } from "./reports";
+import type { PerEventReportData, PerStudentReportData } from "./reports";
+
 
 describe("buildPerEventReportPrompt", () => {
   const sampleData: PerEventReportData = {
@@ -70,6 +72,36 @@ describe("buildPerEventReportPrompt", () => {
     expect(prompt).not.toContain("2024-0001");
   });
 });
+
+describe("buildPerStudentReportPrompt", () => {
+  it("produces a prompt with aggregate standing statistics without student PII", () => {
+    const studentData: PerStudentReportData = {
+      student: { id: "s1", name: "Alice Smith", studentId: "2024-0001", program: "BSCS" },
+      semesterName: "2023-2024 2nd Semester",
+      asOfTimestamp: "2024-03-20 10:00:00",
+      standing: {
+        totalEvents: 5,
+        sessionsAttended: 8,
+        sessionsAbsent: 2,
+        attendanceRate: 80,
+        totalPenaltiesCharged: 100,
+        totalPaymentsMade: 50,
+        outstandingBalance: 50,
+      },
+      clearanceStatus: "NOT CLEARED — Outstanding balance: ₱50.00",
+      eventsBreakdown: [],
+    };
+
+    const prompt = buildPerStudentReportPrompt(studentData);
+    expect(prompt).toContain("BSCS");
+    expect(prompt).toContain("80.0%");
+    expect(prompt).toContain("₱50.00");
+
+    expect(prompt).not.toContain("Alice Smith");
+    expect(prompt).not.toContain("2024-0001");
+  });
+});
+
 
 describe("generateReportNarrative", () => {
   it("returns null gracefully when GEMINI_API_KEY is unset or API call fails", async () => {

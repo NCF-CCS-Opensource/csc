@@ -1,4 +1,4 @@
-import { events as eventsTable, semesters as semestersTable } from "@attendance/db";
+import { events as eventsTable, semesters as semestersTable, students as studentsTable } from "@attendance/db";
 import { desc } from "drizzle-orm";
 import { requireCapability } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -13,7 +13,7 @@ export default async function AnalyticsPage() {
 
   const campusDate = currentCampusDate();
 
-  const [semestersRows, eventsRows] = await Promise.all([
+  const [semestersRows, eventsRows, studentsRows] = await Promise.all([
     db.select({
       id: semestersTable.id,
       startDate: semestersTable.startDate,
@@ -26,7 +26,14 @@ export default async function AnalyticsPage() {
       date: eventsTable.date,
       semesterId: eventsTable.semesterId,
     }).from(eventsTable).orderBy(desc(eventsTable.date)),
+    db.select({
+      id: studentsTable.id,
+      name: studentsTable.name,
+      studentId: studentsTable.studentId,
+      program: studentsTable.program,
+    }).from(studentsTable).orderBy(studentsTable.name),
   ]);
+
 
   const eventsWithStatus = eventsRows.map((e) => ({
     ...e,
@@ -50,8 +57,10 @@ export default async function AnalyticsPage() {
       <ReportsClient
         semesters={semestersRows}
         events={eventsWithStatus}
+        students={studentsRows}
         currentCampusDate={campusDate}
       />
+
     </main>
   );
 }

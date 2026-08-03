@@ -236,3 +236,190 @@ export function computePerEventReport(input: PerEventReportInput): PerEventRepor
     totalPenalties,
   };
 }
+
+export type StudentEventBreakdown = {
+  eventId: string;
+  eventName: string;
+  date: string;
+  amStatus: SessionStatus;
+  pmStatus: SessionStatus;
+  penaltyAmount: number;
+  paymentStatus: "PAID" | "UNPAID" | "PARTIAL" | "NONE";
+};
+
+export type PerStudentReportInput = {
+  student: {
+    id: string;
+    name: string;
+    studentId: string;
+    program: string;
+  };
+  semesterName: string;
+  events: {
+    id: string;
+    name: string;
+    date: string;
+    type: EventType;
+    halfDayPenaltyAmount: string;
+  }[];
+  sessions: {
+    id: string;
+    eventId: string;
+    half: Half;
+    timeIn: Date | null;
+    timeOut: Date | null;
+  }[];
+  penalties: {
+    id: string;
+    attendanceSessionId: string | null;
+    studentId: string;
+    amount: string;
+  }[];
+  payments: {
+    id: string;
+    penaltyId: string;
+    amount: string;
+  }[];
+  asOfTimestamp: string;
+};
+
+export type PerStudentReportData = {
+  student: PerStudentReportInput["student"];
+  semesterName: string;
+  asOfTimestamp: string;
+  standing: {
+    totalEvents: number;
+    sessionsAttended: number;
+    sessionsAbsent: number;
+    attendanceRate: number;
+    totalPenaltiesCharged: number;
+    totalPaymentsMade: number;
+    outstandingBalance: number;
+  };
+  clearanceStatus: string;
+  eventsBreakdown: StudentEventBreakdown[];
+  aiNarrative?: string | null;
+};
+
+export function computePerStudentReport(input: PerStudentReportInput): PerStudentReportData {
+  const { student, semesterName, events, sessions, penalties, payments, asOfTimestamp } = input;
+
+  const sessionsByEventHalf = new Map<string, (typeof sessions)[number]>();
+  for (const s of sessions) {
+    sessionsByEventHalf.set(`${s.eventId}:${s.half}`, s);
+  }
+
+  const penaltyBySession = new Map<string, number>();
+  for (const p of penalties) {
+    if (p.attendanceSessionId) {
+      penaltyBySession.set(p.attendanceSessionId, Number(p.amount));
+    }
+  }
+
+  const paymentsByPenalty = new Map<string, number>();
+  for (const pay of payments) {
+    const prev = paymentsByPenalty.get(pay.penaltyId) ?? 0;
+    paymentsByPenalty.set(pay.penaltyId, prev + Number(pay.amount));
+  }
+
+  let totalAttendedHalves = 0;
+  let totalAbsentHalves = 0;
+  let totalExpectedHalves = 0;
+
+  const eventsBreakdown: StudentEventBreakdown[] = [];
+
+  for (const ev of events) {
+    const penaltyRate = Number(ev.halfDayPenaltyAmount);
+    const amSess = sessionsByEventHalf.get(`${ev.id}:am`);
+    const pmSess = sessionsByEventHalf.get(`${ev.id}:pm`);
+
+    const deriveStatus = (sess: (typeof sessions)[number] | undefined): SessionStatus => {
+      if (!sess) return "absent";
+      if (!isSessionAbsent(sess)) return "present";
+      return "incomplete";
+    };
+
+    let amStatus: SessionStatus = "absent";
+    let pmStatus: SessionStatus = "absent";
+    let eventPenalty = 0;
+
+    if (ev.type === "half_day") {
+      totalExpectedHalves += 1;
+      const halfSess = amSess ?? pmSess;
+      const status = deriveStatus(halfSess);
+      amStatus = status;
+      pmStatus = "absent";
+
+      if (status === "present") totalAttendedHalves++;
+      else totalAbsentHalves++;
+
+      if (halfSess && penaltyBySession.has(halfSess.id)) {
+        eventPenalty += penaltyBySession.get(halfSess.id)!;
+      } else if (status === "absent") {
+        eventPenalty += penaltyRate;
+      }
+    } else {
+      totalExpectedHalves += 2;
+      amStatus = deriveStatus(amSess);
+      pmStatus = deriveStatus(pmSess);
+
+      if (amStatus === "present") totalAttendedHalves++;
+      else totalAbsentHalves++;
+
+      if (pmStatus === "present") totalAttendedHalves++;
+      else totalAbsentHalves++;
+
+      if (amSess && penaltyBySession.has(amSess.id)) {
+        eventPenalty += penaltyBySession.get(amSess.id)!;
+      } else if (amStatus === "absent") {
+        eventPenalty += penaltyRate;
+      }
+
+      if (pmSess && penaltyBySession.has(pmSess.id)) {
+        eventPenalty += penaltyBySession.get(pmSess.id)!;
+      } else if (pmStatus === "absent") {
+        eventPenalty += penaltyRate;
+      }
+    }
+
+    eventsBreakdown.push({
+      eventId: ev.id,
+      eventName: ev.name,
+      date: ev.date,
+      amStatus,
+      pmStatus,
+      penaltyAmount: eventPenalty,
+      paymentStatus: eventPenalty === 0 ? "NONE" : "UNPAID",
+    });
+  }
+
+  const totalPenaltiesCharged = penalties.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalPaymentsMade = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const outstandingBalance = Math.max(0, totalPenaltiesCharged - totalPaymentsMade);
+
+  const clearanceStatus =
+    outstandingBalance === 0
+      ? "CLEARED"
+      : `NOT CLEARED — Outstanding balance: ₱${outstandingBalance.toFixed(2)}`;
+
+  const resolved = totalAttendedHalves + totalAbsentHalves;
+  const attendanceRate = resolved > 0 ? (totalAttendedHalves / resolved) * 100 : 0;
+
+  return {
+    student,
+    semesterName,
+    asOfTimestamp,
+    standing: {
+      totalEvents: events.length,
+      sessionsAttended: totalAttendedHalves,
+      sessionsAbsent: totalAbsentHalves,
+      attendanceRate,
+      totalPenaltiesCharged,
+      totalPaymentsMade,
+      outstandingBalance,
+    },
+    clearanceStatus,
+    eventsBreakdown,
+  };
+}
+

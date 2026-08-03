@@ -37,6 +37,27 @@ ${programText}
 `.trim();
 }
 
+export function buildPerStudentReportPrompt(data: import("./reports").PerStudentReportData): string {
+  const { student, semesterName, standing, clearanceStatus } = data;
+
+  return `
+You are an institutional report analyst for Naga College Foundation Inc. College of Computer Studies.
+Summarize the attendance standing and clearance readiness for a student in ${semesterName}. Refer to the student generically as "this student" or "the student". Do NOT mention any student names or IDs.
+
+Aggregate Standing:
+- Program: ${student.program}
+- Total Events in Semester: ${standing.totalEvents}
+- Attendance Rate: ${standing.attendanceRate.toFixed(1)}%
+- Total Sessions Attended: ${standing.sessionsAttended}
+- Total Sessions Absent: ${standing.sessionsAbsent}
+- Total Penalties Charged: ₱${standing.totalPenaltiesCharged.toFixed(2)}
+- Total Payments Made: ₱${standing.totalPaymentsMade.toFixed(2)}
+- Outstanding Balance: ₱${standing.outstandingBalance.toFixed(2)}
+- Clearance Status: ${clearanceStatus}
+`.trim();
+}
+
+
 export async function generateReportNarrative(prompt: string): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {

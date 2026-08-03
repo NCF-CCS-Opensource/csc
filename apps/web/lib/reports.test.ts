@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   computePerEventReport,
+  computePerStudentReport,
   isEventPastInManila,
   type PerEventReportInput,
 } from "./reports";
+
 
 describe("isEventPastInManila", () => {
   it("returns true when event date is before campus date", () => {
@@ -139,3 +141,46 @@ describe("computePerEventReport", () => {
     expect(report.totalPenalties).toBe(300);
   });
 });
+
+describe("computePerStudentReport", () => {
+  it("calculates student standing summary and event breakdown correctly", () => {
+    const student = { id: "s1", name: "Alice Smith", studentId: "2024-0001", program: "BSCS" };
+    const events = [
+      { id: "e1", name: "Assembly", date: "2024-03-01", type: "whole_day" as const, halfDayPenaltyAmount: "50.00" },
+      { id: "e2", name: "Workshop", date: "2024-03-15", type: "half_day" as const, halfDayPenaltyAmount: "50.00" },
+    ];
+    const sessions = [
+      { id: "sess1", eventId: "e1", half: "am" as const, timeIn: new Date(), timeOut: new Date() },
+      { id: "sess2", eventId: "e1", half: "pm" as const, timeIn: new Date(), timeOut: new Date() },
+      // e2 no sessions (absent half)
+    ];
+    const penalties = [
+      { id: "p1", attendanceSessionId: null, studentId: "s1", amount: "50.00" },
+    ];
+    const payments = [
+      { id: "pay1", penaltyId: "p1", amount: "30.00" },
+    ];
+
+    const report = computePerStudentReport({
+      student,
+      semesterName: "2023-2024 2nd Semester",
+      events,
+      sessions,
+      penalties,
+      payments,
+      asOfTimestamp: "2024-03-20 10:00:00",
+    });
+
+    expect(report.student).toEqual(student);
+    expect(report.standing.totalEvents).toBe(2);
+    expect(report.standing.sessionsAttended).toBe(2);
+    expect(report.standing.sessionsAbsent).toBe(1); // 1 half day missing
+    expect(report.standing.totalPenaltiesCharged).toBe(50);
+    expect(report.standing.totalPaymentsMade).toBe(30);
+    expect(report.standing.outstandingBalance).toBe(20);
+    expect(report.clearanceStatus).toBe("NOT CLEARED — Outstanding balance: ₱20.00");
+
+    expect(report.eventsBreakdown).toHaveLength(2);
+  });
+});
+
