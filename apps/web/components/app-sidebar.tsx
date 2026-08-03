@@ -3,6 +3,7 @@
 import {
   CalendarCheck,
   ClipboardCheck,
+  FileText,
   LayoutDashboard,
   LogOut,
   ScanLine,
@@ -56,6 +57,7 @@ const NAV_ITEMS: Record<AppDestination, NavItem> = {
   },
   "/clearance": { href: "/clearance", label: "Clearance", icon: ShieldCheck },
   "/admin": { href: "/admin", label: "Administration", icon: ShieldCheck },
+  "/analytics": { href: "/analytics", label: "Reports", icon: FileText },
 };
 
 function navForRole(role: Role | null): NavItem[] {

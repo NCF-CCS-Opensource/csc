@@ -9,7 +9,8 @@ export type AppDestination =
   | "/events"
   | "/my-attendance"
   | "/clearance"
-  | "/admin";
+  | "/admin"
+  | "/analytics";
 
 const ROLE_CAPABILITIES: Record<Role, readonly Capability[]> = {
   student: ["view_own_attendance"],
@@ -28,6 +29,7 @@ const DESTINATIONS: readonly [AppDestination, Capability][] = [
   ["/my-attendance", "view_own_attendance"],
   ["/clearance", "manage_operations"],
   ["/admin", "administer"],
+  ["/analytics", "manage_operations"],
 ];
 
 export function hasCapability(role: Role, capability: Capability): boolean {
