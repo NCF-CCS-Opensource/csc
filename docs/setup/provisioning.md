@@ -104,7 +104,7 @@ Identity is Clerk with Google SSO; Supabase is no longer an identity provider (A
 
 1. https://dashboard.clerk.com > create an application.
 2. **User & Authentication > Email, Phone, Username**: disable every sign-in method — email/password, email code, username, phone. Google must be the only way in.
-3. **User & Authentication > Social Connections > Google**: enable it, turn **off** "Use custom credentials"'s default (i.e. switch it *on* to supply your own) and paste the Client ID/secret from step a. Copy the redirect URI shown here back into the Google console if you have not already.
+3. **User & Authentication > Social Connections > Google**: enable it, switch **"Use custom credentials" on** (it is off by default, which means Clerk's shared development credentials) and paste the Client ID/secret from step a. Copy the redirect URI shown here back into the Google console if you have not already.
 4. On that same Google connection, set the **hosted domain (`hd`) hint** to `gbox.ncf.edu.ph`. This only pre-filters Google's account picker to school accounts — it is a convenience, **not** a restriction: a user can still complete the flow with a personal account. Enforcement is step b.5 plus the application-side check at onboarding.
 5. **User & Authentication > Restrictions**: set sign-up mode to **Allowlist** and add the domain `@gbox.ncf.edu.ph`. This is what actually rejects a non-school account, before a session exists.
 6. **API keys**: copy the **Publishable key** into `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (root `.env`, Vercel) and `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (`apps/mobile/.env`) — same value, two names. Copy the **Secret key** into `CLERK_SECRET_KEY` (root `.env`, Vercel; server-only, never ship to a client).
