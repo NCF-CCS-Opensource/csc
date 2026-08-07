@@ -1,16 +1,14 @@
+import { useAuth } from "@clerk/clerk-expo";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { apiFetch } from "../lib/api";
+import { apiFetch, endOfficerSession } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
 import {
   blockingScanCount,
@@ -21,7 +19,6 @@ import {
   retryScan,
   type QueuedScan,
 } from "../lib/scanQueue";
-import { supabase } from "../lib/supabase";
 import { flushQueue } from "../lib/syncScans";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors, ThemePreference } from "../lib/theme";
@@ -84,7 +81,9 @@ export function SettingsScreen({
   const { colors, preference, setPreference } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [me, setMe] = useState<Me | null>(null);
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const { signOut } = useAuth();
+
+  const endSession = () => endOfficerSession(signOut);
 
   useEffect(() => {
     apiFetch<{ student: Me }>("/api/me")
@@ -160,7 +159,7 @@ export function SettingsScreen({
       needsReviewScans(officerId),
     ]);
     if (count === 0 && legacy.length === 0) {
-      await supabase.auth.signOut();
+      await endSession();
       return;
     }
 
@@ -171,7 +170,7 @@ export function SettingsScreen({
         [
           { text: "Cancel", style: "cancel" },
           { text: "Discard older scans", style: "destructive", onPress: confirmDiscardLegacy },
-          { text: "Log out", onPress: () => supabase.auth.signOut() },
+          { text: "Log out", onPress: () => void endSession() },
         ],
       );
       return;
@@ -226,13 +225,6 @@ export function SettingsScreen({
       <Text style={styles.sectionLabel}>ACCOUNT</Text>
       <View style={styles.section}>
         <SettingsRow
-          icon="🔒"
-          iconBg={colors.iconGrayBg}
-          label="Change password"
-          onPress={() => setPasswordModalOpen(true)}
-          styles={styles}
-        />
-        <SettingsRow
           icon="🚪"
           iconBg={colors.iconPinkBg}
           label="Log out"
@@ -244,126 +236,9 @@ export function SettingsScreen({
 
       <Text style={styles.version}>AttendKita v1.0.0</Text>
 
-      <ChangePasswordModal
-        visible={passwordModalOpen}
-        onClose={() => setPasswordModalOpen(false)}
-        colors={colors}
-        styles={styles}
-      />
-
     </ScrollView>
   );
 }
-
-function ChangePasswordModal({
-  visible,
-  onClose,
-  colors,
-  styles,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  colors: ThemeColors;
-  styles: Styles;
-}) {
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-
-  function reset() {
-    setPassword("");
-    setConfirm("");
-    setError(null);
-    setSuccess(false);
-  }
-
-  async function submit() {
-    if (password !== confirm) {
-      setError("Passwords don't match");
-      return;
-    }
-    setPending(true);
-    setError(null);
-    const { error } = await supabase.auth.updateUser({ password });
-    setPending(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    setSuccess(true);
-  }
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Change password</Text>
-
-          {success ? (
-            <>
-              <Text style={styles.successText}>Password updated.</Text>
-              <TouchableOpacity
-                style={styles.button}
-                onPress={() => {
-                  reset();
-                  onClose();
-                }}
-              >
-                <Text style={styles.buttonText}>Done</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <TextInput
-                style={styles.input}
-                placeholder="New password"
-                placeholderTextColor={colors.textMuted}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Confirm password"
-                placeholderTextColor={colors.textMuted}
-                secureTextEntry
-                value={confirm}
-                onChangeText={setConfirm}
-              />
-              {error && <Text style={styles.error}>{error}</Text>}
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={[styles.button, styles.cancelButton]}
-                  onPress={() => {
-                    reset();
-                    onClose();
-                  }}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.button}
-                  disabled={pending || !password || !confirm}
-                  onPress={submit}
-                >
-                  {pending ? (
-                    <ActivityIndicator color={colors.primaryText} />
-                  ) : (
-                    <Text style={styles.buttonText}>Save</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
-  );
-}
-
 
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({

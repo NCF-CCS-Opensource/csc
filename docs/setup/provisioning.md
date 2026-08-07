@@ -7,7 +7,7 @@ The current public test-production web/API domain is `https://attendance.ncfccs.
 ## 1. Supabase project
 
 1. Create a project at https://supabase.com/dashboard.
-2. Settings > API: copy `Project URL` and `anon public` key into `.env` as `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` — the mobile booth app still authenticates against Supabase. The web module does not: its identity is Clerk (step 6), and it reads only `DATABASE_URL`.
+2. No Supabase Auth variables are needed. Identity is Clerk for both `apps/web` and `apps/mobile` (step 6); Supabase is a Postgres and Storage host only (ADR-0012), so this project contributes just `DATABASE_URL`.
 3. Settings > Database > Connection string ("Transaction" pooler, port 6543): copy into `.env` as `DATABASE_URL`. This connects Drizzle to the same Supabase Postgres database; it is not a second database provider.
 
 ## 2. Run the Drizzle migrations
@@ -69,32 +69,20 @@ The current test-production domain is `attendance.ncfccs.org`. Vercel > Project 
 3. Wait a few minutes, Vercel auto-rechecks (or hit "Refresh" on the domain).
 4. To re-enable Cloudflare's proxy afterward, set Cloudflare SSL mode to **Full (strict)** first, or you'll get cert/redirect errors.
 
-## 4. Resend — two separate uses
+## 4. Resend — the confirmation email
 
-Same Resend account, two different credentials:
-
-**a. SMTP for Supabase Auth's own OTP email** (mobile booth sign-in only — the web module sends no auth email, per ADR-0012):
+Neither module sends an auth email: Google SSO proves the identity (ADR-0012). Resend sends only the confirmation email `apps/web/lib/email.ts` fires at completed onboarding, with the QR attached.
 
 1. https://resend.com — add and verify the `ncfccs.org` domain (DNS records on Cloudflare per ADR 0001).
 2. Resend > API Keys: create a key with sending access.
-3. Supabase dashboard > Authentication > Emails > SMTP Settings: enable custom SMTP.
-   - Host: `smtp.resend.com`, Port: `465` (SSL) or `587` (TLS)
-   - Username: `resend`
-   - Password: the Resend API key
-   - Sender email: an address on `ncfccs.org`
-4. Save and send a test email from the same screen.
-
-**b. API key for the app's own confirmation email** (sent by `apps/web/lib/email.ts` at completed onboarding, with the QR attached):
-
-1. Resend > API Keys: create a second key (or reuse the one above).
-2. Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (an `ncfccs.org` address) in `.env` / Vercel.
+3. Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (an `ncfccs.org` address) in `.env` / Vercel.
 
 ## 5. apps/mobile (Officer booth app)
 
-1. Set `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` (same Supabase project), `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (step 6), and `EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org` in `apps/mobile/.env`. The API base is the deployed `apps/web` URL, not the Supabase URL; `/api/events/mine` and `/api/scan/*` resolve against it.
-2. Officers sign in with an email OTP code (not a clickable link — avoids deep-linking setup), sent through the same SMTP configured in step 4a.
+1. Set `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (step 6) and `EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org` in `apps/mobile/.env`. The API base is the deployed `apps/web` URL; `/api/events/mine` and `/api/scan/*` resolve against it, authenticated with the Officer's Clerk session token as a Bearer credential.
+2. Officers sign in with their school Google account. The flow opens in the system browser (Google blocks OAuth in an embedded WebView) and returns through the `attendkita://` scheme declared in `apps/mobile/app.json`, so add that redirect to Clerk's allowed redirect URLs in step 6.
 3. `npx expo run:ios` / `run:android` for a dev build (`expo-camera` needs a native build, not Expo Go), or `eas build` for a real device.
-4. Verify against the live test-production Supabase project and a physical device/camera; repository checks only cover typecheck and app-level logic (`pnpm --filter web test`).
+4. Verify against the live test-production database and a physical device/camera; repository checks only cover typecheck and app-level logic (`pnpm --filter web test`).
 
 ## 6. Clerk + Google (identity)
 
