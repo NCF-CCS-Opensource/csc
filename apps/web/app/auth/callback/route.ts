@@ -1,4 +1,5 @@
 import { students } from "@attendance/db";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendConfirmationEmail } from "@/lib/email";
@@ -41,6 +42,14 @@ export async function GET(request: Request) {
         // Only the first confirmation created the row — skip on repeat visits.
         if (created) {
           await sendConfirmationEmail(created.email, created);
+        } else if (
+          !(await db.query.students.findFirst({
+            where: eq(students.authUserId, data.user.id),
+          }))
+        ) {
+          // The insert lost to somebody else's email or student id. Signing in
+          // would loop on the missing Student row, so say so at registration.
+          return NextResponse.redirect(`${origin}/register?error=duplicate`);
         }
       }
 
