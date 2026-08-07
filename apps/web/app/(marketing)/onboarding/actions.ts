@@ -72,7 +72,16 @@ export async function completeOnboarding(
   // Pending Student stays pending rather than looping on a missing row.
   if (!created) return { errors: [{ field: "studentId", message: ALREADY_TAKEN }] };
 
-  await sendConfirmationEmail(created.email, created);
+  // The record is already committed, so a Resend outage must not strand the
+  // new Student on a form they can no longer submit — /qr serves the same
+  // code on demand.
+  // ponytail: no retry, no queue. Add one if lost QR emails become a real
+  // support load.
+  try {
+    await sendConfirmationEmail(created.email, created);
+  } catch (error) {
+    console.error("onboarding: QR email failed for", created.email, error);
+  }
 
   redirect("/dashboard");
 }

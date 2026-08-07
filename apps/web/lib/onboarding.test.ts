@@ -124,7 +124,12 @@ describe("validateOnboarding", () => {
 
   it("rejects a blank name", () => {
     const errors = validateOnboarding({ ...valid, name: "  " }, PROGRAMS);
-    expect(errors).toEqual([{ field: "name", message: "Name is required" }]);
+    expect(errors).toEqual([
+      {
+        field: "name",
+        message: "Your Google account has no name set. Add one, then sign in again.",
+      },
+    ]);
   });
 
   it("collects multiple field errors at once", () => {

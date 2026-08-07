@@ -51,7 +51,12 @@ export function validateOnboarding(
   }
 
   if (input.name.trim() === "") {
-    errors.push({ field: "name", message: "Name is required" });
+    // Google supplies the name, so this is not a field the form can fix —
+    // say where it actually comes from.
+    errors.push({
+      field: "name",
+      message: "Your Google account has no name set. Add one, then sign in again.",
+    });
   }
 
   if (!validPrograms.includes(input.program)) {
