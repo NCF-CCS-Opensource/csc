@@ -17,6 +17,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
   ApiError,
   apiFetch,
+  endOfficerSession,
   rememberOfficerIdentity,
   rememberedOfficerIdentity,
   type OfficerIdentity,
@@ -133,26 +134,32 @@ function BoothApp() {
   }, []);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!isSignedIn || !userId) {
-      setIdentity(null);
-      setAdmission(undefined);
-      return;
-    }
-
     let current = true;
     void (async () => {
-      const cached = await rememberedOfficerIdentity();
-      const offline = cached?.authUserId === userId ? cached : null;
-      if (current && offline) {
-        setIdentity(offline);
+      // Read our own stamp before consulting Clerk at all: a booth relaunched
+      // in a dead spot must still know whose Offline Scan Queue it holds, and
+      // only an explicit log out clears the stamp (ADR-0012).
+      const remembered = await rememberedOfficerIdentity();
+      if (current && remembered) {
+        setIdentity(remembered);
         setAdmission({ allowed: true });
+      }
+
+      if (!isLoaded) return;
+      if (!isSignedIn || !userId) {
+        if (current && !remembered) {
+          setIdentity(null);
+          setAdmission(undefined);
+        }
+        return;
       }
 
       try {
         const { student } = await apiFetch<{
           student: { id: string; authUserId: string };
         }>("/api/me");
+        // The server found this row by the Clerk user id on the Bearer token,
+        // so `authUserId` is that id — one identity, not a second source.
         const fresh: OfficerIdentity = {
           authUserId: student.authUserId,
           studentId: student.id,
@@ -169,7 +176,7 @@ function BoothApp() {
           error instanceof ApiError && (error.status === 401 || error.status === 403);
         if (denied) await rememberOfficerIdentity(null);
         if (current && denied) setIdentity(null);
-        if (current && (denied || !offline)) {
+        if (current && (denied || !remembered)) {
           setAdmission({
             allowed: false,
             message:
@@ -209,7 +216,7 @@ function BoothApp() {
 
   return (
     <AppShell
-      signedIn={isLoaded ? isSignedIn : undefined}
+      identityResolved={identity !== undefined}
       officerId={officerId}
       admission={admission}
       pendingCount={pendingCount}
@@ -235,14 +242,14 @@ function navTheme(colors: ThemeColors): Theme {
 }
 
 function AppShell({
-  signedIn,
+  identityResolved,
   officerId,
   admission,
   pendingCount,
   queueRevision,
   refreshQueue,
 }: {
-  signedIn: boolean | undefined;
+  identityResolved: boolean;
   officerId: string | undefined;
   admission: MobileAdmission;
   pendingCount: number;
@@ -251,13 +258,11 @@ function AppShell({
 }) {
   const { colors } = useTheme();
   const { signOut } = useAuth();
-  const abandonSession = async () => {
-    await rememberOfficerIdentity(null);
-    await signOut();
-  };
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {signedIn === undefined ? null : !signedIn ? (
+      {!identityResolved ? (
+        <ActivityIndicator style={styles.accessState} color={colors.primary} />
+      ) : !officerId && !admission ? (
         <LoginScreen />
       ) : admission?.allowed && officerId ? (
         <NavigationContainer theme={navTheme(colors)}>
@@ -291,7 +296,7 @@ function AppShell({
                 opacity: pendingCount > 0 ? 0.5 : 1,
               },
             ]}
-            onPress={abandonSession}
+            onPress={() => endOfficerSession(signOut)}
           >
             <Text style={{ color: colors.primaryText, fontWeight: "600" }}>
               Sign out

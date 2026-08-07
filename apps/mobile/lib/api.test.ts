@@ -6,13 +6,16 @@ import {
   rememberOfficerIdentity,
   rememberedOfficerIdentity,
 } from "./api";
-import { clerk } from "./clerk";
+import { clerk, clerkHydrated } from "./clerk";
 
 vi.mock("./clerk", () => ({
   clerk: {
     session: { getToken: vi.fn() },
     user: { id: "officer-a" },
   },
+  // Resolves once Clerk has rehydrated its stored session; apiFetch must not
+  // read `clerk.user` before then.
+  clerkHydrated: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("expo-secure-store", () => {
@@ -40,6 +43,8 @@ const signedInAs = (id: string) => {
 beforeEach(() => {
   getToken.mockReset();
   getToken.mockResolvedValue("token");
+  vi.mocked(clerkHydrated).mockReset();
+  vi.mocked(clerkHydrated).mockResolvedValue(undefined);
   signedInAs("officer-a");
   vi.stubGlobal("fetch", vi.fn());
 });
@@ -61,6 +66,24 @@ describe("apiFetch", () => {
         headers: expect.objectContaining({ Authorization: "Bearer token" }),
       }),
     );
+  });
+
+  it("waits for Clerk to rehydrate before judging who is signed in", async () => {
+    let hydrated = false;
+    vi.mocked(clerkHydrated).mockImplementation(async () => {
+      hydrated = true;
+      signedInAs("officer-a");
+    });
+    signedInAs("");
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({}),
+    } as Response);
+
+    await apiFetch("/api/scan/approve", {}, "officer-a");
+
+    expect(hydrated).toBe(true);
+    expect(fetch).toHaveBeenCalled();
   });
 
   it("does not deliver a queued decision under another Officer's session", async () => {

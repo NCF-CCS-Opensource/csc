@@ -1,5 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-import { clerk } from "./clerk";
+import { clerk, clerkHydrated } from "./clerk";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL!;
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -48,11 +48,21 @@ export async function rememberedOfficerIdentity(): Promise<OfficerIdentity | nul
   }
 }
 
+// The only way the stamp is cleared. Signing out without forgetting it would
+// leave the next Officer on this device holding the previous one's identity.
+export async function endOfficerSession(
+  signOut: () => Promise<unknown>,
+): Promise<void> {
+  await rememberOfficerIdentity(null);
+  await signOut();
+}
+
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
   expectedOfficerId?: string,
 ): Promise<T> {
+  await clerkHydrated();
   if (expectedOfficerId && clerk.user?.id !== expectedOfficerId) {
     throw new ApiError("Queued scan belongs to another Officer", 401);
   }

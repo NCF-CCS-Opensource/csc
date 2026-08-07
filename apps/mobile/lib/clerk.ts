@@ -8,3 +8,15 @@ export const clerk = getClerkInstance({
   publishableKey: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!,
   tokenCache,
 });
+
+let hydration: Promise<unknown> | undefined;
+
+// `clerk.user` and `clerk.session` are empty until the instance hydrates, so a
+// queue flush fired at launch would otherwise read "nobody is signed in" and
+// refuse its own scans. Memoized because `load()` may only be called once.
+export function clerkHydrated(): Promise<unknown> {
+  hydration ??= clerk.loaded
+    ? Promise.resolve()
+    : clerk.load().catch(() => undefined);
+  return hydration;
+}

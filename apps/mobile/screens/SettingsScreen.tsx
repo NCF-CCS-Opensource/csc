@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { apiFetch, rememberOfficerIdentity } from "../lib/api";
+import { apiFetch, endOfficerSession } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
 import {
   blockingScanCount,
@@ -83,12 +83,7 @@ export function SettingsScreen({
   const [me, setMe] = useState<Me | null>(null);
   const { signOut } = useAuth();
 
-  // Signing out drops the offline Officer stamp with the session, so a later
-  // Officer on this device never inherits the previous one's identity.
-  async function endSession() {
-    await rememberOfficerIdentity(null);
-    await signOut();
-  }
+  const endSession = () => endOfficerSession(signOut);
 
   useEffect(() => {
     apiFetch<{ student: Me }>("/api/me")
