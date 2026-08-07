@@ -2,6 +2,7 @@ import { attendanceSessions, events, payments, penalties, semesters, students } 
 import { eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
+import type { DocumentProps } from "@react-pdf/renderer";
 import React from "react";
 import { requireCapability } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -121,7 +122,7 @@ export async function GET(
   reportData.aiNarrative = aiNarrative;
 
   const pdfBuffer = await renderToBuffer(
-    PerStudentPdfDocument({ data: reportData }) as any,
+    PerStudentPdfDocument({ data: reportData }) as React.ReactElement<DocumentProps>,
   );
 
   const filename = `${student.studentId.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-per-student-report.pdf`;
