@@ -2,6 +2,14 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
+  # All five arrive with Clerk and none needs its build script to run:
+  # @clerk/shared's only prints a telemetry notice, core-js's a funding
+  # banner, bufferutil/utf-8-validate are optional native ws speedups.
+  '@clerk/shared': false
+  browser-tabs-lock: false
+  bufferutil: false
+  core-js: false
   esbuild: true
   sharp: true
   unrs-resolver: true
+  utf-8-validate: false
