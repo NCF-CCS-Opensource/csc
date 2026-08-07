@@ -25,9 +25,11 @@ flowchart LR
     Resend[Resend]
     Queue[(Offline Scan Queue<br/>AsyncStorage)]
 
+    Clerk[Clerk identity]
     Student -->|HTTPS and session cookie| Web
     Staff -->|HTTPS and session cookie| Web
-    Mobile -->|password session| Auth
+    Web -->|Google SSO session verification| Clerk
+    Mobile -->|OTP session| Auth
     Mobile -->|Bearer token and JSON| Web
     Mobile --> Queue
     Queue -->|ordered retry| Web
@@ -42,14 +44,14 @@ flowchart LR
 | Module | Interface | Implementation | Seam and adapters |
 | --- | --- | --- | --- |
 | Web delivery | Pages, server actions, and `/api/*` routes | Next.js App Router in `apps/web` | Cookie-backed browser adapter and Bearer-token mobile adapter |
-| Authentication | Valid Supabase identity mapped to one Student row | Supabase Auth plus `students.auth_user_id` | `lib/auth.ts` adapts cookies; `lib/api-auth.ts` adapts Bearer tokens |
+| Authentication | Valid external identity mapped to one Student row | Clerk on web, Supabase Auth on mobile, both keyed by `students.auth_user_id` | `lib/auth.ts` adapts Clerk sessions; `lib/api-auth.ts` adapts mobile Bearer tokens |
 | Role policy | Capability decisions for Student, Officer, and Governor | One capability matrix used by commands, guards, and navigation | Cookie and Bearer adapters authenticate; deep modules authorize |
 | Event lifecycle | Create, update, and delete shared Events | Three commands own capability, Semester, lifecycle, and persistence rules | Web and mobile are two adapters at the same seam; listing remains a read query |
 | Scan Approval | Apply one approve/reject decision | One command owns validation, idempotency, transaction, attendance resolution, and Penalty synchronization | The mobile queue is the delivery adapter; Postgres is the durable backend |
 | Ledger | Per-Student standing and per-Event operations projections | `computeLedger`, `studentLedger`, and `semesterLedger` | A deep module: one read interface hides virtual no-shows and rollups |
 | Attendance correction | Present/Absent edits and Payment recording | Event attendance grid actions | Manual edits store a noon sentinel; booth scans store the real capture time |
 | Persistence | Typed schema and query access | Drizzle ORM, postgres-js, committed SQL migrations | `createDb(connectionString)` is the database interface |
-| Messaging | Auth email and verified Student QR delivery | Supabase SMTP and Resend SDK | Resend is the external adapter |
+| Messaging | Booth OTP email and verified Student QR delivery | Supabase SMTP (mobile) and Resend SDK | Resend is the external adapter |
 
 ## Approved target interfaces
 
@@ -62,7 +64,7 @@ flowchart LR
 
 | Capability | Student | Officer | Governor |
 | --- | --- | --- | --- |
-| Register, sign in, reset password | Web | Web/mobile after promotion | Web after allowlisted registration |
+| Sign in with a school Google account and onboard | Web | Web/mobile after promotion | Web, with the email on the Governor allowlist |
 | View own QR, attendance, Penalties, Payments | Web | Web | Web |
 | View operations dashboard | No | Web | Web |
 | Create and manage shared Events | No | Web/mobile | Web/mobile |
@@ -140,9 +142,9 @@ Approved lifecycle additions:
 
 ## Authentication and authorization
 
-1. Registration creates a Supabase password account and a Student row whose `auth_user_id` is initially null.
-2. The email confirmation callback exchanges the code for a session, links the Student row, assigns Governor only when the email is in `GOVERNOR_EMAILS`, and sends the QR attachment.
-3. Browser requests use refreshed Supabase cookies.
+1. Web sign-in is Clerk with Google SSO restricted to the school domain (ADR-0012); no password is ever collected or stored.
+2. A signed-in person with no Student row is a Pending Student: onboarding creates the row keyed by the Clerk user id, assigns Governor only when the email is in `GOVERNOR_EMAILS`, and sends the QR attachment.
+3. Browser requests carry the Clerk session cookie.
 4. Mobile requests send a Supabase access token as `Authorization: Bearer`.
 5. Every privileged page, action, and route rechecks the role server-side.
 6. The sidebar caches identity in `localStorage` only to render navigation; it cannot grant access.
@@ -156,9 +158,9 @@ Most reads do not write. Full no-shows are projected virtually until an Officer 
 ## Deployment topology
 
 - Web and `/api/*`: Vercel, root directory `apps/web`
-- Auth and Postgres: Supabase
+- Web identity: Clerk with Google SSO; Postgres: Supabase
 - Database access: Supabase transaction pooler with prepared statements disabled
-- Auth SMTP and QR email: Resend
+- Booth OTP SMTP and QR email: Resend
 - DNS/custom domain: Cloudflare in front of the Vercel domain
 - Native booth app: Expo/React Native build configured against the same Supabase project and public web base URL
 
@@ -179,7 +181,7 @@ Out of scope: mobile Payment UI, desktop viewport gating, Officer demotion, digi
 ## Related decisions
 
 - [ADR 0001 — Supabase, Drizzle, Turborepo, Vercel, and Expo](./adr/0001-supabase-and-web-mobile-stack.md)
-- [ADR 0003 — Email and password authentication](./adr/0003-password-auth-instead-of-magic-link.md)
+- [ADR 0003 — Email and password authentication](./adr/0003-password-auth-instead-of-magic-link.md) (superseded by ADR 0012)
 - [ADR 0006 — Mobile/web platform split](./adr/0006-mobile-web-platform-split.md)
 - [ADR 0007 — Shared Officer Events](./adr/0007-officers-share-all-events.md)
 - [ADR 0008 — Full-Semester late-registration liability](./adr/0008-late-registrants-owe-full-semester.md)

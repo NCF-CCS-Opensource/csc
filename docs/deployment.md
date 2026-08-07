@@ -32,14 +32,15 @@ The documented test-production endpoint is `https://attendance.ncfccs.org`. Conf
 
 | Variable | Purpose | Exposure |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Public |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase client key | Public |
 | `DATABASE_URL` | Supabase Postgres transaction-pooler connection | Server only |
-| `NEXT_PUBLIC_SITE_URL` | Public callback base, e.g. `https://attendance.ncfccs.org` | Public |
+| `CLERK_SECRET_KEY` | Clerk server key — the web module's only identity provider | Server only |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk client key | Public |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` — keeps Clerk's redirects on the self-hosted page | Public |
 | `RESEND_API_KEY` | QR email delivery | Server only |
 | `RESEND_FROM_EMAIL` | Verified sender | Server only |
-| `GOVERNOR_EMAILS` | Comma-separated first-confirmation Governor allowlist | Server only |
-| `SUPABASE_SERVICE_ROLE_KEY` | Listed by existing provisioning/runbook; not referenced by current source | Server only |
+| `GOVERNOR_EMAILS` | Comma-separated Governor allowlist, read at onboarding | Server only |
+
+The web module no longer holds Supabase Auth variables: identity is Clerk (ADR-0012), and Supabase is only where Postgres lives.
 
 Never place `DATABASE_URL`, Resend credentials, or a Supabase service-role key in an `EXPO_PUBLIC_*` or `NEXT_PUBLIC_*` variable.
 
@@ -55,9 +56,11 @@ EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org
 
 `EXPO_PUBLIC_API_BASE_URL` points to the deployed Next.js module, not Supabase. Expo embeds these values at build time, so any change requires a rebuild.
 
-## Configure Resend for Supabase Auth email
+## Configure Resend for Supabase Auth email (mobile booth only)
 
-Supabase's built-in sender is for testing: it sends only to authorized team addresses and is currently limited to two auth emails per hour. Production signup confirmations and password resets must use custom SMTP.
+The web module sends no auth email — Clerk owns web sign-in. This section covers the Expo booth app, which still signs Officers in through Supabase Auth's email OTP.
+
+Supabase's built-in sender is for testing: it sends only to authorized team addresses and is currently limited to two auth emails per hour. Production OTP email must use custom SMTP.
 
 1. In [Resend Domains](https://resend.com/domains), add and verify a sending domain. Prefer a subdomain such as `auth.ncfccs.org`, then add the supplied DNS records in Cloudflare.
 2. Create a Resend API key for transactional email.
@@ -72,11 +75,11 @@ Supabase's built-in sender is for testing: it sends only to authorized team addr
    | Username | `resend` |
    | Password | Resend API key |
 
-4. Save the SMTP settings, then open **Authentication → Rate Limits**. Custom SMTP starts with a conservative Supabase auth-email limit; raise it only to the expected signup/reset volume.
+4. Save the SMTP settings, then open **Authentication → Rate Limits**. Custom SMTP starts with a conservative Supabase auth-email limit; raise it only to the expected booth sign-in volume.
 5. Use the same verified sender for application QR email by setting Vercel's `RESEND_FROM_EMAIL` to `CCS Attendance <no-reply@auth.ncfccs.org>`. `RESEND_API_KEY` remains server-only.
-6. Test a new signup confirmation and a password reset with non-team addresses. Confirm delivery in Resend Logs before opening registration.
+6. Test a booth OTP with a non-team address. Confirm delivery in Resend Logs before handing the app to Officers.
 
-Resend's free transactional plan currently includes 3,000 emails per month but also has a 100-email daily limit. Auth and QR emails sent from the same Resend account share those quotas; multiple recipients count separately. Monitor the Resend Usage page and upgrade before either limit becomes operationally insufficient.
+Resend's free transactional plan currently includes 3,000 emails per month but also has a 100-email daily limit. Booth OTP and QR emails sent from the same Resend account share those quotas; multiple recipients count separately. Monitor the Resend Usage page and upgrade before either limit becomes operationally insufficient.
 
 References: [Supabase custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp), [Supabase Auth rate limits](https://supabase.com/docs/guides/auth/rate-limits), [Resend SMTP credentials](https://resend.com/docs/send-with-smtp), and [Resend quotas](https://resend.com/docs/knowledge-base/account-quotas-and-limits).
 
@@ -161,9 +164,9 @@ The repository has no `eas.json` or checked-in mobile release pipeline. Signing,
 
 Use disposable test data:
 
-1. Open the public web endpoint and sign in.
-2. Register a disposable non-team email and confirm its signup email arrives through Resend.
-3. Request a password reset and confirm it also arrives through Resend.
+1. Open the public web endpoint and sign in with a school Google account.
+2. Complete onboarding as a new Pending Student and confirm the QR email arrives through Resend.
+3. Confirm no password or confirm-password field appears anywhere in the web app.
 4. Confirm Student navigation cannot open Officer/Governor pages.
 5. Confirm an Officer can load all shared Events on web and mobile.
 6. Create one Event and confirm it appears on both clients.
@@ -209,7 +212,8 @@ If code depends on a newly applied schema, do not roll back only the web deploym
 | Symptom | Check |
 | --- | --- |
 | DB-backed page fails after deploy | Confirm migrations reached the target Supabase project and Vercel has the current `DATABASE_URL` |
-| Confirmation/reset email is absent | Check `NEXT_PUBLIC_SITE_URL`, Supabase redirect allowlist, Resend SMTP, and spam |
+| Web sign-in fails or loops | Check the Clerk keys in this Vercel project, Clerk's Google connection, and the `@gbox.ncf.edu.ph` sign-up restriction |
+| Booth OTP email is absent | Check the Supabase SMTP settings, Resend logs, and spam |
 | QR confirmation email fails | Check `RESEND_API_KEY`, verified `RESEND_FROM_EMAIL`, and Resend logs |
 | Mobile route returns redirect/HTML | Disable Vercel Deployment Protection for the public route |
 | Mobile route returns `401` | Confirm both clients use the same Supabase project and the access token is current |

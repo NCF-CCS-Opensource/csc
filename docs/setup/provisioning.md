@@ -7,7 +7,7 @@ The current public test-production web/API domain is `https://attendance.ncfccs.
 ## 1. Supabase project
 
 1. Create a project at https://supabase.com/dashboard.
-2. Settings > API: copy `Project URL` and `anon public` key into `.env` as `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` (also `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` for `apps/mobile`). Copy `service_role` key as `SUPABASE_SERVICE_ROLE_KEY` (server-only, never ship to a client).
+2. Settings > API: copy `Project URL` and `anon public` key into `.env` as `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` — the mobile booth app still authenticates against Supabase. The web module does not: its identity is Clerk (step 6), and it reads only `DATABASE_URL`.
 3. Settings > Database > Connection string ("Transaction" pooler, port 6543): copy into `.env` as `DATABASE_URL`. This connects Drizzle to the same Supabase Postgres database; it is not a second database provider.
 
 ## 2. Run the Drizzle migrations
@@ -55,10 +55,10 @@ Set the variable *and redeploy* before the first sign-in to avoid this.
 
 1. https://vercel.com/new, import this repo, set **Root Directory** to `apps/web`.
 2. Framework preset: Next.js (auto-detected).
-3. Add all `.env.example` vars in Vercel project settings — Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`), `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL`, Resend, `GOVERNOR_EMAILS`, Clerk (`CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — see step 6). Vercel doesn't read your local `.env` — these must be entered in the dashboard, and adding/editing one after the first deploy needs a redeploy to take effect. `EXPO_PUBLIC_*` vars don't belong here — they're mobile-only, go in `apps/mobile/.env`.
-4. Deploy. For the current test-production environment, set `NEXT_PUBLIC_SITE_URL=https://attendance.ncfccs.org` and redeploy. For a new environment, deploy once to get its URL, set `NEXT_PUBLIC_SITE_URL`, then redeploy.
+3. Add all `.env.example` vars in Vercel project settings — `DATABASE_URL`, Resend, `GOVERNOR_EMAILS`, Clerk (`CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL` — see step 6). Vercel doesn't read your local `.env` — these must be entered in the dashboard, and adding/editing one after the first deploy needs a redeploy to take effect. `EXPO_PUBLIC_*` vars don't belong here — they're mobile-only, go in `apps/mobile/.env`.
+4. Deploy. Then add the deployed origin to Clerk's allowed domains for this instance and redeploy if you changed any variable.
 5. **If `/onboarding` (or any DB-backed page) fails to load after deploy**: it's almost always step 2's migration never having actually run against this Supabase project (check Table Editor for the 8 tables), or a missing/stale env var in this Vercel project (not your local `.env`).
-6. **If registration "succeeds" but no confirmation/reset email ever arrives**: check, in order — (a) `NEXT_PUBLIC_SITE_URL` is actually set in *this* Vercel project (not just local `.env`) and matches the domain you're testing against, redeployed after setting it; (b) Supabase dashboard > Authentication > URL Configuration > **Redirect URLs** includes `<NEXT_PUBLIC_SITE_URL>/auth/callback` — Supabase silently drops the email if the redirect isn't on this allow-list, no error surfaces to the app; (c) step 4a's SMTP is actually saved (send a test email from that same Supabase screen); (d) spam folder.
+6. **If web sign-in fails or bounces back to `/sign-in`**: check, in order — (a) the Clerk keys are set in *this* Vercel project (not just local `.env`), redeployed after setting them; (b) the deployed origin is allowed on the Clerk instance; (c) Clerk's Google connection is enabled and its sign-up restriction still allows `@gbox.ncf.edu.ph`.
 
 ### Custom domain via Cloudflare DNS
 
@@ -73,7 +73,7 @@ The current test-production domain is `attendance.ncfccs.org`. Vercel > Project 
 
 Same Resend account, two different credentials:
 
-**a. SMTP for Supabase Auth's own confirmation/reset-password emails** (sent on registration and on forgot-password, per ADR-0003):
+**a. SMTP for Supabase Auth's own OTP email** (mobile booth sign-in only — the web module sends no auth email, per ADR-0012):
 
 1. https://resend.com — add and verify the `ncfccs.org` domain (DNS records on Cloudflare per ADR 0001).
 2. Resend > API Keys: create a key with sending access.

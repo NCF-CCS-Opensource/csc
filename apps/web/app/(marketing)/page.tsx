@@ -3,13 +3,14 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/server";
+import { auth } from "@clerk/nextjs/server";
 
 const STEPS = [
   {
     icon: QrCode,
-    title: "Register & get your QR",
-    description: "Sign up with your @gbox.ncf.edu.ph email and download your personal QR code.",
+    title: "Continue with Google & get your QR",
+    description:
+      "Continue with your @gbox.ncf.edu.ph school Google account and download your personal QR code.",
   },
   {
     icon: ScanLine,
@@ -24,10 +25,7 @@ const STEPS = [
 ];
 
 export default async function Home() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { userId } = await auth();
 
   return (
     <main className="flex flex-1 flex-col">
@@ -40,17 +38,12 @@ export default async function Home() {
           </p>
           <div className="flex gap-3">
             <Button asChild size="lg">
-              {user ? (
+              {userId ? (
                 <Link href="/dashboard">Go to Dashboard</Link>
               ) : (
-                <Link href="/sign-in">Register</Link>
+                <Link href="/sign-in">Continue with your school Google account</Link>
               )}
             </Button>
-            {!user && (
-              <Button asChild size="lg" variant="outline">
-                <Link href="/login">Log in</Link>
-              </Button>
-            )}
           </div>
         </div>
       </section>
