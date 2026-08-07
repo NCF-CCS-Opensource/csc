@@ -5,8 +5,8 @@ This is the repeatable deployment runbook for the public test-production environ
 ## Current environment
 
 - Web and API: `https://attendance.ncfccs.org` (Vercel, custom domain through Cloudflare)
-- Data: Supabase Postgres (web identity is Clerk; Supabase Auth serves the mobile booth only)
-- Mobile: Expo native app; Supabase Auth still signs Officers in, while `https://attendance.ncfccs.org/api/*` handles application API requests
+- Data: Supabase Postgres (identity for both clients is Clerk)
+- Mobile: Expo native app; Clerk signs Officers in, while `https://attendance.ncfccs.org/api/*` handles application API requests
 
 Test production is public and uses real credentials. Treat its secrets and data with production care even though it is not the final production environment.
 
@@ -73,15 +73,14 @@ An unauthenticated request must return JSON with HTTP `401`. A `302` to `vercel.
 
 ## 4. Build the mobile app
 
-`apps/mobile/.env` must use the same Supabase project and the public web API:
+`apps/mobile/.env` must use the same Clerk instance as the web app and the public web API:
 
 ```dotenv
-EXPO_PUBLIC_SUPABASE_URL=https://moczyanmgijiijwlzzkb.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_...
 EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org
 ```
 
-Do not point `EXPO_PUBLIC_API_BASE_URL` at Supabase: routes such as `/api/events/mine` and `/api/scan/approve` live in `apps/web`.
+`EXPO_PUBLIC_API_BASE_URL` must point at the deployed web app: routes such as `/api/events/mine` and `/api/scan/approve` live in `apps/web`, and they verify the Clerk session token the app sends as a Bearer credential.
 
 Expo embeds `EXPO_PUBLIC_*` values at build time, so rebuild after changing them:
 
