@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { createDb } from "../src/client";
-import { programs, semesters } from "../src/schema";
+import { programs, semesters, students } from "../src/schema";
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) throw new Error("TEST_DATABASE_URL is required");
@@ -37,6 +37,26 @@ describe("disposable Postgres", () => {
     await expect(db.insert(programs).values({ name })).rejects.toMatchObject({
       code: "23505",
     });
+  });
+
+  it("stores a non-uuid auth identifier and rejects a duplicate", async () => {
+    const suffix = randomUUID();
+    const row = {
+      authUserId: `user_${suffix}`,
+      email: `${suffix}@gbox.ncf.edu.ph`,
+      name: "Test Student",
+      program: "Computer Science",
+      studentId: suffix,
+    };
+    await db.insert(students).values(row);
+
+    await expect(
+      db.insert(students).values({
+        ...row,
+        email: `dup-${suffix}@gbox.ncf.edu.ph`,
+        studentId: `dup-${suffix}`,
+      }),
+    ).rejects.toMatchObject({ code: "23505" });
   });
 
   it("allows only one open Semester", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideRegistrationAction, validateRegistration } from "./registration";
+import { validateRegistration } from "./registration";
 
 const PROGRAMS = [
   "Computer Science",
@@ -92,33 +92,5 @@ describe("validateRegistration", () => {
       "program",
       "studentId",
     ]);
-  });
-});
-
-describe("decideRegistrationAction", () => {
-  const input = {
-    email: "student@gbox.ncf.edu.ph",
-    name: "Juan Dela Cruz",
-    program: "Computer Science",
-    studentId: "2021-00123",
-    password: "correct-horse",
-    confirmPassword: "correct-horse",
-  };
-
-  it("creates a new row when no existing registration", () => {
-    expect(decideRegistrationAction(input, null)).toEqual({ action: "create" });
-  });
-
-  it("resends the confirmation email when the existing row is unverified", () => {
-    expect(decideRegistrationAction(input, { authUserId: null })).toEqual({
-      action: "resend",
-    });
-  });
-
-  it("rejects when the existing row is already verified", () => {
-    expect(decideRegistrationAction(input, { authUserId: "auth-123" })).toEqual({
-      action: "reject",
-      reason: "This email is already registered. Log in instead.",
-    });
   });
 });
