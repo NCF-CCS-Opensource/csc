@@ -22,6 +22,16 @@ export const getCurrentStudent = cache(async () => {
   })) ?? null;
 });
 
+// Signed in but not yet a Student (a Pending Student, ADR-0012). Takes the id
+// explicitly so the proxy, which has no request-scoped auth() context, can ask.
+export async function hasStudentRecord(authUserId: string) {
+  const student = await db.query.students.findFirst({
+    columns: { id: true },
+    where: eq(students.authUserId, authUserId),
+  });
+  return student !== undefined;
+}
+
 export type Identity = Pick<
   NonNullable<Awaited<ReturnType<typeof getCurrentStudent>>>,
   "name" | "email" | "role"

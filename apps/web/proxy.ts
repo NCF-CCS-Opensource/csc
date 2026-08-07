@@ -1,8 +1,6 @@
-import { students } from "@attendance/db";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { db } from "./lib/db";
+import { hasStudentRecord } from "./lib/auth";
 
 // Coarse redirect gate only — never the authorization mechanism. Every
 // destination still runs its own check (ADR-0005): this decides where an
@@ -26,11 +24,11 @@ export const proxy = clerkMiddleware(async (auth, request) => {
 
   // ponytail: one indexed lookup per app navigation. Move to a Clerk session
   // claim set at onboarding if this ever shows up in navigation latency.
-  const student = await db.query.students.findFirst({
-    columns: { id: true },
-    where: eq(students.authUserId, userId),
-  });
-  if (!student) {
+  if (!(await hasStudentRecord(userId))) {
     return NextResponse.redirect(new URL("/onboarding", request.url));
   }
 });
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};

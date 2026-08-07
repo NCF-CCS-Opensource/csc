@@ -1,5 +1,6 @@
 "use client";
 
+import { SignOutButton } from "@clerk/nextjs";
 import {
   CalendarCheck,
   ClipboardCheck,
@@ -12,7 +13,6 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { logout } from "@/app/(app)/actions";
 import {
   Sidebar,
   SidebarContent,
@@ -117,16 +117,16 @@ export function AppSidebar() {
           </span>
           <div className="flex items-center gap-1">
             {identity && (
-              <form action={logout}>
+              <SignOutButton redirectUrl="/sign-in">
                 <button
-                  type="submit"
+                  type="button"
                   onClick={() => window.localStorage.removeItem(IDENTITY_CACHE_KEY)}
                   className="text-sidebar-foreground/70 hover:text-sidebar-foreground rounded p-1.5"
                   title="Log out"
                 >
                   <LogOut className="size-4" />
                 </button>
-              </form>
+              </SignOutButton>
             )}
             <ModeToggle />
           </div>
