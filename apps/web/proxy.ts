@@ -1,43 +1,36 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { students } from "@attendance/db";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import { db } from "./lib/db";
 
-// Refreshes the Supabase session cookie on every request so server
-// components read a valid session instead of a stale/expired one.
-export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
+// Coarse redirect gate only — never the authorization mechanism. Every
+// destination still runs its own check (ADR-0005): this decides where an
+// unusable session gets sent, not what a usable one may do.
+const isAppRoute = createRouteMatcher([
+  "/dashboard(.*)",
+  "/events(.*)",
+  "/my-attendance(.*)",
+  "/clearance(.*)",
+  "/admin(.*)",
+  "/analytics(.*)",
+]);
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(
-          cookiesToSet: {
-            name: string;
-            value: string;
-            options: CookieOptions;
-          }[],
-        ) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
-          );
-        },
-      },
-    },
-  );
+export const proxy = clerkMiddleware(async (auth, request) => {
+  if (!isAppRoute(request)) return;
 
-  await supabase.auth.getUser();
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.redirect(new URL("/sign-in", request.url));
+  }
 
-  return response;
-}
-
-export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-};
+  // ponytail: one indexed lookup per app navigation. Move to a Clerk session
+  // claim set at onboarding if this ever shows up in navigation latency.
+  const student = await db.query.students.findFirst({
+    columns: { id: true },
+    where: eq(students.authUserId, userId),
+  });
+  if (!student) {
+    return NextResponse.redirect(new URL("/onboarding", request.url));
+  }
+});

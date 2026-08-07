@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { students } from "@attendance/db";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
@@ -8,18 +9,16 @@ import {
   dashboardDestination,
   type Capability,
 } from "./roles";
-import { createClient } from "./supabase/server";
 
+// Clerk answers only *who* this is (ADR-0012). The role — and therefore every
+// authorization decision below — still comes from the students row.
 export const getCurrentStudent = cache(async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { userId } = await auth();
 
-  if (!user) return null;
+  if (!userId) return null;
 
   return (await db.query.students.findFirst({
-    where: eq(students.authUserId, user.id),
+    where: eq(students.authUserId, userId),
   })) ?? null;
 });
 
@@ -31,7 +30,11 @@ export type Identity = Pick<
 export async function requireCapability(capability: Capability) {
   const student = await getCurrentStudent();
   const failure = capabilityFailure(student?.role ?? null, capability);
-  if (!student || failure === "unauthenticated") redirect("/login");
+  if (!student || failure === "unauthenticated") {
+    // Signed in with no students row is a Pending Student, not a stranger.
+    const { userId } = await auth();
+    redirect(userId ? "/onboarding" : "/sign-in");
+  }
   if (failure === "forbidden") {
     redirect(dashboardDestination(student.role));
   }
