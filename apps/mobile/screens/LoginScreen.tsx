@@ -1,15 +1,20 @@
-import { useMemo, useState } from "react";
+import { useSSO } from "@clerk/clerk-expo";
+import * as AuthSession from "expo-auth-session";
+import * as WebBrowser from "expo-web-browser";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { supabase } from "../lib/supabase";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
+
+// Google refuses OAuth inside an embedded WebView, so the flow runs in the
+// system browser and returns to the app through the deep link below.
+WebBrowser.maybeCompleteAuthSession();
 
 function LogoMark({ styles }: { styles: Styles }) {
   return (
@@ -28,20 +33,40 @@ type Styles = ReturnType<typeof makeStyles>;
 export function LoginScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { startSSOFlow } = useSSO();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Warming the browser makes the hand-off feel instant on Android.
+  useEffect(() => {
+    void WebBrowser.warmUpAsync();
+    return () => {
+      void WebBrowser.coolDownAsync();
+    };
+  }, []);
 
   async function signIn() {
     setPending(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-    setPending(false);
-    if (error) setError(error.message);
+    try {
+      const { createdSessionId, setActive } = await startSSOFlow({
+        strategy: "oauth_google",
+        redirectUrl: AuthSession.makeRedirectUri(),
+      });
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
+        return;
+      }
+      // Cancelled in the browser, or Clerk needs more steps than a booth
+      // sign-in should ever require (the school domain is the only gate).
+      setError("Sign-in was not completed");
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Unable to sign in",
+      );
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -52,37 +77,24 @@ export function LoginScreen() {
         <Text style={styles.tagline}>CCS Attendance System</Text>
 
         <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="GBOX"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={colors.textMuted}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-
           {error && <Text style={styles.error}>{error}</Text>}
 
           <TouchableOpacity
             style={styles.button}
-            disabled={pending || !email || !password}
+            accessibilityRole="button"
+            disabled={pending}
             onPress={signIn}
           >
             {pending ? (
               <ActivityIndicator color={colors.primaryText} />
             ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
+              <Text style={styles.buttonText}>Continue with Google</Text>
             )}
           </TouchableOpacity>
+
+          <Text style={styles.hint}>
+            Use your @gbox.ncf.edu.ph school account.
+          </Text>
         </View>
       </View>
 
@@ -125,15 +137,7 @@ function makeStyles(c: ThemeColors) {
     tagline: { fontSize: 13, color: c.textMuted, marginTop: 4, marginBottom: 32 },
     form: { width: "100%", gap: 14 },
     error: { fontSize: 13, color: c.danger, textAlign: "center" },
-    input: {
-      width: "100%",
-      backgroundColor: c.inputBackground,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      fontSize: 15,
-      color: c.text,
-    },
+    hint: { fontSize: 13, color: c.textMuted, textAlign: "center" },
     button: {
       backgroundColor: c.primary,
       borderRadius: 12,

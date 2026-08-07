@@ -1,8 +1,8 @@
 import { DarkTheme, DefaultTheme, NavigationContainer, type Theme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
+import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import NetInfo from "@react-native-community/netinfo";
-import type { Session } from "@supabase/supabase-js";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -14,19 +14,23 @@ import {
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { ApiError, apiFetch } from "./lib/api";
+import {
+  ApiError,
+  apiFetch,
+  rememberOfficerIdentity,
+  rememberedOfficerIdentity,
+  type OfficerIdentity,
+} from "./lib/api";
 import { BoothScreen } from "./screens/BoothScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { blockingScanCount, claimLegacyScans } from "./lib/scanQueue";
-import { supabase } from "./lib/supabase";
 import { flushQueue, stopQueueRetries } from "./lib/syncScans";
 import { ThemeProvider, useTheme } from "./lib/theme-context";
 import type { ThemeColors } from "./lib/theme";
 
 const Tab = createBottomTabNavigator();
-const MOBILE_ADMISSION_OWNER_KEY = "attendance:mobile-admission-owner";
 type MobileAdmission =
   | { allowed: true }
   | { allowed: false; message: string }
@@ -98,7 +102,26 @@ function AuthenticatedApp({
 
 
 export default function App() {
-  const [session, setSession] = useState<Session | null | undefined>(undefined);
+  return (
+    <ClerkProvider tokenCache={tokenCache}>
+      <GestureHandlerRootView style={styles.container}>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <BoothApp />
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ClerkProvider>
+  );
+}
+
+function BoothApp() {
+  const { isLoaded, isSignedIn, userId } = useAuth();
+  // The Officer the queue is stamped with comes from our own secure storage,
+  // never from Clerk at capture time (ADR-0012).
+  const [identity, setIdentity] = useState<OfficerIdentity | null | undefined>(
+    undefined,
+  );
   const [admission, setAdmission] = useState<MobileAdmission>(undefined);
   const [admissionAttempt, setAdmissionAttempt] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -110,42 +133,43 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next);
+    if (!isLoaded) return;
+    if (!isSignedIn || !userId) {
+      setIdentity(null);
       setAdmission(undefined);
-    });
-    return () => subscription.subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (!session) return;
+      return;
+    }
 
     let current = true;
-    const userId = session.user.id;
     void (async () => {
-      const cachedOwner = await AsyncStorage.getItem(
-        MOBILE_ADMISSION_OWNER_KEY,
-      ).catch(() => null);
-      if (current && cachedOwner === userId) setAdmission({ allowed: true });
+      const cached = await rememberedOfficerIdentity();
+      const offline = cached?.authUserId === userId ? cached : null;
+      if (current && offline) {
+        setIdentity(offline);
+        setAdmission({ allowed: true });
+      }
 
       try {
-        await apiFetch("/api/me");
-        await claimLegacyScans(userId);
-        await refreshQueue(userId);
-        await AsyncStorage.setItem(MOBILE_ADMISSION_OWNER_KEY, userId).catch(
-          () => {},
-        );
-        if (current) setAdmission({ allowed: true });
+        const { student } = await apiFetch<{
+          student: { id: string; authUserId: string };
+        }>("/api/me");
+        const fresh: OfficerIdentity = {
+          authUserId: student.authUserId,
+          studentId: student.id,
+        };
+        await rememberOfficerIdentity(fresh);
+        await claimLegacyScans(fresh.authUserId);
+        await refreshQueue(fresh.authUserId);
+        if (current) {
+          setIdentity(fresh);
+          setAdmission({ allowed: true });
+        }
       } catch (error: unknown) {
         const denied =
           error instanceof ApiError && (error.status === 401 || error.status === 403);
-        if (denied) {
-          await AsyncStorage.removeItem(MOBILE_ADMISSION_OWNER_KEY).catch(
-            () => {},
-          );
-        }
-        if (current && (denied || cachedOwner !== userId)) {
+        if (denied) await rememberOfficerIdentity(null);
+        if (current && denied) setIdentity(null);
+        if (current && (denied || !offline)) {
           setAdmission({
             allowed: false,
             message:
@@ -159,10 +183,11 @@ export default function App() {
     return () => {
       current = false;
     };
-  }, [admissionAttempt, refreshQueue, session]);
+  }, [admissionAttempt, isLoaded, isSignedIn, refreshQueue, userId]);
+
+  const officerId = identity?.authUserId;
 
   useEffect(() => {
-    const officerId = session?.user.id;
     if (!officerId) {
       setPendingCount(0);
       return;
@@ -180,22 +205,17 @@ export default function App() {
       unsubscribe();
       stopQueueRetries(officerId);
     };
-  }, [admission?.allowed, refreshQueue, session?.user.id]);
+  }, [admission?.allowed, officerId, refreshQueue]);
 
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <AppShell
-            session={session}
-            admission={admission}
-            pendingCount={pendingCount}
-            queueRevision={queueRevision}
-            refreshQueue={refreshQueue}
-          />
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <AppShell
+      signedIn={isLoaded ? isSignedIn : undefined}
+      officerId={officerId}
+      admission={admission}
+      pendingCount={pendingCount}
+      queueRevision={queueRevision}
+      refreshQueue={refreshQueue}
+    />
   );
 }
 
@@ -215,33 +235,41 @@ function navTheme(colors: ThemeColors): Theme {
 }
 
 function AppShell({
-  session,
+  signedIn,
+  officerId,
   admission,
   pendingCount,
   queueRevision,
   refreshQueue,
 }: {
-  session: Session | null | undefined;
+  signedIn: boolean | undefined;
+  officerId: string | undefined;
   admission: MobileAdmission;
   pendingCount: number;
   queueRevision: number;
   refreshQueue: (officerId: string) => void;
 }) {
   const { colors } = useTheme();
+  const { signOut } = useAuth();
+  const abandonSession = async () => {
+    await rememberOfficerIdentity(null);
+    await signOut();
+  };
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {session === undefined ? null : !session ? (
+      {signedIn === undefined ? null : !signedIn ? (
         <LoginScreen />
-      ) : admission?.allowed ? (
+      ) : admission?.allowed && officerId ? (
         <NavigationContainer theme={navTheme(colors)}>
           <AuthenticatedApp
-            officerId={session.user.id}
+            officerId={officerId}
             pendingCount={pendingCount}
             queueRevision={queueRevision}
-            refreshQueue={() => refreshQueue(session.user.id)}
+            refreshQueue={() => refreshQueue(officerId)}
           />
         </NavigationContainer>
-      ) : admission === undefined ? (
+      ) : !admission || admission.allowed ? (
+        // Admitted but the offline Officer stamp has not loaded yet.
         <ActivityIndicator style={styles.accessState} color={colors.primary} />
       ) : (
         <View style={styles.accessState}>
@@ -263,7 +291,7 @@ function AppShell({
                 opacity: pendingCount > 0 ? 0.5 : 1,
               },
             ]}
-            onPress={() => supabase.auth.signOut()}
+            onPress={abandonSession}
           >
             <Text style={{ color: colors.primaryText, fontWeight: "600" }}>
               Sign out
