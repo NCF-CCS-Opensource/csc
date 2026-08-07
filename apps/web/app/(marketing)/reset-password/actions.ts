@@ -1,8 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { MIN_PASSWORD_LENGTH } from "@/lib/registration";
 import { createClient } from "@/lib/supabase/server";
+
+// Inlined: the password validator moved out with onboarding (ADR 0012). This
+// whole password flow goes away with the Supabase Auth removal.
+const MIN_PASSWORD_LENGTH = 8;
 
 export type ResetPasswordState = {
   error?: string;

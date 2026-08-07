@@ -49,7 +49,7 @@ export async function GET(request: Request) {
         ) {
           // The insert lost to somebody else's email or student id. Signing in
           // would loop on the missing Student row, so say so at registration.
-          return NextResponse.redirect(`${origin}/register?error=duplicate`);
+          return NextResponse.redirect(`${origin}/sign-in?error=duplicate`);
         }
       }
 
@@ -57,5 +57,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/register?error=auth`);
+  return NextResponse.redirect(`${origin}/sign-in?error=auth`);
 }

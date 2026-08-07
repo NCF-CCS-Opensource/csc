@@ -41,9 +41,15 @@ cd packages/db && node --env-file=.env verify.mjs && rm verify.mjs
 
 ## 1b. Bootstrap the Governor account
 
-There's no in-app way to create a Governor. Set `GOVERNOR_EMAILS` (comma-separated `@gbox.ncf.edu.ph` addresses) in `.env` / Vercel *before* that person registers — the role is granted automatically the first time they confirm their email (`apps/web/app/auth/callback/route.ts`).
+There's no in-app way to create a Governor. Set `GOVERNOR_EMAILS` (comma-separated `@gbox.ncf.edu.ph` addresses) in `.env` / Vercel *before* that person signs in — the role is granted at Student-record creation, i.e. when they submit the onboarding form (`apps/web/app/(marketing)/onboarding/actions.ts`). A Governor completes the same Program / Student ID onboarding as anyone else.
 
-Supabase dashboard > Authentication > Providers > Email: **Confirm email** must be enabled — Students can't sign in with their password until they've clicked the confirmation link (ADR-0003).
+⚠️ **The list is consulted once, and only once.** If the Governor signs in and completes onboarding *before* `GOVERNOR_EMAILS` is set (or with their address missing/misspelled in it), their record is created as a plain `student` and setting the variable afterwards changes nothing — nothing re-reads it. Recovery is a **manual database edit**:
+
+```sql
+update students set role = 'governor' where email = 'governor@gbox.ncf.edu.ph';
+```
+
+Set the variable *and redeploy* before the first sign-in to avoid this.
 
 ## 3. Deploy apps/web to Vercel
 
@@ -51,7 +57,7 @@ Supabase dashboard > Authentication > Providers > Email: **Confirm email** must 
 2. Framework preset: Next.js (auto-detected).
 3. Add all `.env.example` vars in Vercel project settings — Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`), `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL`, Resend, `GOVERNOR_EMAILS`, Clerk (`CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — see step 6). Vercel doesn't read your local `.env` — these must be entered in the dashboard, and adding/editing one after the first deploy needs a redeploy to take effect. `EXPO_PUBLIC_*` vars don't belong here — they're mobile-only, go in `apps/mobile/.env`.
 4. Deploy. For the current test-production environment, set `NEXT_PUBLIC_SITE_URL=https://attendance.ncfccs.org` and redeploy. For a new environment, deploy once to get its URL, set `NEXT_PUBLIC_SITE_URL`, then redeploy.
-5. **If `/register` (or any DB-backed page) fails to load after deploy**: it's almost always step 2's migration never having actually run against this Supabase project (check Table Editor for the 8 tables), or a missing/stale env var in this Vercel project (not your local `.env`).
+5. **If `/onboarding` (or any DB-backed page) fails to load after deploy**: it's almost always step 2's migration never having actually run against this Supabase project (check Table Editor for the 8 tables), or a missing/stale env var in this Vercel project (not your local `.env`).
 6. **If registration "succeeds" but no confirmation/reset email ever arrives**: check, in order — (a) `NEXT_PUBLIC_SITE_URL` is actually set in *this* Vercel project (not just local `.env`) and matches the domain you're testing against, redeployed after setting it; (b) Supabase dashboard > Authentication > URL Configuration > **Redirect URLs** includes `<NEXT_PUBLIC_SITE_URL>/auth/callback` — Supabase silently drops the email if the redirect isn't on this allow-list, no error surfaces to the app; (c) step 4a's SMTP is actually saved (send a test email from that same Supabase screen); (d) spam folder.
 
 ### Custom domain via Cloudflare DNS
@@ -78,7 +84,7 @@ Same Resend account, two different credentials:
    - Sender email: an address on `ncfccs.org`
 4. Save and send a test email from the same screen.
 
-**b. API key for the app's own confirmation email** (sent by `apps/web/lib/email.ts` after verification, with the QR attached):
+**b. API key for the app's own confirmation email** (sent by `apps/web/lib/email.ts` at completed onboarding, with the QR attached):
 
 1. Resend > API Keys: create a second key (or reuse the one above).
 2. Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (an `ncfccs.org` address) in `.env` / Vercel.
