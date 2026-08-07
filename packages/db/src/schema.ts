@@ -23,8 +23,11 @@ export const programs = pgTable("programs", {
 
 export const students = pgTable("students", {
   id: uuid("id").primaryKey().defaultRandom(),
-  // Null until the magic-link is verified (auth.users.id at that point).
-  authUserId: uuid("auth_user_id").unique(),
+  // Identity-provider user id. Text, not uuid — Clerk ids are prefixed strings
+  // (ADR 0012). Vendor-neutral name on purpose: vendors get swapped.
+  // Non-null: a Student row is only created once the identity is known, so the
+  // pending state lives in the identity provider, never here.
+  authUserId: text("auth_user_id").notNull().unique(),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   program: text("program")

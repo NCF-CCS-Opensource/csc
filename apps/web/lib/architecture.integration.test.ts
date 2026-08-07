@@ -51,12 +51,14 @@ async function seedScanFixture() {
     .values([
       {
         email: "student@example.com",
+        authUserId: "user_student",
         name: "Grace Hopper",
         program: "Computer Science",
         studentId: "24-001",
       },
       {
         email: "officer@example.com",
+        authUserId: "user_officer",
         name: "Ada Lovelace",
         program: "Computer Science",
         studentId: "24-002",
@@ -219,6 +221,7 @@ describe("Event lifecycle", () => {
       .insert(students)
       .values({
         email: "officer@example.com",
+        authUserId: "user_officer",
         name: "Ada Lovelace",
         program: "Computer Science",
         studentId: "24-001",
@@ -315,6 +318,7 @@ describe("Event lifecycle", () => {
       .insert(students)
       .values({
         email: "officer@example.com",
+        authUserId: "user_officer",
         name: "Ada Lovelace",
         program: "Computer Science",
         studentId: "24-001",
@@ -360,12 +364,14 @@ describe("Event lifecycle", () => {
       .values([
         {
           email: "student@example.com",
+          authUserId: "user_student",
           name: "Grace Hopper",
           program: "Computer Science",
           studentId: "24-001",
         },
         {
           email: "officer@example.com",
+          authUserId: "user_officer",
           name: "Ada Lovelace",
           program: "Computer Science",
           studentId: "24-002",

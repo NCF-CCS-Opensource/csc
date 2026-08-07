@@ -51,23 +51,5 @@ export function validateRegistration(
   return errors;
 }
 
-export type ExistingRegistration = { authUserId: string | null };
-
-export type RegistrationAction =
-  | { action: "create" }
-  | { action: "resend" }
-  | { action: "reject"; reason: string };
-
-export function decideRegistrationAction(
-  _input: RegistrationInput,
-  existing: ExistingRegistration | null,
-): RegistrationAction {
-  if (!existing) return { action: "create" };
-  if (existing.authUserId) {
-    return {
-      action: "reject",
-      reason: "This email is already registered. Log in instead.",
-    };
-  }
-  return { action: "resend" };
-}
+export const ALREADY_REGISTERED =
+  "This email is already registered. Log in instead.";

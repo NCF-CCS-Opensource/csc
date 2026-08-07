@@ -1,5 +1,5 @@
 import { students } from "@attendance/db";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendConfirmationEmail } from "@/lib/email";
@@ -21,20 +21,36 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data.user?.email) {
-      const [linked] = await db
-        .update(students)
-        .set({
-          authUserId: data.user.id,
-          role: determineRole(data.user.email, GOVERNOR_EMAILS),
-        })
-        .where(
-          and(eq(students.email, data.user.email), isNull(students.authUserId)),
-        )
-        .returning();
+      const profile = data.user.user_metadata ?? {};
 
-      // Only the first confirmation linked a row — skip on repeat sign-ins/resets.
-      if (linked) {
-        await sendConfirmationEmail(linked.email, linked);
+      // Registration data rode along as auth metadata (see register/actions.ts).
+      // Password-reset callbacks carry no profile — nothing to create then.
+      if (profile.name && profile.program && profile.studentId) {
+        const [created] = await db
+          .insert(students)
+          .values({
+            authUserId: data.user.id,
+            email: data.user.email,
+            name: profile.name,
+            program: profile.program,
+            studentId: profile.studentId,
+            role: determineRole(data.user.email, GOVERNOR_EMAILS),
+          })
+          .onConflictDoNothing()
+          .returning();
+
+        // Only the first confirmation created the row — skip on repeat visits.
+        if (created) {
+          await sendConfirmationEmail(created.email, created);
+        } else if (
+          !(await db.query.students.findFirst({
+            where: eq(students.authUserId, data.user.id),
+          }))
+        ) {
+          // The insert lost to somebody else's email or student id. Signing in
+          // would loop on the missing Student row, so say so at registration.
+          return NextResponse.redirect(`${origin}/register?error=duplicate`);
+        }
       }
 
       return NextResponse.redirect(`${origin}${next}`);

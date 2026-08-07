@@ -15,6 +15,7 @@ const PROGRAM = "Computer Science"; // must exist in the programs table (migrati
 const TEST_STUDENTS = [
   { email: "teststudent1@gbox.ncf.edu.ph", name: "Test Student One", studentId: "24-00001" },
   { email: "teststudent2@gbox.ncf.edu.ph", name: "Test Student Two", studentId: "24-00002" },
+  { email: "teststudent3@gbox.ncf.edu.ph", name: "Test Student Three", studentId: "24-00003" },
 ];
 
 const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
