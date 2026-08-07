@@ -5,8 +5,12 @@ QR-based attendance and penalty tracking for the College of Computer Studies, re
 ## Language
 
 **Student**:
-A registered user who self-registers via school email, attends Events, and accrues Penalties for incomplete attendance.
+A user who signs in with their school Google account and completes onboarding, attends Events, and accrues Penalties for incomplete attendance. Before onboarding is complete they are a Pending Student, not yet a Student.
 _Avoid_: User, enrollee
+
+**Pending Student**:
+Someone holding a verified school identity — signed in with a school Google account — who has no Student record yet. They can complete onboarding and nothing else: no Events, no QR, no Penalties, since those all belong to a Student.
+_Avoid_: Unregistered user, unconfirmed account
 
 **Officer**:
 A Student promoted (by the Governor) to run Events — creates, edits, and deletes **any** Event (not only ones they created), scans attendance at the booth, edits attendance records, marks Payments received, signs Clearance. Every Officer sees and acts on every Officer's Events; there is no per-Officer Event ownership. Cannot perform ADMIN actions (see Governor), which stay Governor-only.
