@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Linking,
   StyleSheet,
   Text,
   TextInput,
@@ -11,8 +10,6 @@ import {
 import { supabase } from "../lib/supabase";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
-
-const WEB_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL!;
 
 function LogoMark({ styles }: { styles: Styles }) {
   return (
@@ -76,13 +73,6 @@ export function LoginScreen() {
           {error && <Text style={styles.error}>{error}</Text>}
 
           <TouchableOpacity
-            style={styles.forgotLink}
-            onPress={() => Linking.openURL(`${WEB_BASE_URL}/forgot-password`)}
-          >
-            <Text style={styles.forgotText}>Forgot password?</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={styles.button}
             disabled={pending || !email || !password}
             onPress={signIn}
@@ -144,8 +134,6 @@ function makeStyles(c: ThemeColors) {
       fontSize: 15,
       color: c.text,
     },
-    forgotLink: { alignItems: "flex-end", marginTop: 2, marginBottom: 6 },
-    forgotText: { fontSize: 13, color: c.textMuted },
     button: {
       backgroundColor: c.primary,
       borderRadius: 12,

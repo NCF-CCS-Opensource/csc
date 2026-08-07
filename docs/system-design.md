@@ -14,7 +14,7 @@
 
 ## 1. Abstract
 
-CCS Attendance is a QR-based attendance and Penalty system for the College of Computer Studies. A responsive Next.js web module supports Students, Officers, and Governors; an Expo mobile module supports booth scanning and shared Event management; Supabase provides Auth and Postgres; Drizzle owns typed application data access; and Resend delivers authentication and QR email.
+CCS Attendance is a QR-based attendance and Penalty system for the College of Computer Studies. A responsive Next.js web module supports Students, Officers, and Governors; an Expo mobile module supports booth scanning and shared Event management; Clerk provides web identity and Supabase provides Postgres (and mobile booth Auth); Drizzle owns typed application data access; and Resend delivers booth OTP and QR email.
 
 The target guarantees are capability authorization inside deep command modules, strict client-UUID idempotency, atomic Scan Approval persistence, deterministic earliest Time-in/latest Time-out resolution, protected Event history, one Attendance Session per Event/Student/half, automatically derived Penalties, and one full Payment per Penalty. The Ledger remains the deep read module that keeps no-show and standing rules local across Student, Clearance, and operations views.
 
@@ -58,7 +58,7 @@ flowchart LR
     Resend[Resend SMTP and API]
 
     Browser -->|cookie| Vercel
-    Mobile -->|password session| Auth
+    Mobile -->|OTP session| Auth
     Mobile --> Queue
     Queue -->|Bearer JSON requests| Vercel
     Vercel -->|verify identity| Auth
@@ -78,7 +78,7 @@ Figure 1. Current system architecture.
 | Module | Responsibility | Primary storage/dependency | Failure behavior |
 | --- | --- | --- | --- |
 | Next.js delivery module | Render role surfaces and accept web/mobile commands | Vercel runtime | Failed requests return/throw; no repository-wide fallback |
-| Authentication module | Create sessions and map Supabase identities to Students | Supabase Auth and `students` | Missing/invalid identity is unauthenticated; privileged access fails closed |
+| Authentication module | Map external identities to Students — Clerk on web, Supabase Auth on mobile | Clerk, Supabase Auth, and `students` | Missing/invalid identity is unauthenticated; privileged access fails closed |
 | Event lifecycle module | Own create/update/delete capability, Semester, lifecycle, and persistence rules | Postgres | Rejects invalid transitions without changing Event history |
 | Scan Approval module | Own validation, strict idempotency, canonical Student matching, atomic attendance resolution, and Penalty synchronization | `scans`, `attendance_sessions`, `penalties` | Any write failure rolls back; conflicting UUID reuse returns `409` |
 | Offline Scan Queue | Retain Officer-owned decisions, retry temporary failures, and isolate permanent failures | AsyncStorage | Pending work survives restart; Needs Review does not block later delivery |
@@ -105,8 +105,8 @@ Figure 1. Current system architecture.
 
 ### Browser request
 
-1. Next.js proxy refreshes the Supabase session cookie.
-2. The page or server action loads the current Supabase user.
+1. Next.js proxy resolves the Clerk session and redirects an unusable one to `/sign-in` or `/onboarding`.
+2. The page or server action loads the current Clerk user.
 3. The authentication module maps `auth.users.id` to `students.auth_user_id`.
 4. A role guard authorizes Student, Officer/Governor, or Governor access.
 5. Drizzle loads or mutates application state.
@@ -193,7 +193,7 @@ Ledger reads are internally consistent for the rows loaded into `computeLedger`,
 - Supabase anon keys are public client configuration; `DATABASE_URL`, Resend credentials, and any service-role key must remain server-only.
 - The QR contains Student name, Student ID, and Program in unsigned plaintext JSON. Treat QR images and raw rejection payloads as personal data.
 - Scan Approval requires an Officer to visually compare the Student with a worn school ID.
-- Password reset always reports success to avoid account enumeration.
+- No password is collected, transmitted, or stored anywhere in the system; web identity is Google SSO through Clerk.
 - The database is accessed by the server through Drizzle; clients do not query application tables directly.
 - Repository policy does not define data retention, deletion requests, backup access, log redaction, or QR rotation.
 - Governor assignment depends on `GOVERNOR_EMAILS` at first confirmation. Governors inherit Officer mobile capability under ADR-0010.

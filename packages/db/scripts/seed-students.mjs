@@ -1,16 +1,18 @@
-// Seeds 2 login-ready test Students (confirmed auth user + linked students row).
-// Run:  pnpm --filter @attendance/db db:seed
+// Seeds 3 test Student rows. Run:  pnpm --filter @attendance/db db:seed
 // Idempotent: re-running updates the existing rows instead of duplicating.
-import { createClient } from "@supabase/supabase-js";
+//
+// Identities live in Clerk now (ADR 0012), and Clerk user ids only exist once
+// somebody has actually signed in with Google — so this seeds data fixtures,
+// not sign-in-able accounts. To exercise a real session, sign in through
+// /sign-in and complete onboarding; to promote a seeded row, use the Admin page.
 import postgres from "postgres";
 
-const { NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL } = process.env;
-if (!NEXT_PUBLIC_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !DATABASE_URL) {
+const { DATABASE_URL } = process.env;
+if (!DATABASE_URL) {
   console.error("Missing env. Run via the db:seed script so --env-file=../../.env is applied.");
   process.exit(1);
 }
 
-const PASSWORD = "Password123!";
 const PROGRAM = "Computer Science"; // must exist in the programs table (migration-seeded)
 const TEST_STUDENTS = [
   { email: "teststudent1@gbox.ncf.edu.ph", name: "Test Student One", studentId: "24-00001" },
@@ -18,29 +20,11 @@ const TEST_STUDENTS = [
   { email: "teststudent3@gbox.ncf.edu.ph", name: "Test Student Three", studentId: "24-00003" },
 ];
 
-const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
 const sql = postgres(DATABASE_URL);
 
-async function authUserIdFor(email) {
-  const { data, error } = await supabase.auth.admin.createUser({
-    email,
-    password: PASSWORD,
-    email_confirm: true, // login-ready immediately, no email round-trip
-  });
-  if (!error) return data.user.id;
-  // ponytail: naive listUsers scan (first page, ~50 users) — fine for a seed,
-  // paginate if the project ever outgrows one page.
-  const { data: list, error: listErr } = await supabase.auth.admin.listUsers();
-  if (listErr) throw listErr;
-  const found = list.users.find((u) => u.email === email);
-  if (!found) throw error;
-  return found.id;
-}
-
 for (const s of TEST_STUDENTS) {
-  const authUserId = await authUserIdFor(s.email);
+  // Namespaced so a seeded row can never collide with a real Clerk user id.
+  const authUserId = `seed_${s.studentId}`;
   await sql`
     insert into students (auth_user_id, email, name, program, student_id, role)
     values (${authUserId}, ${s.email}, ${s.name}, ${PROGRAM}, ${s.studentId}, 'student')
@@ -50,9 +34,9 @@ for (const s of TEST_STUDENTS) {
           program     = excluded.program,
           student_id  = excluded.student_id
   `;
-  console.log(`seeded ${s.email}  (password: ${PASSWORD})`);
+  console.log(`seeded ${s.email}`);
 }
 
 await sql.end();
-console.log("done — both are role=student. Promote one to Officer via the Governor Admin page.");
+console.log("done — all role=student. Promote one to Officer via the Governor Admin page.");
 process.exit(0);

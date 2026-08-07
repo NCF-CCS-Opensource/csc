@@ -5,8 +5,8 @@ This is the repeatable deployment runbook for the public test-production environ
 ## Current environment
 
 - Web and API: `https://attendance.ncfccs.org` (Vercel, custom domain through Cloudflare)
-- Data, Auth, and Storage: Supabase
-- Mobile: Expo native app; Supabase handles Auth, while `https://attendance.ncfccs.org/api/*` handles application API requests
+- Data: Supabase Postgres (web identity is Clerk; Supabase Auth serves the mobile booth only)
+- Mobile: Expo native app; Supabase Auth still signs Officers in, while `https://attendance.ncfccs.org/api/*` handles application API requests
 
 Test production is public and uses real credentials. Treat its secrets and data with production care even though it is not the final production environment.
 
@@ -55,11 +55,10 @@ Merging or pushing the release commit to `main` triggers the Vercel production d
 
 The Vercel Production environment must contain:
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
 - `DATABASE_URL`
-- `NEXT_PUBLIC_SITE_URL=https://attendance.ncfccs.org`
+- `CLERK_SECRET_KEY`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `GOVERNOR_EMAILS`

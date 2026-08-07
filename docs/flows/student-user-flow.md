@@ -2,18 +2,16 @@
 
 ## Scope
 
-A Student self-registers, proves ownership of a school email, presents a QR at Events, and tracks Attendance Sessions, Penalties, Payments, and Clearance readiness on the responsive web app.
+A Student signs in with their school Google account, presents a QR at Events, and tracks Attendance Sessions, Penalties, Payments, and Clearance readiness on the responsive web app.
 
 ```mermaid
 flowchart TD
-    A[Open CCS Attendance] --> B{Registered?}
-    B -- No --> C[Register with school email, profile, and password]
-    C --> D[Supabase sends confirmation email]
-    D --> E[Open confirmation link]
-    E --> F[Callback links auth identity to Student]
+    A[Open CCS Attendance] --> H[Continue with school Google account]
+    H --> B{Student record exists?}
+    B -- No --> C[Onboarding: Program and Student ID]
+    C --> F[Student row is created against the Clerk identity]
     F --> G[QR is emailed and available in My Attendance]
-    B -- Yes --> H[Sign in]
-    G --> H
+    G --> I
     H --> I[My Attendance]
     I --> J[Present QR to Officer at Event]
     J --> K{Officer approves?}
@@ -31,18 +29,13 @@ flowchart TD
     T -- No --> Q
 ```
 
-## Registration and sign-in
+## Sign-in and onboarding
 
-1. Open `/register`.
-2. Enter an `@gbox.ncf.edu.ph` email, name, Program, Student ID, and matching password of at least eight characters.
-3. The system validates the Governor-managed Program list and creates:
-   - a Supabase password account; and
-   - a Student row that is not linked until email confirmation.
-4. Open the Supabase confirmation email.
-5. `/auth/callback` links the Supabase identity to the Student row and sends a QR attachment through Resend.
-6. Sign in at `/login`. An unconfirmed account can request another confirmation email.
-
-If the password is forgotten, `/forgot-password` sends a reset link without revealing whether the email is registered. The link returns through `/auth/callback?next=/reset-password`.
+1. Open `/sign-in` and continue with an `@gbox.ncf.edu.ph` Google account. The same route serves first-time and returning people; there is no separate register page and no password.
+2. A signed-in person with no Student row is a Pending Student and is sent to `/onboarding`.
+3. Enter Program and Student ID. Name and email come from the verified Google identity.
+4. The system validates the Governor-managed Program list, creates the Student row against the Clerk user id, and sends a QR attachment through Resend.
+5. Returning Students go straight to `/dashboard`, which forwards a Student to `/my-attendance`.
 
 ## Daily use
 
@@ -60,7 +53,7 @@ If the password is forgotten, `/forgot-password` sends a reset link without reve
 
 - Missing either scan makes the Attendance Session incomplete on the Event date and absent afterward.
 - A whole-day Event evaluates AM and PM separately.
-- A late registrant owes for all Events in a Semester that had not ended before registration.
+- A late onboarder owes for all Events in a Semester that had not ended before their record was created.
 - Penalties are system-computed, not manually entered.
 - Payments are recorded by an Officer and settle a Penalty in full.
 - The Student is Clearance-ready only when the open Semester's outstanding balance is zero.
@@ -69,9 +62,9 @@ If the password is forgotten, `/forgot-password` sends a reset link without reve
 
 | Situation | Outcome |
 | --- | --- |
-| Invalid Program, email, or password | Registration remains on the form with validation feedback |
-| Email already linked | Student is directed to sign in |
-| Email exists but is unconfirmed | Confirmation email is resent and profile fields are refreshed |
+| Invalid Program or Student ID | Onboarding remains on the form with validation feedback |
+| Email or Student ID already taken | Onboarding reports the conflict and the person stays a Pending Student |
+| QR email fails to send | The Student record still exists; `/qr` serves the same code on demand |
 | Missing Time-in or Time-out | Attendance Session remains incomplete/absent until corrected |
 | No open Semester | My Attendance shows no current Penalty standing |
 | QR is rejected | No Attendance Session changes; the decision is retained for Governor review |
