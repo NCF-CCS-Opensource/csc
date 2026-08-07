@@ -12,5 +12,5 @@ The system ships two clients against one Supabase backend, and responsibility is
 - **Roles × platform:** Student → web only (responsive). Officer → native mobile (booth, Events, Payments) **and** web (desk work, which needs desktop). Governor → web only, never native.
 - **Payment is the one booth exception.** Every other desk task is desktop-only, but logging a Payment is allowed on mobile because it happens physically at the booth while the Officer holds the phone — reconstructing cash records later from memory is exactly what we avoid.
 - **Duplication is accepted for Event setup** — it lives on both native mobile and web, so two forms stay in lockstep.
-- **One auth, one backend.** Both clients share Supabase email/password auth; the mobile app is a thin client calling the web app's `/api/*` routes and Supabase directly. Offline scan capture/sync is the native app's reason to exist.
+- **One auth, one backend.** Both clients share one identity provider — Clerk with school-domain Google SSO (ADR-0012); the mobile app is a thin client calling the web app's `/api/*` routes and Supabase directly. Offline scan capture/sync is the native app's reason to exist.
 - **The web app must enforce a desktop breakpoint** on desk screens; the Student dashboard stays phone-friendly below it.

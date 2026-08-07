@@ -1,6 +1,6 @@
 # Email + password auth, replacing magic-link sign-in
 
-Status: accepted (revises the auth-mechanism portion of ADR-0001; the rest of ADR-0001 — Supabase for Postgres/Storage, Drizzle, Turborepo, Vercel, Expo, Resend — is unaffected)
+Status: superseded by ADR-0012 (Clerk with Google SSO restricted to the school domain). Email + password auth is no longer the sign-in mechanism; the gamification motivation recorded below is now served by SSO rather than a standing password. Retained for the reasoning trail. Previously: accepted (revised the auth-mechanism portion of ADR-0001).
 
 ADR-0001 chose Supabase's magic-link auth because it mapped directly onto the email-verification requirement with no extra backend work. We're reversing that for **email + password** (Supabase's standard password provider) because an upcoming gamification feature (Students earn points from programming/quiz challenges, redeemable against Penalty balance) implies persistent, frequently-revisited Student accounts — a standing credential fits that better than re-requesting a fresh magic link every visit. A one-time-use 6-digit code (Supabase's OTP alongside the magic link) was considered and rejected as a *recurring* login mechanism: fine as a single-use, short-lived token, but not as a reusable standing credential — 6 numeric digits is only 1,000,000 combinations, too weak to stand as a password students keep reusing indefinitely.
 
