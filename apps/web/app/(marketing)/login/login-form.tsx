@@ -71,7 +71,7 @@ export function LoginForm() {
             </Link>
             <p>
               New here?{" "}
-              <Link href="/register" className="text-primary underline underline-offset-2">
+              <Link href="/sign-in" className="text-primary underline underline-offset-2">
                 Register
               </Link>
             </p>

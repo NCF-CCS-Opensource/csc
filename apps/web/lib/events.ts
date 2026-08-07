@@ -6,7 +6,7 @@ import {
 } from "@attendance/db";
 import { eq, isNull } from "drizzle-orm";
 import { db } from "./db";
-import type { ValidationError } from "./registration";
+import type { ValidationError } from "./onboarding";
 import { hasCapability, type Role } from "./roles";
 
 export class EventLifecycleError extends Error {}

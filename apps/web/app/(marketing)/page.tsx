@@ -43,7 +43,7 @@ export default async function Home() {
               {user ? (
                 <Link href="/dashboard">Go to Dashboard</Link>
               ) : (
-                <Link href="/register">Register</Link>
+                <Link href="/sign-in">Register</Link>
               )}
             </Button>
             {!user && (

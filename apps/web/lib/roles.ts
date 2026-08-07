@@ -54,8 +54,10 @@ export function dashboardDestination(role: Role): "/dashboard" | "/my-attendance
   return hasCapability(role, "manage_operations") ? "/dashboard" : "/my-attendance";
 }
 
-// Applied only at magic-link verification, when email ownership is proven —
-// see auth/callback/route.ts. governorEmails is GOVERNOR_EMAILS, split by the caller.
+// Applied only at Student-record creation, against Clerk's verified primary
+// address — see onboarding/actions.ts. Consulted once and never again: a
+// Governor whose address was missing then needs a manual database edit
+// (docs/setup/provisioning.md). governorEmails is GOVERNOR_EMAILS, split by the caller.
 export function determineRole(email: string, governorEmails: string[]): Role {
   const normalized = email.toLowerCase();
   const allowlist = governorEmails.map((e) => e.toLowerCase());

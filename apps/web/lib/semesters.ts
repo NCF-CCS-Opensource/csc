@@ -1,7 +1,7 @@
 import { events, semesters } from "@attendance/db";
 import { and, eq, gt, lt, or } from "drizzle-orm";
 import { db } from "./db";
-import type { ValidationError } from "./registration";
+import type { ValidationError } from "./onboarding";
 import { hasCapability, type Role } from "./roles";
 
 export class SemesterLifecycleError extends Error {}
