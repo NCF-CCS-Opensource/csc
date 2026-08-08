@@ -105,9 +105,6 @@ importers:
       '@react-pdf/renderer':
         specifier: ^4.5.1
         version: 4.5.1(react@19.2.4)
-      '@tanstack/react-query':
-        specifier: ^5.101.4
-        version: 5.101.4(react@19.2.4)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -11172,11 +11169,6 @@ snapshots:
     dependencies:
       '@tanstack/query-core': 5.101.4
       react: 19.2.3
-
-  '@tanstack/react-query@5.101.4(react@19.2.4)':
-    dependencies:
-      '@tanstack/query-core': 5.101.4
-      react: 19.2.4
 
   '@ts-morph/common@0.27.0':
     dependencies:
