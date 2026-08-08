@@ -11,7 +11,11 @@ export type MyAttendanceSnapshot = {
   student: { name: string; email: string; program: string; studentId: string };
   hasOpenSemester: boolean;
   ledger: StudentStanding;
-  paymentHistory: { id: string; amount: string; paidAt: string }[];
+  // paidOn is formatted here, not in the view: the date used to render on the
+  // server, and formatting it in a client component would resolve it against
+  // the viewer's locale and timezone instead — a different date either side of
+  // midnight, and a hydration mismatch on the cell.
+  paymentHistory: { id: string; amount: string; paidOn: string }[];
 };
 
 // My Attendance's one read, called by the server shell for the first paint and
@@ -46,9 +50,10 @@ export async function myAttendanceSnapshot(): Promise<MyAttendanceSnapshot> {
     },
     hasOpenSemester: openSemester !== null,
     ledger,
-    paymentHistory: paymentHistory.map((payment) => ({
-      ...payment,
-      paidAt: new Date(payment.paidAt).toISOString(),
+    paymentHistory: paymentHistory.map(({ id, amount, paidAt }) => ({
+      id,
+      amount,
+      paidOn: new Date(paidAt).toLocaleDateString(),
     })),
   };
 }

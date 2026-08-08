@@ -134,7 +134,7 @@ export function MyAttendanceView({
               <TableBody>
                 {paymentHistory.map((payment) => (
                   <TableRow key={payment.id}>
-                    <TableCell>{new Date(payment.paidAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{payment.paidOn}</TableCell>
                     <TableCell className="text-right">₱{payment.amount}</TableCell>
                   </TableRow>
                 ))}
