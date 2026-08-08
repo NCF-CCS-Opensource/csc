@@ -1,11 +1,13 @@
 "use client";
 
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { useWebStore } from "@/lib/store";
 
 type Semester = {
   id: string;
@@ -37,13 +39,19 @@ type ReportsClientProps = {
 };
 
 export function ReportsClient({ semesters, events, students = [], currentCampusDate }: ReportsClientProps) {
-  const [reportType, setReportType] = useState<string>("per-event");
-  const [selectedSemesterId, setSelectedSemesterId] = useState<string>(
-    semesters[0]?.id ?? "",
-  );
-  const [selectedEventId, setSelectedEventId] = useState<string>("");
-  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
-  const [isGenerating, setIsGenerating] = useState(false);
+  // The Officer's picks are client-only state — nothing on the server derives
+  // them — so they live in the web store rather than in this component, and
+  // survive a trip away from Analytics and back (ADR 0013).
+  const selections = useWebStore((s) => s.reportSelections);
+  const setSelections = useWebStore((s) => s.setReportSelections);
+  const { reportType, eventId: selectedEventId, studentId: selectedStudentId } = selections;
+  const selectedSemesterId = selections.semesterId || (semesters[0]?.id ?? "");
+
+  const setReportType = (reportType: string) => setSelections({ reportType });
+  const setSelectedSemesterId = (semesterId: string) => setSelections({ semesterId });
+  const setSelectedEventId = (eventId: string) => setSelections({ eventId });
+  const setSelectedStudentId = (studentId: string) => setSelections({ studentId });
+
   const [notice, setNotice] = useState<string | null>(null);
 
   const filteredEvents = events.filter(
@@ -53,15 +61,15 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
   const selectedEvent = events.find((e) => e.id === selectedEventId);
   const selectedStudent = students.find((s) => s.id === selectedStudentId);
 
-  const handleGeneratePdf = async () => {
-    if (reportType === "per-event" && !selectedEventId) return;
-    if (reportType === "per-student" && (!selectedStudentId || !selectedSemesterId)) return;
-    if (reportType === "per-semester" && !selectedSemesterId) return;
-    if (reportType === "financial" && !selectedSemesterId) return;
+  // A PDF is a slow write-shaped request: pending is a real state to show, and
+  // a failure has to say so rather than looking like it is still generating.
+  const generate = useMutation({
+    mutationFn: generatePdf,
+    onMutate: () => setNotice(null),
+  });
+  const isGenerating = generate.isPending;
 
-    setIsGenerating(true);
-    setNotice(null);
-
+  async function generatePdf() {
     const url =
       reportType === "per-event"
         ? `/api/reports/per-event/${selectedEventId}/pdf`
@@ -81,33 +89,24 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
         ? `per-semester-report-${selectedSem?.startDate}-to-${selectedSem?.endDate}.pdf`
         : `financial-report-${selectedSem?.startDate}-to-${selectedSem?.endDate}.pdf`;
 
-    try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error("Failed to generate PDF");
-      }
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to generate PDF");
 
-      const aiStatus = res.headers.get("X-AI-Narrative-Status");
-      if (aiStatus === "unavailable") {
-        setNotice("AI analysis was unavailable. The PDF was generated without the narrative section.");
-      }
-
-      const blob = await res.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.error(err);
-      setNotice("Failed to download PDF report.");
-    } finally {
-      setIsGenerating(false);
+    const aiStatus = res.headers.get("X-AI-Narrative-Status");
+    if (aiStatus === "unavailable") {
+      setNotice("AI analysis was unavailable. The PDF was generated without the narrative section.");
     }
-  };
+
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -268,7 +267,7 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
 
             <div className="flex flex-col gap-3 pt-2">
               <div>
-                <Button onClick={handleGeneratePdf} disabled={isGenerating}>
+                <Button onClick={() => generate.mutate()} disabled={isGenerating}>
                   {isGenerating ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />
@@ -281,6 +280,14 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
                     </>
                   )}
                 </Button>
+                {generate.isError && (
+                  <div
+                    role="alert"
+                    className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800/50 dark:bg-red-950/30 dark:text-red-300"
+                  >
+                    Failed to generate the PDF report. Try again.
+                  </div>
+                )}
                 {notice && (
                   <div className="mt-3 rounded-md bg-blue-50 dark:bg-blue-950/30 p-3 text-sm text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50">
                     {notice}
