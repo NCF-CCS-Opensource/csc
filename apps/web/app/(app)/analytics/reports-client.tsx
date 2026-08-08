@@ -61,6 +61,17 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
   const selectedEvent = events.find((e) => e.id === selectedEventId);
   const selectedStudent = students.find((s) => s.id === selectedStudentId);
 
+  // The picks a report needs before it can be asked for. Previously these were
+  // early returns inside the click handler; as a mutation the click always
+  // fires, so an incomplete selection has to disable the button instead — a
+  // request built from a missing id would 404 and read as a broken report.
+  const isSelectionComplete =
+    reportType === "per-event"
+      ? !!selectedEventId
+      : reportType === "per-student"
+        ? !!selectedStudentId && !!selectedSemesterId
+        : !!selectedSemesterId;
+
   // A PDF is a slow write-shaped request: pending is a real state to show, and
   // a failure has to say so rather than looking like it is still generating.
   const generate = useMutation({
@@ -267,7 +278,10 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
 
             <div className="flex flex-col gap-3 pt-2">
               <div>
-                <Button onClick={() => generate.mutate()} disabled={isGenerating}>
+                <Button
+                  onClick={() => generate.mutate()}
+                  disabled={isGenerating || !isSelectionComplete}
+                >
                   {isGenerating ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />

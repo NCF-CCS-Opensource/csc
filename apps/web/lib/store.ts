@@ -3,10 +3,6 @@ import { create } from "zustand";
 // The web application's client-only state: what an Officer has picked or typed
 // that no server read derives (ADR 0013). Server-derived data lives in the
 // Query cache, never here.
-//
-// Note for review: neither slice below has a second consumer today, and filter
-// state of this shape would sit more naturally in the URL search parameters if
-// it ever needs to be shareable or bookmarkable.
 type ReportSelections = {
   reportType: string;
   semesterId: string;
