@@ -28,6 +28,7 @@ import { LoginScreen } from "./screens/LoginScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { blockingScanCount, claimLegacyScans } from "./lib/scanQueue";
 import { flushQueue, stopQueueRetries } from "./lib/syncScans";
+import { BoothQueryProvider } from "./lib/queryClient";
 import { ThemeProvider, useTheme } from "./lib/theme-context";
 import type { ThemeColors } from "./lib/theme";
 
@@ -108,7 +109,9 @@ export default function App() {
       <GestureHandlerRootView style={styles.container}>
         <SafeAreaProvider>
           <ThemeProvider>
-            <BoothApp />
+            <BoothQueryProvider>
+              <BoothApp />
+            </BoothQueryProvider>
           </ThemeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
