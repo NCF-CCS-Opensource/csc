@@ -6,9 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { dashboardSnapshot, type DashboardSnapshot } from "./actions";
+import { dashboardQueryKey } from "./query-key";
 import { RefreshButton } from "./refresh-button";
-
-export const dashboardQueryKey = ["dashboard-snapshot"];
 
 export function DashboardView({ initialData }: { initialData: DashboardSnapshot }) {
   // Seeded from the server shell, so a cold visit paints rendered HTML and a
