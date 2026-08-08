@@ -10,11 +10,16 @@ import {
   View,
 } from "react-native";
 import { CalendarGrid } from "../components/CalendarGrid";
-import { apiFetch } from "../lib/api";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
 
-import type { EventRow, EventType } from "../lib/events";
+import {
+  useDeleteEvent,
+  useMyEvents,
+  useSaveEvent,
+  type EventRow,
+  type EventType,
+} from "../lib/events";
 
 type EventStatus = "Active" | "Upcoming" | "Completed";
 
@@ -49,32 +54,12 @@ function formatDate(date: string) {
 export function EventsScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [events, setEvents] = useState<EventRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: events = [], isPending, isError } = useMyEvents();
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [deleting, setDeleting] = useState<EventRow | null>(null);
 
-  function load() {
-    setLoading(true);
-    apiFetch<{ events: EventRow[] }>("/api/events/mine")
-      .then((data) => setEvents(data.events))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }
-
-  useEffect(load, []);
-
-  function onUpdated(updated: Omit<EventRow, "attendeeCount">) {
-    setEvents((prev) => prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e)));
-  }
-
-  function onDeleted(id: string) {
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-  }
-
-  if (loading) {
+  if (isPending) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.text} />
@@ -82,10 +67,10 @@ export function EventsScreen() {
     );
   }
 
-  if (error) {
+  if (isError && events.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={styles.error}>{error}</Text>
+        <Text style={styles.error}>Could not load your events.</Text>
       </View>
     );
   }
@@ -98,6 +83,10 @@ export function EventsScreen() {
           <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
       </View>
+
+      {isError && (
+        <Text style={styles.error}>Showing your last known events — refresh failed.</Text>
+      )}
 
       <FlatList
         data={events}
@@ -150,7 +139,6 @@ export function EventsScreen() {
         visible={addOpen}
         mode="create"
         onClose={() => setAddOpen(false)}
-        onSaved={load}
         colors={colors}
         styles={styles}
       />
@@ -159,16 +147,12 @@ export function EventsScreen() {
         mode="edit"
         event={editing}
         onClose={() => setEditing(null)}
-        onSaved={(updated) => onUpdated(updated)}
         colors={colors}
         styles={styles}
       />
       <DeleteEventModal
         event={deleting}
         onClose={() => setDeleting(null)}
-        onDeleted={() => {
-          if (deleting) onDeleted(deleting.id);
-        }}
         colors={colors}
         styles={styles}
       />
@@ -179,37 +163,29 @@ export function EventsScreen() {
 function DeleteEventModal({
   event,
   onClose,
-  onDeleted,
   colors,
   styles,
 }: {
   event: EventRow | null;
   onClose: () => void;
-  onDeleted: () => void;
   colors: ThemeColors;
   styles: Styles;
 }) {
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const remove = useDeleteEvent();
 
-  async function confirmDelete() {
+  function close() {
+    remove.reset();
+    onClose();
+  }
+
+  function confirmDelete() {
     if (!event) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      await apiFetch(`/api/events/${event.id}`, { method: "DELETE" });
-      onDeleted();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete event");
-    } finally {
-      setSubmitting(false);
-    }
+    remove.mutate(event.id, { onSuccess: close });
   }
 
   return (
-    <Modal visible={!!event} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
+    <Modal visible={!!event} transparent animationType="fade" onRequestClose={close}>
+      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={close}>
         <TouchableOpacity activeOpacity={1} style={styles.deleteModalCard} onPress={(e) => e.stopPropagation()}>
           <View style={styles.modalHandle} />
 
@@ -222,18 +198,22 @@ function DeleteEventModal({
             "{event?.name}" will be permanently deleted. This action cannot be undone.
           </Text>
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {remove.isError && (
+            <Text style={styles.error}>
+              {remove.error instanceof Error ? remove.error.message : "Failed to delete event"}
+            </Text>
+          )}
 
           <View style={styles.modalActions}>
-            <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
+            <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={close}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.deleteConfirmButton]}
-              disabled={submitting}
+              disabled={remove.isPending}
               onPress={confirmDelete}
             >
-              {submitting ? (
+              {remove.isPending ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
                 <Text style={styles.deleteConfirmButtonText}>Delete</Text>
@@ -251,7 +231,6 @@ function EventFormModal({
   mode,
   event,
   onClose,
-  onSaved,
   colors,
   styles,
 }: {
@@ -259,7 +238,6 @@ function EventFormModal({
   mode: "create" | "edit";
   event?: EventRow | null;
   onClose: () => void;
-  onSaved: (event: EventRow) => void;
   colors: ThemeColors;
   styles: Styles;
 }) {
@@ -268,8 +246,7 @@ function EventFormModal({
   const [date, setDate] = useState<string | null>(null);
   const [type, setType] = useState<EventType>("whole_day");
   const [penalty, setPenalty] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const save = useSaveEvent(mode === "edit" ? event?.id : undefined);
 
   useEffect(() => {
     if (!visible) return;
@@ -278,36 +255,27 @@ function EventFormModal({
     setDate(event?.date ?? null);
     setType(event?.type ?? "whole_day");
     setPenalty(event?.halfDayPenaltyAmount ?? "");
-    setError(null);
+    save.reset();
+    // The mutation handle is stable enough to leave out; resetting on every
+    // render of it would clear the error the Officer is reading.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, event]);
 
-  async function submit() {
-    setSubmitting(true);
-    setError(null);
-    try {
-      const path = mode === "create" ? "/api/events" : `/api/events/${event!.id}`;
-      const result = await apiFetch<{ event: EventRow }>(path, {
-        method: mode === "create" ? "POST" : "PATCH",
-        body: JSON.stringify({
-          name,
-          venue,
-          date,
-          type,
-          halfDayPenaltyAmount: penalty,
-        }),
-      });
-      onSaved(result.event);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save event");
-    } finally {
-      setSubmitting(false);
-    }
+  function close() {
+    save.reset();
+    onClose();
+  }
+
+  function submit() {
+    save.mutate(
+      { name, venue, date, type, halfDayPenaltyAmount: penalty },
+      { onSuccess: close },
+    );
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
+      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={close}>
         <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>{mode === "create" ? "New event" : "Edit event"}</Text>
@@ -380,20 +348,24 @@ function EventFormModal({
             <CalendarGrid value={date} onChange={setDate} />
           </View>
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {save.isError && (
+            <Text style={styles.error}>
+              {save.error instanceof Error ? save.error.message : "Failed to save event"}
+            </Text>
+          )}
 
           <View style={styles.modalActions}>
-            <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
+            <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={close}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.submitButton]}
               disabled={
-                submitting || !name || !date || !(Number(penalty) > 0)
+                save.isPending || !name || !date || !(Number(penalty) > 0)
               }
               onPress={submit}
             >
-              {submitting ? (
+              {save.isPending ? (
                 <ActivityIndicator color={colors.primaryText} />
               ) : (
                 <Text style={styles.submitButtonText}>

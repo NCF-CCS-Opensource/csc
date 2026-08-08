@@ -1,5 +1,5 @@
 import { useAuth } from "@clerk/clerk-expo";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   Alert,
   ScrollView,
@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { apiFetch, endOfficerSession } from "../lib/api";
+import { endOfficerSession } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
 import {
   blockingScanCount,
@@ -19,11 +19,11 @@ import {
   retryScan,
   type QueuedScan,
 } from "../lib/scanQueue";
+import { useMe } from "../lib/me";
 import { flushQueue } from "../lib/syncScans";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors, ThemePreference } from "../lib/theme";
 
-type Me = { name: string; email: string };
 type Styles = ReturnType<typeof makeStyles>;
 
 const THEME_CYCLE: ThemePreference[] = ["light", "dark", "system"];
@@ -80,16 +80,10 @@ export function SettingsScreen({
 }) {
   const { colors, preference, setPreference } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [me, setMe] = useState<Me | null>(null);
+  const { data: me } = useMe();
   const { signOut } = useAuth();
 
   const endSession = () => endOfficerSession(signOut);
-
-  useEffect(() => {
-    apiFetch<{ student: Me }>("/api/me")
-      .then((data) => setMe(data.student))
-      .catch(() => {});
-  }, []);
 
   function cycleTheme() {
     const next = THEME_CYCLE[(THEME_CYCLE.indexOf(preference) + 1) % THEME_CYCLE.length];
