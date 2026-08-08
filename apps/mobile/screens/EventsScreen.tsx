@@ -14,17 +14,8 @@ import { apiFetch } from "../lib/api";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
 
-export type EventType = "whole_day" | "half_day";
-
-export type EventRow = {
-  id: string;
-  name: string;
-  type: EventType;
-  halfDayPenaltyAmount: string;
-  date: string;
-  venue: string | null;
-  attendeeCount: number;
-};
+import type { EventRow, EventType } from "../lib/events";
+export type { EventRow, EventType };
 
 type EventStatus = "Active" | "Upcoming" | "Completed";
 
