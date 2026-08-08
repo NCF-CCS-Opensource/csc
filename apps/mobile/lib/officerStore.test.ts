@@ -53,7 +53,8 @@ beforeEach(() => {
 
 // The store is module state; every test leaves it signed out.
 afterEach(async () => {
-  await signOutOfficer(() => Promise.resolve());
+  // A test may have left the vendor's sign out failing; the clear still runs.
+  await signOutOfficer(() => Promise.resolve()).catch(() => {});
 });
 
 describe("identity rehydration", () => {
@@ -76,6 +77,28 @@ describe("identity rehydration", () => {
 
     expect(api.rememberedOfficerIdentity).toHaveBeenCalled();
     // Offline, so nothing overwrote it — the stamp still stands.
+    expect(getOfficerState().identity).toEqual(OFFICER);
+  });
+
+  it("lets a newer run win when a slow earlier one finishes late", async () => {
+    api.rememberedOfficerIdentity.mockResolvedValue(OFFICER);
+    let failSlowRun: (error: Error) => void = () => {};
+    api.apiFetch.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        failSlowRun = reject;
+      }),
+    );
+    const slow = admitOfficer(signedIn);
+
+    // A reconnect starts a second run, which succeeds.
+    api.apiFetch.mockResolvedValue({
+      student: { id: "student-a", authUserId: "officer-a" },
+    });
+    await admitOfficer(signedIn);
+    failSlowRun(new ApiError("Not an Officer", 403));
+    await slow;
+
+    expect(getOfficerState().admission).toEqual({ allowed: true });
     expect(getOfficerState().identity).toEqual(OFFICER);
   });
 
@@ -146,6 +169,24 @@ describe("signing out", () => {
       admission: undefined,
       pendingCount: 0,
     });
+  });
+
+  it("clears the caches even when the vendor's sign out fails offline", async () => {
+    api.rememberedOfficerIdentity.mockResolvedValue(OFFICER);
+    api.apiFetch.mockRejectedValue(new Error("offline"));
+    await admitOfficer(signedIn);
+    api.endOfficerSession.mockImplementation(() =>
+      Promise.reject(new Error("offline")),
+    );
+
+    await expect(signOutOfficer(() => Promise.resolve())).rejects.toThrow(
+      "offline",
+    );
+
+    // Otherwise the device keeps Officer A's Events with no identity left to
+    // explain them — the handed-to-a-colleague case.
+    expect(clearBoothCache).toHaveBeenCalled();
+    expect(getOfficerState().identity).toBeNull();
   });
 
   it("tells subscribers, so no screen keeps rendering the old count", async () => {

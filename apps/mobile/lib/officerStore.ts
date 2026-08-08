@@ -30,6 +30,9 @@ const initialState: OfficerState = {
 
 let state: OfficerState = initialState;
 const listeners = new Set<() => void>();
+// Each reconnect starts another admission run. Only the newest may publish, or
+// a slow earlier failure lands on top of a newer successful admission.
+let admissionRun = 0;
 
 export function getOfficerState(): OfficerState {
   return state;
@@ -47,17 +50,16 @@ function publish(patch: Partial<OfficerState>): void {
   for (const listener of listeners) listener();
 }
 
-export function officerId(): string | undefined {
+function currentOfficerId(): string | undefined {
   return state.identity?.authUserId;
 }
 
+// The single definition of the number. Delivery reports its own remaining count
+// as it goes, but letting that write the store too would give the badge two
+// sources that only agree by coincidence — so every change recounts here.
 export async function refreshPendingCount(): Promise<void> {
-  const id = officerId();
+  const id = currentOfficerId();
   publish({ pendingCount: id ? await blockingScanCount(id) : 0 });
-}
-
-export function setPendingCount(count: number): void {
-  publish({ pendingCount: count });
 }
 
 /**
@@ -71,15 +73,20 @@ export async function admitOfficer(vendor: {
   isSignedIn: boolean | undefined;
   userId: string | null | undefined;
 }): Promise<void> {
+  const run = ++admissionRun;
+  const current = () => run === admissionRun;
+
   const remembered = await rememberedOfficerIdentity();
-  if (remembered) {
+  if (remembered && current()) {
     publish({ identity: remembered, admission: { allowed: true } });
     await refreshPendingCount();
   }
 
   if (!vendor.isLoaded) return;
   if (!vendor.isSignedIn || !vendor.userId) {
-    if (!remembered) publish({ identity: null, admission: undefined });
+    if (!remembered && current()) {
+      publish({ identity: null, admission: undefined });
+    }
     return;
   }
 
@@ -95,15 +102,17 @@ export async function admitOfficer(vendor: {
     };
     await rememberOfficerIdentity(fresh);
     await claimLegacyScans(fresh.authUserId);
+    if (!current()) return;
     publish({ identity: fresh, admission: { allowed: true } });
     await refreshPendingCount();
   } catch (error: unknown) {
     const denied =
       error instanceof ApiError && (error.status === 401 || error.status === 403);
-    if (denied) {
-      await rememberOfficerIdentity(null);
-      publish({ identity: null });
-    }
+    // The stamp is forgotten even by a superseded run: a refusal is about this
+    // device's stored identity, not about which run observed it.
+    if (denied) await rememberOfficerIdentity(null);
+    if (!current()) return;
+    if (denied) publish({ identity: null });
     if (denied || !remembered) {
       publish({
         admission: {
@@ -127,8 +136,13 @@ export async function admitOfficer(vendor: {
 export async function signOutOfficer(
   signOut: () => Promise<unknown>,
 ): Promise<void> {
-  await endOfficerSession(signOut);
+  // Clear before consulting the vendor, not after. `endOfficerSession` awaits
+  // the vendor's sign out, which rejects on exactly the offline booth this app
+  // is built for — and it has already dropped the identity stamp by then. Doing
+  // the caches first means a failed sign out cannot strand Officer A's Events
+  // on the device with no identity left to explain them.
   await clearBoothCache();
   state = initialState;
   publish({ identity: null });
+  await endOfficerSession(signOut);
 }

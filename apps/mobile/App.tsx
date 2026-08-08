@@ -20,7 +20,7 @@ import { LoginScreen } from "./screens/LoginScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import {
   admitOfficer,
-  setPendingCount,
+  refreshPendingCount,
   signOutOfficer,
   type Admission,
 } from "./lib/officerStore";
@@ -105,10 +105,10 @@ function BoothApp() {
 
   useEffect(() => {
     if (!officerId || !admission?.allowed) return;
-    flushQueue(officerId, setPendingCount).catch(() => {});
+    flushQueue(officerId, () => void refreshPendingCount()).catch(() => {});
     const unsubscribe = NetInfo.addEventListener((state) => {
       if (state.isConnected) {
-        flushQueue(officerId, setPendingCount).catch(() => {});
+        flushQueue(officerId, () => void refreshPendingCount()).catch(() => {});
         setAdmissionAttempt((attempt) => attempt + 1);
       }
     });

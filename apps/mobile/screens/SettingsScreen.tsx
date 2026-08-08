@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { refreshPendingCount, setPendingCount, signOutOfficer } from "../lib/officerStore";
+import { refreshPendingCount, signOutOfficer } from "../lib/officerStore";
 import { useOfficerStore } from "../lib/useOfficerStore";
 import { colorOf, initialsOf } from "../lib/avatar";
 import {
@@ -136,7 +136,7 @@ export function SettingsScreen() {
           onPress: async () => {
             await retryScan(officerId, scan.id);
             void refreshPendingCount();
-            flushQueue(officerId, setPendingCount).catch(() => {});
+            flushQueue(officerId, () => void refreshPendingCount()).catch(() => {});
           },
         },
       ],

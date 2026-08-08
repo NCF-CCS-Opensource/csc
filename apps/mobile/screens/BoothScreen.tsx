@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Crypto from "expo-crypto";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
@@ -27,7 +27,7 @@ import {
 } from "../lib/scanQueue";
 import { flushQueue } from "../lib/syncScans";
 import { useMyEvents } from "../lib/events";
-import { refreshPendingCount, setPendingCount } from "../lib/officerStore";
+import { refreshPendingCount } from "../lib/officerStore";
 import { useOfficerStore } from "../lib/useOfficerStore";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
@@ -73,10 +73,13 @@ export function BoothScreen() {
     loadRecentScans(officerId).then(setRecentScans);
   }, [officerId]);
 
-  // Recent Scans are this screen's own view of storage another screen can also
-  // change — Settings retries and discards. Re-reading on focus covers that
-  // without a revision counter, since reaching Settings means leaving here.
+  // Recent Scans are this screen's own view of storage that other things also
+  // change: Settings retries and discards, and the background flush delivering
+  // a scan while the Officer watches. Focus covers the first — reaching
+  // Settings means leaving here — and the pending count covers the second,
+  // since a delivery is exactly what moves it.
   useFocusEffect(refreshRecent);
+  useEffect(refreshRecent, [pendingCount, refreshRecent]);
 
   const activeEvent = events.find((e) => e.id === eventId) ?? null;
   const ready = !!activeEvent && !!mode;
@@ -127,7 +130,7 @@ export function BoothScreen() {
           : `Queued rejection of ${scan.student?.name ?? "untrusted QR"}`,
       );
       setScanned(null);
-      flushQueue(officerId, setPendingCount)
+      flushQueue(officerId, () => void refreshPendingCount())
         .then(refreshRecent)
         .catch(() => {});
     } finally {
@@ -199,7 +202,7 @@ export function BoothScreen() {
     setSelectedReview(null);
     refreshRecent();
     void refreshPendingCount();
-    flushQueue(officerId, setPendingCount)
+    flushQueue(officerId, () => void refreshPendingCount())
       .then(refreshRecent)
       .catch(() => {});
   }
