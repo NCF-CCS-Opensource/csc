@@ -296,8 +296,8 @@ export function BoothScreen({
         {eventsFailed && (
           <Text style={styles.eventsError}>
             {events.length > 0
-              ? "Showing the last known events — refresh failed, retrying."
-              : "Could not load your events. Retrying."}
+              ? "Showing your last known events — refresh failed."
+              : "Could not load your events."}
           </Text>
         )}
         {message && <Text style={styles.messageHint}>{message}</Text>}

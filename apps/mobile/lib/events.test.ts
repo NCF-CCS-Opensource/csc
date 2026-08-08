@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fetchMyEvents } from "./events";
-import { cacheMaxAgeMs, createBoothQueryClient } from "./queryClient";
+import { boothQueryDefaults, cacheMaxAgeMs } from "./queryClient";
 
 const apiFetch = vi.hoisted(() => vi.fn());
 vi.mock("./api", () => ({ apiFetch }));
@@ -19,14 +19,10 @@ describe("fetchMyEvents", () => {
   });
 });
 
-describe("booth query client", () => {
-  const defaults = createBoothQueryClient().getDefaultOptions().queries!;
-
-  it("retains entries at least as long as the persisted cache is restored", () => {
-    expect(defaults.gcTime).toBeGreaterThanOrEqual(cacheMaxAgeMs);
-  });
-
-  it("retries a transient failure without user action", () => {
-    expect(defaults.retry).toBeTruthy();
+describe("booth cache retention", () => {
+  // A restored entry older than its retention is dropped on the way in, which
+  // would empty the Event list on exactly the offline cold start this exists for.
+  it("outlives the age the persisted cache is restored up to", () => {
+    expect(boothQueryDefaults.gcTime).toBeGreaterThan(cacheMaxAgeMs);
   });
 });
