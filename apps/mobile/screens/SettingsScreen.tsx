@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { endOfficerSession } from "../lib/api";
+import { refreshPendingCount, setPendingCount, signOutOfficer } from "../lib/officerStore";
+import { useOfficerStore } from "../lib/useOfficerStore";
 import { colorOf, initialsOf } from "../lib/avatar";
 import {
   blockingScanCount,
@@ -71,19 +72,15 @@ function SettingsRow({
   );
 }
 
-export function SettingsScreen({
-  officerId,
-  onQueueChanged,
-}: {
-  officerId: string;
-  onQueueChanged: () => void;
-}) {
+export function SettingsScreen() {
+  const { identity } = useOfficerStore();
+  const officerId = identity?.authUserId ?? "";
   const { colors, preference, setPreference } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { data: me } = useMe();
   const { signOut } = useAuth();
 
-  const endSession = () => endOfficerSession(signOut);
+  const endSession = () => signOutOfficer(signOut);
 
   function cycleTheme() {
     const next = THEME_CYCLE[(THEME_CYCLE.indexOf(preference) + 1) % THEME_CYCLE.length];
@@ -101,7 +98,7 @@ export function SettingsScreen({
           style: "destructive",
           onPress: async () => {
             await discardLegacyScans();
-            onQueueChanged();
+            void refreshPendingCount();
           },
         },
       ],
@@ -128,7 +125,7 @@ export function SettingsScreen({
                   style: "destructive",
                   onPress: async () => {
                     await discardScan(officerId, scan.id);
-                    onQueueChanged();
+                    void refreshPendingCount();
                   },
                 },
               ],
@@ -138,8 +135,8 @@ export function SettingsScreen({
           text: "Retry",
           onPress: async () => {
             await retryScan(officerId, scan.id);
-            onQueueChanged();
-            flushQueue(officerId, onQueueChanged).catch(() => {});
+            void refreshPendingCount();
+            flushQueue(officerId, setPendingCount).catch(() => {});
           },
         },
       ],

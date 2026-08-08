@@ -25,6 +25,13 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: boothQueryDefaults },
 });
 
+// Both halves or neither: dropping the in-memory cache while the persisted copy
+// survives just restores the previous Officer's Events on the next launch.
+export async function clearBoothCache(): Promise<void> {
+  queryClient.clear();
+  await persister.removeClient();
+}
+
 export function BoothQueryProvider({ children }: { children: ReactNode }) {
   return (
     <PersistQueryClientProvider

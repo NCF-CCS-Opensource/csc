@@ -4,7 +4,7 @@ import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import NetInfo from "@react-native-community/netinfo";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -14,29 +14,23 @@ import {
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import {
-  ApiError,
-  apiFetch,
-  endOfficerSession,
-  rememberOfficerIdentity,
-  rememberedOfficerIdentity,
-  type OfficerIdentity,
-} from "./lib/api";
 import { BoothScreen } from "./screens/BoothScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { blockingScanCount, claimLegacyScans } from "./lib/scanQueue";
+import {
+  admitOfficer,
+  setPendingCount,
+  signOutOfficer,
+  type Admission,
+} from "./lib/officerStore";
+import { useOfficerStore } from "./lib/useOfficerStore";
 import { flushQueue, stopQueueRetries } from "./lib/syncScans";
 import { BoothQueryProvider } from "./lib/queryClient";
 import { ThemeProvider, useTheme } from "./lib/theme-context";
 import type { ThemeColors } from "./lib/theme";
 
 const Tab = createBottomTabNavigator();
-type MobileAdmission =
-  | { allowed: true }
-  | { allowed: false; message: string }
-  | undefined;
 
 const TAB_ICONS: Record<string, string> = {
   Scanner: "⛶",
@@ -50,17 +44,7 @@ function TabIcon({ route, color }: { route: string; color: string }) {
 }
 
 
-function AuthenticatedApp({
-  officerId,
-  pendingCount,
-  queueRevision,
-  refreshQueue,
-}: {
-  officerId: string;
-  pendingCount: number;
-  queueRevision: number;
-  refreshQueue: () => void;
-}) {
+function AuthenticatedApp() {
   const { colors } = useTheme();
   return (
     <Tab.Navigator
@@ -84,20 +68,9 @@ function AuthenticatedApp({
         tabBarIcon: ({ color }) => <TabIcon route={route.name} color={color} />,
       })}
     >
-      <Tab.Screen name="Scanner">
-        {() => (
-          <BoothScreen
-            officerId={officerId}
-            pendingCount={pendingCount}
-            queueRevision={queueRevision}
-            onQueueChanged={refreshQueue}
-          />
-        )}
-      </Tab.Screen>
+      <Tab.Screen name="Scanner" component={BoothScreen} />
       <Tab.Screen name="Events" component={EventsScreen} />
-      <Tab.Screen name="Settings">
-        {() => <SettingsScreen officerId={officerId} onQueueChanged={refreshQueue} />}
-      </Tab.Screen>
+      <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
 }
@@ -121,93 +94,21 @@ export default function App() {
 
 function BoothApp() {
   const { isLoaded, isSignedIn, userId } = useAuth();
-  // The Officer the queue is stamped with comes from our own secure storage,
-  // never from Clerk at capture time (ADR-0012).
-  const [identity, setIdentity] = useState<OfficerIdentity | null | undefined>(
-    undefined,
-  );
-  const [admission, setAdmission] = useState<MobileAdmission>(undefined);
+  const { identity, admission, pendingCount } = useOfficerStore();
   const [admissionAttempt, setAdmissionAttempt] = useState(0);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [queueRevision, setQueueRevision] = useState(0);
-
-  const refreshQueue = useCallback(async (officerId: string) => {
-    setPendingCount(await blockingScanCount(officerId));
-    setQueueRevision((revision) => revision + 1);
-  }, []);
 
   useEffect(() => {
-    let current = true;
-    void (async () => {
-      // Read our own stamp before consulting Clerk at all: a booth relaunched
-      // in a dead spot must still know whose Offline Scan Queue it holds, and
-      // only an explicit log out clears the stamp (ADR-0012).
-      const remembered = await rememberedOfficerIdentity();
-      if (current && remembered) {
-        setIdentity(remembered);
-        setAdmission({ allowed: true });
-      }
-
-      if (!isLoaded) return;
-      if (!isSignedIn || !userId) {
-        if (current && !remembered) {
-          setIdentity(null);
-          setAdmission(undefined);
-        }
-        return;
-      }
-
-      try {
-        const { student } = await apiFetch<{
-          student: { id: string; authUserId: string };
-        }>("/api/me");
-        // The server found this row by the Clerk user id on the Bearer token,
-        // so `authUserId` is that id — one identity, not a second source.
-        const fresh: OfficerIdentity = {
-          authUserId: student.authUserId,
-          studentId: student.id,
-        };
-        await rememberOfficerIdentity(fresh);
-        await claimLegacyScans(fresh.authUserId);
-        await refreshQueue(fresh.authUserId);
-        if (current) {
-          setIdentity(fresh);
-          setAdmission({ allowed: true });
-        }
-      } catch (error: unknown) {
-        const denied =
-          error instanceof ApiError && (error.status === 401 || error.status === 403);
-        if (denied) await rememberOfficerIdentity(null);
-        if (current && denied) setIdentity(null);
-        if (current && (denied || !remembered)) {
-          setAdmission({
-            allowed: false,
-            message:
-              error instanceof Error
-                ? error.message
-                : "Unable to verify mobile booth access",
-          });
-        }
-      }
-    })();
-    return () => {
-      current = false;
-    };
-  }, [admissionAttempt, isLoaded, isSignedIn, refreshQueue, userId]);
+    void admitOfficer({ isLoaded, isSignedIn, userId });
+  }, [admissionAttempt, isLoaded, isSignedIn, userId]);
 
   const officerId = identity?.authUserId;
 
   useEffect(() => {
-    if (!officerId) {
-      setPendingCount(0);
-      return;
-    }
-    refreshQueue(officerId);
-    if (!admission?.allowed) return;
-    flushQueue(officerId, () => refreshQueue(officerId)).catch(() => {});
+    if (!officerId || !admission?.allowed) return;
+    flushQueue(officerId, setPendingCount).catch(() => {});
     const unsubscribe = NetInfo.addEventListener((state) => {
       if (state.isConnected) {
-        flushQueue(officerId, () => refreshQueue(officerId)).catch(() => {});
+        flushQueue(officerId, setPendingCount).catch(() => {});
         setAdmissionAttempt((attempt) => attempt + 1);
       }
     });
@@ -215,7 +116,7 @@ function BoothApp() {
       unsubscribe();
       stopQueueRetries(officerId);
     };
-  }, [admission?.allowed, officerId, refreshQueue]);
+  }, [admission?.allowed, officerId]);
 
   return (
     <AppShell
@@ -223,8 +124,6 @@ function BoothApp() {
       officerId={officerId}
       admission={admission}
       pendingCount={pendingCount}
-      queueRevision={queueRevision}
-      refreshQueue={refreshQueue}
     />
   );
 }
@@ -249,15 +148,11 @@ function AppShell({
   officerId,
   admission,
   pendingCount,
-  queueRevision,
-  refreshQueue,
 }: {
   identityResolved: boolean;
   officerId: string | undefined;
-  admission: MobileAdmission;
+  admission: Admission;
   pendingCount: number;
-  queueRevision: number;
-  refreshQueue: (officerId: string) => void;
 }) {
   const { colors } = useTheme();
   const { signOut } = useAuth();
@@ -269,12 +164,7 @@ function AppShell({
         <LoginScreen />
       ) : admission?.allowed && officerId ? (
         <NavigationContainer theme={navTheme(colors)}>
-          <AuthenticatedApp
-            officerId={officerId}
-            pendingCount={pendingCount}
-            queueRevision={queueRevision}
-            refreshQueue={() => refreshQueue(officerId)}
-          />
+          <AuthenticatedApp />
         </NavigationContainer>
       ) : !admission || admission.allowed ? (
         // Admitted but the offline Officer stamp has not loaded yet.
@@ -299,7 +189,7 @@ function AppShell({
                 opacity: pendingCount > 0 ? 0.5 : 1,
               },
             ]}
-            onPress={() => endOfficerSession(signOut)}
+            onPress={() => void signOutOfficer(signOut)}
           >
             <Text style={{ color: colors.primaryText, fontWeight: "600" }}>
               Sign out

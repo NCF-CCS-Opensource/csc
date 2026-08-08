@@ -1,6 +1,7 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Crypto from "expo-crypto";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   Alert,
@@ -26,6 +27,8 @@ import {
 } from "../lib/scanQueue";
 import { flushQueue } from "../lib/syncScans";
 import { useMyEvents } from "../lib/events";
+import { refreshPendingCount, setPendingCount } from "../lib/officerStore";
+import { useOfficerStore } from "../lib/useOfficerStore";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
 
@@ -49,17 +52,9 @@ type ScannedResult = {
   error?: string;
 };
 
-export function BoothScreen({
-  officerId,
-  pendingCount,
-  queueRevision,
-  onQueueChanged,
-}: {
-  officerId: string;
-  pendingCount: number;
-  queueRevision: number;
-  onQueueChanged: () => void;
-}) {
+export function BoothScreen() {
+  const { identity, pendingCount } = useOfficerStore();
+  const officerId = identity?.authUserId ?? "";
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [permission, requestPermission] = useCameraPermissions();
@@ -78,7 +73,10 @@ export function BoothScreen({
     loadRecentScans(officerId).then(setRecentScans);
   }, [officerId]);
 
-  useEffect(refreshRecent, [queueRevision, refreshRecent]);
+  // Recent Scans are this screen's own view of storage another screen can also
+  // change — Settings retries and discards. Re-reading on focus covers that
+  // without a revision counter, since reaching Settings means leaving here.
+  useFocusEffect(refreshRecent);
 
   const activeEvent = events.find((e) => e.id === eventId) ?? null;
   const ready = !!activeEvent && !!mode;
@@ -122,14 +120,14 @@ export function BoothScreen({
         deliveryState: "pending",
       });
       refreshRecent();
-      onQueueChanged();
+      void refreshPendingCount();
       setMessage(
         decision === "accepted"
           ? `Queued ${scan.student?.name ?? "scan for verification"}`
           : `Queued rejection of ${scan.student?.name ?? "untrusted QR"}`,
       );
       setScanned(null);
-      flushQueue(officerId, onQueueChanged)
+      flushQueue(officerId, setPendingCount)
         .then(refreshRecent)
         .catch(() => {});
     } finally {
@@ -200,8 +198,8 @@ export function BoothScreen({
     await retryScan(officerId, selectedReview.id);
     setSelectedReview(null);
     refreshRecent();
-    onQueueChanged();
-    flushQueue(officerId, onQueueChanged)
+    void refreshPendingCount();
+    flushQueue(officerId, setPendingCount)
       .then(refreshRecent)
       .catch(() => {});
   }
@@ -221,7 +219,7 @@ export function BoothScreen({
             await discardScan(officerId, scan.id);
             setSelectedReview(null);
             refreshRecent();
-            onQueueChanged();
+            void refreshPendingCount();
           },
         },
       ],
