@@ -26,13 +26,8 @@ export function useMyEvents() {
   return useQuery({ queryKey: myEventsKey, queryFn: fetchMyEvents });
 }
 
-export type EventInput = {
-  name: string;
-  venue: string;
-  date: string | null;
-  type: EventType;
-  halfDayPenaltyAmount: string;
-};
+// Derived from the row so the two cannot drift apart on nullability.
+export type EventInput = Omit<EventRow, "id" | "attendeeCount">;
 
 export async function saveEvent(id: string | undefined, input: EventInput) {
   const { event } = await apiFetch<{ event: EventRow }>(
@@ -47,21 +42,21 @@ export async function deleteEvent(id: string) {
 }
 
 // Every Event change invalidates the one shared list, so a create on the Events
-// screen shows up in the Scanner's dropdown without a manual refresh.
-function useEventListInvalidation() {
-  const client = useQueryClient();
-  return () => client.invalidateQueries({ queryKey: myEventsKey });
-}
-
+// screen shows up in the Scanner's dropdown without a manual refresh. The
+// refetch is deliberately not awaited: the form has already succeeded, and on a
+// weak link its retries would hold the modal open long after the save landed.
 export function useSaveEvent(id?: string) {
-  const invalidate = useEventListInvalidation();
+  const client = useQueryClient();
   return useMutation({
     mutationFn: (input: EventInput) => saveEvent(id, input),
-    onSuccess: invalidate,
+    onSuccess: () => void client.invalidateQueries({ queryKey: myEventsKey }),
   });
 }
 
 export function useDeleteEvent() {
-  const invalidate = useEventListInvalidation();
-  return useMutation({ mutationFn: deleteEvent, onSuccess: invalidate });
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: deleteEvent,
+    onSuccess: () => void client.invalidateQueries({ queryKey: myEventsKey }),
+  });
 }

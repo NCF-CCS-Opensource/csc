@@ -54,7 +54,7 @@ function formatDate(date: string) {
 export function EventsScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { data: events = [], isPending, isError } = useMyEvents();
+  const { data: events = [], isPending, isError, error } = useMyEvents();
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [deleting, setDeleting] = useState<EventRow | null>(null);
@@ -70,7 +70,9 @@ export function EventsScreen() {
   if (isError && events.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={styles.error}>Could not load your events.</Text>
+        <Text style={styles.error}>
+          {error instanceof Error ? error.message : "Could not load your events."}
+        </Text>
       </View>
     );
   }
@@ -267,6 +269,7 @@ function EventFormModal({
   }
 
   function submit() {
+    if (!date) return;
     save.mutate(
       { name, venue, date, type, halfDayPenaltyAmount: penalty },
       { onSuccess: close },
