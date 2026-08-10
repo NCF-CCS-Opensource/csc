@@ -1,8 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getCurrentStudent } from "@/lib/auth";
-import { generateQrPngBuffer } from "@/lib/qr";
+import { buildQrCardModels } from "@/lib/qr";
+import { renderQrCardPdf } from "@/components/reports/qr-card-pdf-document";
 
+// Self-scoped, sibling to /qr: any Student may fetch their own card, no
+// capability beyond having a Student record. Bulk (by-id, manage_operations)
+// is a separate route — out of scope here (spec #116).
 export async function GET() {
   const student = await getCurrentStudent();
 
@@ -16,12 +20,13 @@ export async function GET() {
     });
   }
 
-  const png = await generateQrPngBuffer(student);
+  const [card] = await buildQrCardModels([student]);
+  const pdfBuffer = await renderQrCardPdf([card]);
 
-  return new NextResponse(new Uint8Array(png), {
+  return new NextResponse(new Uint8Array(pdfBuffer), {
     headers: {
-      "Content-Type": "image/png",
-      "Content-Disposition": 'inline; filename="attendance-qr.png"',
+      "Content-Type": "application/pdf",
+      "Content-Disposition": 'attachment; filename="qr-card.pdf"',
     },
   });
 }

@@ -51,8 +51,8 @@ export function MyAttendanceView({
             className="rounded-lg border"
           />
           <Button asChild variant="outline">
-            <a href="/qr" download="attendance-qr.png">
-              Download QR code
+            <a href="/qr/card" download="qr-card.pdf">
+              Download QR Card
             </a>
           </Button>
         </CardContent>

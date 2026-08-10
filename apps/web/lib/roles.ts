@@ -10,6 +10,7 @@ export type AppDestination =
   | "/my-attendance"
   | "/clearance"
   | "/admin"
+  | "/students"
   | "/analytics";
 
 const ROLE_CAPABILITIES: Record<Role, readonly Capability[]> = {
@@ -29,6 +30,7 @@ const DESTINATIONS: readonly [AppDestination, Capability][] = [
   ["/my-attendance", "view_own_attendance"],
   ["/clearance", "manage_operations"],
   ["/admin", "administer"],
+  ["/students", "manage_operations"],
   ["/analytics", "manage_operations"],
 ];
 

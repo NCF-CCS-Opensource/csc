@@ -47,6 +47,7 @@ describe("role destinations", () => {
       "/events",
       "/my-attendance",
       "/clearance",
+      "/students",
       "/analytics",
     ]);
     expect(destinationsForRole("governor")).toEqual([
@@ -55,6 +56,7 @@ describe("role destinations", () => {
       "/my-attendance",
       "/clearance",
       "/admin",
+      "/students",
       "/analytics",
     ]);
   });
