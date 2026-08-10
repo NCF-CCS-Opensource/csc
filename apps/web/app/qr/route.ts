@@ -1,20 +1,20 @@
 import { auth } from "@clerk/nextjs/server";
-import { students } from "@attendance/db";
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getCurrentStudent } from "@/lib/auth";
 import { generateQrPngBuffer } from "@/lib/qr";
 
 export async function GET() {
-  const { userId } = await auth();
+  const student = await getCurrentStudent();
 
-  if (!userId) return new NextResponse("Not signed in", { status: 401 });
-
-  const student = await db.query.students.findFirst({
-    where: eq(students.authUserId, userId),
-  });
-
-  if (!student) return new NextResponse("Not found", { status: 404 });
+  if (!student) {
+    // Distinguish a stranger from a signed-in Pending Student, same as
+    // requireCapability (lib/auth.ts) — getCurrentStudent collapses both to
+    // null, so a second auth() call recovers which one this is.
+    const { userId } = await auth();
+    return new NextResponse(userId ? "Not found" : "Not signed in", {
+      status: userId ? 404 : 401,
+    });
+  }
 
   const png = await generateQrPngBuffer(student);
 

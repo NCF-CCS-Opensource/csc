@@ -9,6 +9,7 @@ import {
   LogOut,
   ScanLine,
   ShieldCheck,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -57,6 +58,7 @@ const NAV_ITEMS: Record<AppDestination, NavItem> = {
   },
   "/clearance": { href: "/clearance", label: "Clearance", icon: ShieldCheck },
   "/admin": { href: "/admin", label: "Administration", icon: ShieldCheck },
+  "/students": { href: "/students", label: "Students", icon: Users },
   "/analytics": { href: "/analytics", label: "Reports", icon: FileText },
 };
 
