@@ -11,7 +11,6 @@ This is the DevOps entry point for CCS Attendance. It summarizes the repeatable 
 | --- | --- | --- |
 | Web pages and `/api/*` | Vercel | `apps/web` |
 | Auth and Postgres | Supabase | External managed project |
-| Auth SMTP and QR email | Resend | External managed account |
 | DNS/custom domain | Cloudflare | External managed zone |
 | Native booth app | Expo/Android or iOS native build | `apps/mobile` |
 
@@ -21,7 +20,7 @@ The documented test-production endpoint is `https://attendance.ncfccs.org`. Conf
 
 - Node.js 20 or newer
 - pnpm 11.12.0
-- Access to the target Supabase, Vercel, Resend, and Cloudflare projects
+- Access to the target Supabase, Vercel, and Cloudflare projects
 - JDK 17 and an Android SDK for Android builds
 - A reviewed release commit on `main`
 - A database backup before any destructive migration
@@ -36,13 +35,11 @@ The documented test-production endpoint is `https://attendance.ncfccs.org`. Conf
 | `CLERK_SECRET_KEY` | Clerk server key — the web module's only identity provider | Server only |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk client key | Public |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` — keeps Clerk's redirects on the self-hosted page | Public |
-| `RESEND_API_KEY` | QR email delivery | Server only |
-| `RESEND_FROM_EMAIL` | Verified sender | Server only |
 | `GOVERNOR_EMAILS` | Comma-separated Governor allowlist, read at onboarding | Server only |
 
 The web module no longer holds Supabase Auth variables: identity is Clerk (ADR-0012), and Supabase is only where Postgres lives.
 
-Never place `DATABASE_URL`, Resend credentials, or a Supabase service-role key in an `EXPO_PUBLIC_*` or `NEXT_PUBLIC_*` variable.
+Never place `DATABASE_URL` or a Supabase service-role key in an `EXPO_PUBLIC_*` or `NEXT_PUBLIC_*` variable.
 
 ### Mobile build
 
@@ -55,33 +52,6 @@ EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org
 ```
 
 `EXPO_PUBLIC_API_BASE_URL` points to the deployed Next.js module, not Supabase. Expo embeds these values at build time, so any change requires a rebuild.
-
-## Configure Resend for Supabase Auth email (mobile booth only)
-
-The web module sends no auth email — Clerk owns web sign-in. This section covers the Expo booth app, which still signs Officers in through Supabase Auth's email OTP.
-
-Supabase's built-in sender is for testing: it sends only to authorized team addresses and is currently limited to two auth emails per hour. Production OTP email must use custom SMTP.
-
-1. In [Resend Domains](https://resend.com/domains), add and verify a sending domain. Prefer a subdomain such as `auth.ncfccs.org`, then add the supplied DNS records in Cloudflare.
-2. Create a Resend API key for transactional email.
-3. In Supabase, open **Authentication → Emails → SMTP Settings**, enable custom SMTP, and enter:
-
-   | Setting | Value |
-   | --- | --- |
-   | Sender email | `no-reply@auth.ncfccs.org` |
-   | Sender name | `CCS Attendance` |
-   | Host | `smtp.resend.com` |
-   | Port | `465` |
-   | Username | `resend` |
-   | Password | Resend API key |
-
-4. Save the SMTP settings, then open **Authentication → Rate Limits**. Custom SMTP starts with a conservative Supabase auth-email limit; raise it only to the expected booth sign-in volume.
-5. Use the same verified sender for application QR email by setting Vercel's `RESEND_FROM_EMAIL` to `CCS Attendance <no-reply@auth.ncfccs.org>`. `RESEND_API_KEY` remains server-only.
-6. Test a booth OTP with a non-team address. Confirm delivery in Resend Logs before handing the app to Officers.
-
-Resend's free transactional plan currently includes 3,000 emails per month but also has a 100-email daily limit. Booth OTP and QR emails sent from the same Resend account share those quotas; multiple recipients count separately. Monitor the Resend Usage page and upgrade before either limit becomes operationally insufficient.
-
-References: [Supabase custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp), [Supabase Auth rate limits](https://supabase.com/docs/guides/auth/rate-limits), [Resend SMTP credentials](https://resend.com/docs/send-with-smtp), and [Resend quotas](https://resend.com/docs/knowledge-base/account-quotas-and-limits).
 
 ## Release
 
@@ -165,7 +135,7 @@ The repository has no `eas.json` or checked-in mobile release pipeline. Signing,
 Use disposable test data:
 
 1. Open the public web endpoint and sign in with a school Google account.
-2. Complete onboarding as a new Pending Student and confirm the QR email arrives through Resend.
+2. Complete onboarding as a new Pending Student and confirm it redirects to My Attendance with the QR already available.
 3. Confirm no password or confirm-password field appears anywhere in the web app.
 4. Confirm Student navigation cannot open Officer/Governor pages.
 5. Confirm an Officer can load all shared Events on web and mobile.
@@ -213,8 +183,6 @@ If code depends on a newly applied schema, do not roll back only the web deploym
 | --- | --- |
 | DB-backed page fails after deploy | Confirm migrations reached the target Supabase project and Vercel has the current `DATABASE_URL` |
 | Web sign-in fails or loops | Check the Clerk keys in this Vercel project, Clerk's Google connection, and the `@gbox.ncf.edu.ph` sign-up restriction |
-| Booth OTP email is absent | Check the Supabase SMTP settings, Resend logs, and spam |
-| QR confirmation email fails | Check `RESEND_API_KEY`, verified `RESEND_FROM_EMAIL`, and Resend logs |
 | Mobile route returns redirect/HTML | Disable Vercel Deployment Protection for the public route |
 | Mobile route returns `401` | Confirm both clients use the same Supabase project and the access token is current |
 | Mobile cannot reach routes | Confirm `EXPO_PUBLIC_API_BASE_URL` is the public web origin and rebuild |
