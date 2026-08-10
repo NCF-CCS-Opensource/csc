@@ -46,12 +46,11 @@ Never place `DATABASE_URL` or a Supabase service-role key in an `EXPO_PUBLIC_*` 
 Create `apps/mobile/.env`:
 
 ```dotenv
-EXPO_PUBLIC_SUPABASE_URL=https://PROJECT.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
 EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org
 ```
 
-`EXPO_PUBLIC_API_BASE_URL` points to the deployed Next.js module, not Supabase. Expo embeds these values at build time, so any change requires a rebuild.
+`EXPO_PUBLIC_API_BASE_URL` points to the deployed Next.js module, not Supabase. `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` is the same Clerk publishable key as web (ADR-0012); mobile has no Supabase variable, identity and data both go through the Next.js module. Expo embeds these values at build time, so any change requires a rebuild.
 
 ## Release
 
