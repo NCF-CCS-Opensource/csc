@@ -1,8 +1,9 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { studentsSnapshot, type StudentsSnapshot } from "./actions";
+import { correctStudent, studentsSnapshot, type StudentsSnapshot } from "./actions";
 import { studentsQueryKey } from "./query-key";
 
 const ALL_PROGRAMS = "__all__";
@@ -30,6 +31,119 @@ const ROLE_LABEL: Record<string, string> = {
   officer: "Officer",
   governor: "Governor",
 };
+
+type StudentRow = StudentsSnapshot["students"][number];
+
+// One row, editable in place (ADR-0014: any Officer or Governor may correct
+// Student ID and Program directly, no approval workflow). Name, email, and
+// role never appear in the edit form — there is nothing here to make them
+// editable.
+function StudentTableRow({
+  student,
+  programs,
+}: {
+  student: StudentRow;
+  programs: string[];
+}) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [studentId, setStudentId] = useState(student.studentId);
+  const [program, setProgram] = useState(student.program);
+
+  const save = useMutation({
+    mutationFn: () => correctStudent(student.id, { studentId, program }),
+    onSuccess: (result) => {
+      if (result.errors.length > 0) return;
+      setEditing(false);
+      queryClient.invalidateQueries({ queryKey: studentsQueryKey });
+    },
+  });
+
+  const errorFor = (field: string) =>
+    save.data?.errors.find((e) => e.field === field)?.message;
+  // save.isError covers what the action can't hand back as a field error —
+  // a thrown, unexpected failure (network blip, auth hiccup) — so a Save
+  // never fails silently (see attendance-grid.tsx's ScanCell).
+  const formError = errorFor("form") ?? (save.isError ? "Save failed" : undefined);
+
+  function cancel() {
+    setStudentId(student.studentId);
+    setProgram(student.program);
+    save.reset();
+    setEditing(false);
+  }
+
+  if (!editing) {
+    return (
+      <TableRow>
+        <TableCell>{student.name}</TableCell>
+        <TableCell>{student.email}</TableCell>
+        <TableCell>{student.studentId}</TableCell>
+        <TableCell>{student.program}</TableCell>
+        <TableCell className="text-right">
+          <Badge variant={student.role === "student" ? "secondary" : "default"}>
+            {ROLE_LABEL[student.role]}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-right">
+          <Button type="button" variant="link" size="sm" onClick={() => setEditing(true)}>
+            Correct
+          </Button>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  return (
+    <TableRow>
+      <TableCell>{student.name}</TableCell>
+      <TableCell>{student.email}</TableCell>
+      <TableCell>
+        <Input
+          value={studentId}
+          onChange={(e) => setStudentId(e.target.value)}
+          className="w-32"
+        />
+        {errorFor("studentId") && (
+          <p className="text-destructive text-xs">{errorFor("studentId")}</p>
+        )}
+      </TableCell>
+      <TableCell>
+        <Select value={program} onValueChange={setProgram}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {programs.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {errorFor("program") && (
+          <p className="text-destructive text-xs">{errorFor("program")}</p>
+        )}
+      </TableCell>
+      <TableCell className="text-right">
+        <Badge variant={student.role === "student" ? "secondary" : "default"}>
+          {ROLE_LABEL[student.role]}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={cancel}>
+            Cancel
+          </Button>
+          <Button type="button" size="sm" disabled={save.isPending} onClick={() => save.mutate()}>
+            Save
+          </Button>
+        </div>
+        {formError && <p className="text-destructive text-xs">{formError}</p>}
+      </TableCell>
+    </TableRow>
+  );
+}
 
 export function StudentsView({ initialData }: { initialData: StudentsSnapshot }) {
   // Seeded from the server shell, so a cold visit paints rendered HTML and a
@@ -98,21 +212,12 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
                   <TableHead>Student ID</TableHead>
                   <TableHead>Program</TableHead>
                   <TableHead className="text-right">Role</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell>{student.name}</TableCell>
-                    <TableCell>{student.email}</TableCell>
-                    <TableCell>{student.studentId}</TableCell>
-                    <TableCell>{student.program}</TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant={student.role === "student" ? "secondary" : "default"}>
-                        {ROLE_LABEL[student.role]}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
+                  <StudentTableRow key={student.id} student={student} programs={data.programs} />
                 ))}
               </TableBody>
             </Table>
