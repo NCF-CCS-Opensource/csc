@@ -1,0 +1,59 @@
+"use server";
+
+import { payments, penalties } from "@attendance/db";
+import { desc, eq } from "drizzle-orm";
+import { requireCapability } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { findOpenSemester } from "@/lib/events";
+import { studentLedger, type StudentStanding } from "@/lib/ledger";
+
+export type MyAttendanceSnapshot = {
+  student: { name: string; email: string; program: string; studentId: string };
+  hasOpenSemester: boolean;
+  ledger: StudentStanding;
+  // paidOn is formatted here, not in the view: the date used to render on the
+  // server, and formatting it in a client component would resolve it against
+  // the viewer's locale and timezone instead — a different date either side of
+  // midnight, and a hydration mismatch on the cell.
+  paymentHistory: { id: string; amount: string; paidOn: string }[];
+};
+
+// My Attendance's one read, called by the server shell for the first paint and
+// by the client cache's queryFn on every revisit (ADR 0013). No API route: this
+// authorizes the browser session, leaving the booth's Bearer path untouched.
+export async function myAttendanceSnapshot(): Promise<MyAttendanceSnapshot> {
+  const [student, openSemester] = await Promise.all([
+    requireCapability("view_own_attendance"),
+    findOpenSemester(),
+  ]);
+
+  // The Ledger folds full no-shows into the history and totals — no backfill,
+  // no write on load. Attendance history is the Ledger's session breakdown.
+  const [ledger, paymentHistory] = await Promise.all([
+    openSemester
+      ? studentLedger(openSemester.id, student.id)
+      : Promise.resolve({ total: 0, outstanding: 0, sessions: [] }),
+    db
+      .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })
+      .from(payments)
+      .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
+      .where(eq(penalties.studentId, student.id))
+      .orderBy(desc(payments.paidAt)),
+  ]);
+
+  return {
+    student: {
+      name: student.name,
+      email: student.email,
+      program: student.program,
+      studentId: student.studentId,
+    },
+    hasOpenSemester: openSemester !== null,
+    ledger,
+    paymentHistory: paymentHistory.map(({ id, amount, paidAt }) => ({
+      id,
+      amount,
+      paidOn: new Date(paidAt).toLocaleDateString(),
+    })),
+  };
+}

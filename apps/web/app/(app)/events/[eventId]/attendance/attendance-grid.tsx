@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTransition } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,43 +32,65 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { EventGridCell, EventGridRow } from "@/lib/ledger";
-import { markPaid, setScanField } from "./actions";
+import { useWebStore } from "@/lib/store";
+import { eventGrid, markPaid, setScanField } from "./actions";
+import { eventGridQueryKey } from "./query-key";
 
 // Auto-saves the instant a value is picked; the server action re-syncs the
-// Penalty and revalidates, so outstanding updates without a Save button. Local
-// state gives the dropdown instant feedback while the write is in flight.
-function ScanCell({ cell }: { cell: EventGridCell }) {
-  const [present, setPresent] = useState(cell.present);
-  const [saved, setSaved] = useState(false);
-  const [pending, startTransition] = useTransition();
+// Penalty and revalidates, so outstanding updates without a Save button. The
+// cell paints the new value optimistically for instant feedback, and a failed
+// save rolls the cache back so the Officer sees the correction undo itself
+// rather than believing it was recorded (ADR 0013).
+function ScanCell({ cell, eventId }: { cell: EventGridCell; eventId: string }) {
+  const queryClient = useQueryClient();
+  const queryKey = eventGridQueryKey(eventId);
+
+  const save = useMutation({
+    mutationFn: (present: boolean) => setScanField(cell.sessionId, cell.field, present),
+    onMutate: async (present) => {
+      // An in-flight refetch would land after the optimistic write and undo it.
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<EventGridRow[]>(queryKey);
+      queryClient.setQueryData<EventGridRow[]>(queryKey, (rows) =>
+        rows?.map((row) => ({
+          ...row,
+          cells: row.cells.map((c) =>
+            c.sessionId === cell.sessionId && c.field === cell.field
+              ? { ...c, present }
+              : c,
+          ),
+        })),
+      );
+      return { previous };
+    },
+    onError: (_error, _present, context) => {
+      if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
+    },
+    // The write also moves the Penalty, so the whole grid is re-read rather
+    // than trusting the optimistic cell to have told the whole truth.
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+  });
 
   return (
     <Select
-      value={present ? "present" : "absent"}
-      onValueChange={(v) => {
-        const next = v === "present";
-        setPresent(next);
-        setSaved(false);
-        startTransition(async () => {
-          await setScanField(cell.sessionId, cell.field, next);
-          setSaved(true);
-          setTimeout(() => setSaved(false), 1500);
-        });
-      }}
+      value={cell.present ? "present" : "absent"}
+      onValueChange={(v) => save.mutate(v === "present")}
     >
       <SelectTrigger
         size="sm"
         className={
-          present
+          cell.present
             ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
             : "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400"
         }
       >
         <SelectValue />
-        {pending ? (
+        {save.isPending ? (
           <span className="text-muted-foreground text-xs">…</span>
-        ) : saved ? (
-          <span className="text-xs text-emerald-600 dark:text-emerald-400">✓</span>
+        ) : save.isError ? (
+          <span className="text-xs text-red-600 dark:text-red-400" role="status">
+            Save failed
+          </span>
         ) : null}
       </SelectTrigger>
       <SelectContent>
@@ -79,6 +102,7 @@ function ScanCell({ cell }: { cell: EventGridCell }) {
 }
 
 function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
+  const queryClient = useQueryClient();
   const [pending, startTransition] = useTransition();
 
   if (row.settled) return <Badge variant="default">Paid</Badge>;
@@ -105,7 +129,14 @@ function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
-                startTransition(() => markPaid(row.unpaidPenaltyIds, eventId))
+                startTransition(async () => {
+                  await markPaid(row.unpaidPenaltyIds, eventId);
+                  // Two caches now: revalidatePath alone leaves the grid's
+                  // cached balance showing the amount just settled.
+                  await queryClient.invalidateQueries({
+                    queryKey: eventGridQueryKey(eventId),
+                  });
+                })
               }
             >
               Mark paid
@@ -119,12 +150,21 @@ function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
 
 export function AttendanceGrid({
   eventId,
-  rows,
+  initialRows,
 }: {
   eventId: string;
-  rows: EventGridRow[];
+  initialRows: EventGridRow[];
 }) {
-  const [query, setQuery] = useState("");
+  // Seeded from the server shell, so a cold visit paints rendered HTML and a
+  // revisit paints from cache while a background refetch replaces it.
+  const { data: rows } = useQuery({
+    queryKey: eventGridQueryKey(eventId),
+    queryFn: () => eventGrid(eventId),
+    initialData: initialRows,
+  });
+
+  const query = useWebStore((s) => s.attendanceSearch[eventId] ?? "");
+  const setQuery = useWebStore((s) => s.setAttendanceSearch);
 
   // Header labels come from the cells themselves — one source of truth for the
   // whole-day (4) vs half-day (2) column shape. rows is non-empty (the page
@@ -144,7 +184,7 @@ export function AttendanceGrid({
       <Input
         placeholder="Search by name or Student ID…"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => setQuery(eventId, e.target.value)}
         className="max-w-xs"
       />
       <Table>
@@ -166,7 +206,7 @@ export function AttendanceGrid({
               </TableCell>
               {row.cells.map((cell) => (
                 <TableCell key={`${cell.sessionId}:${cell.field}`}>
-                  <ScanCell cell={cell} />
+                  <ScanCell cell={cell} eventId={eventId} />
                 </TableCell>
               ))}
               <TableCell className="text-right">
