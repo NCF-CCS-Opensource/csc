@@ -25,9 +25,9 @@ import {
   type RecentScan,
 } from "../lib/scanQueue";
 import { flushQueue } from "../lib/syncScans";
+import { useMyEvents } from "../lib/events";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
-import type { EventRow } from "./EventsScreen";
 
 type Styles = ReturnType<typeof makeStyles>;
 
@@ -64,7 +64,7 @@ export function BoothScreen({
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
-  const [events, setEvents] = useState<EventRow[]>([]);
+  const { data: events = [], isError: eventsFailed } = useMyEvents();
   const [eventId, setEventId] = useState<string | null>(null);
   const [mode, setMode] = useState<BoothMode | null>(null);
   const [scanned, setScanned] = useState<ScannedResult | null>(null);
@@ -77,12 +77,6 @@ export function BoothScreen({
   const refreshRecent = useCallback(() => {
     loadRecentScans(officerId).then(setRecentScans);
   }, [officerId]);
-
-  useEffect(() => {
-    apiFetch<{ events: EventRow[] }>("/api/events/mine")
-      .then((data) => setEvents(data.events))
-      .catch(() => {});
-  }, []);
 
   useEffect(refreshRecent, [queueRevision, refreshRecent]);
 
@@ -297,6 +291,13 @@ export function BoothScreen({
         {pendingCount > 0 && (
           <Text style={styles.pending}>
             {pendingCount} scan{pendingCount === 1 ? "" : "s"} pending sync
+          </Text>
+        )}
+        {eventsFailed && (
+          <Text style={styles.eventsError}>
+            {events.length > 0
+              ? "Showing your last known events — refresh failed."
+              : "Could not load your events."}
           </Text>
         )}
         {message && <Text style={styles.messageHint}>{message}</Text>}
@@ -672,6 +673,7 @@ function makeStyles(c: ThemeColors) {
     statusDot: { width: 8, height: 8, borderRadius: 4 },
     statusText: { fontSize: 14, fontWeight: "600" },
     statusHint: { fontSize: 13, color: c.textMuted, marginLeft: "auto" },
+    eventsError: { fontSize: 13, color: c.danger, paddingHorizontal: 16, marginTop: 8 },
     pending: { fontSize: 13, color: c.warning, fontWeight: "600", paddingHorizontal: 16, marginTop: 8 },
     dropdownRow: { flexDirection: "row", gap: 12, paddingHorizontal: 16, paddingTop: 12 },
     recentSection: {
