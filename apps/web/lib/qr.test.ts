@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildQrCardModels, buildQrPayload } from "./qr";
+import { renderQrCardPdf } from "@/components/reports/qr-card-pdf-document";
 
 describe("buildQrPayload", () => {
   it("encodes name, student ID, and Program as self-contained JSON", () => {
@@ -83,5 +84,16 @@ describe("buildQrCardModels", () => {
   it("returns an empty result for empty input, not a one-blank-card document", async () => {
     const cards = await buildQrCardModels([]);
     expect(cards).toEqual([]);
+  });
+
+  it("renders to a real PDF document, the file both card downloads serve", async () => {
+    const cards = await buildQrCardModels([
+      { name: "Juan Dela Cruz", studentId: "2021-00123", program: "Computer Science" },
+    ]);
+
+    const pdf = await renderQrCardPdf(cards);
+
+    expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+    expect(pdf.length).toBeGreaterThan(0);
   });
 });
