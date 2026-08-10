@@ -4,6 +4,7 @@ import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
+import { QueryProvider } from "./query-provider";
 
 const geistSans = Geist({
   variable: "--font-sans",
@@ -39,7 +40,9 @@ export default function RootLayout({
       >
         <body className="flex min-h-full flex-col">
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <TooltipProvider>{children}</TooltipProvider>
+            <QueryProvider>
+              <TooltipProvider>{children}</TooltipProvider>
+            </QueryProvider>
           </ThemeProvider>
         </body>
       </html>
