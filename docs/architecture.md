@@ -22,7 +22,6 @@ flowchart LR
     Web[Next.js web module<br/>Vercel]
     Auth[Supabase Auth]
     DB[(Supabase Postgres)]
-    Resend[Resend]
     Queue[(Offline Scan Queue<br/>AsyncStorage)]
 
     Clerk[Clerk identity]
@@ -35,8 +34,6 @@ flowchart LR
     Queue -->|ordered retry| Web
     Web -->|session verification| Auth
     Web -->|Drizzle over transaction pooler| DB
-    Auth -->|confirmation and reset email via SMTP| Resend
-    Web -->|QR attachment after confirmation| Resend
 ```
 
 ## Architectural seams
@@ -51,7 +48,6 @@ flowchart LR
 | Ledger | Per-Student standing and per-Event operations projections | `computeLedger`, `studentLedger`, and `semesterLedger` | A deep module: one read interface hides virtual no-shows and rollups |
 | Attendance correction | Present/Absent edits and Payment recording | Event attendance grid actions | Manual edits store a noon sentinel; booth scans store the real capture time |
 | Persistence | Typed schema and query access | Drizzle ORM, postgres-js, committed SQL migrations | `createDb(connectionString)` is the database interface |
-| Messaging | Booth OTP email and verified Student QR delivery | Supabase SMTP (mobile) and Resend SDK | Resend is the external adapter |
 
 ## Approved target interfaces
 
@@ -143,7 +139,7 @@ Approved lifecycle additions:
 ## Authentication and authorization
 
 1. Web sign-in is Clerk with Google SSO restricted to the school domain (ADR-0012); no password is ever collected or stored.
-2. A signed-in person with no Student row is a Pending Student: onboarding creates the row keyed by the Clerk user id, assigns Governor only when the email is in `GOVERNOR_EMAILS`, and sends the QR attachment.
+2. A signed-in person with no Student row is a Pending Student: onboarding creates the row keyed by the Clerk user id, assigns Governor only when the email is in `GOVERNOR_EMAILS`, and redirects to My Attendance, where the QR is already available.
 3. Browser requests carry the Clerk session cookie.
 4. Mobile requests send a Supabase access token as `Authorization: Bearer`.
 5. Every privileged page, action, and route rechecks the role server-side.
@@ -160,7 +156,6 @@ Most reads do not write. Full no-shows are projected virtually until an Officer 
 - Web and `/api/*`: Vercel, root directory `apps/web`
 - Web identity: Clerk with Google SSO; Postgres: Supabase
 - Database access: Supabase transaction pooler with prepared statements disabled
-- Booth OTP SMTP and QR email: Resend
 - DNS/custom domain: Cloudflare in front of the Vercel domain
 - Native booth app: Expo/React Native build configured against the same Supabase project and public web base URL
 

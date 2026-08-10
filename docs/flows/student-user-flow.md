@@ -10,7 +10,7 @@ flowchart TD
     H --> B{Student record exists?}
     B -- No --> C[Onboarding: Program and Student ID]
     C --> F[Student row is created against the Clerk identity]
-    F --> G[QR is emailed and available in My Attendance]
+    F --> G[QR is available in My Attendance]
     G --> I
     H --> I[My Attendance]
     I --> J[Present QR to Officer at Event]
@@ -34,7 +34,7 @@ flowchart TD
 1. Open `/sign-in` and continue with an `@gbox.ncf.edu.ph` Google account. The same route serves first-time and returning people; there is no separate register page and no password.
 2. A signed-in person with no Student row is a Pending Student and is sent to `/onboarding`.
 3. Enter Program and Student ID. Name and email come from the verified Google identity.
-4. The system validates the Governor-managed Program list, creates the Student row against the Clerk user id, and sends a QR attachment through Resend.
+4. The system validates the Governor-managed Program list, creates the Student row against the Clerk user id, and redirects to My Attendance, where the QR is already available.
 5. Returning Students go straight to `/dashboard`, which forwards a Student to `/my-attendance`.
 
 ## Daily use
@@ -64,7 +64,6 @@ flowchart TD
 | --- | --- |
 | Invalid Program or Student ID | Onboarding remains on the form with validation feedback |
 | Email or Student ID already taken | Onboarding reports the conflict and the person stays a Pending Student |
-| QR email fails to send | The Student record still exists; `/qr` serves the same code on demand |
 | Missing Time-in or Time-out | Attendance Session remains incomplete/absent until corrected |
 | No open Semester | My Attendance shows no current Penalty standing |
 | QR is rejected | No Attendance Session changes; the decision is retained for Governor review |

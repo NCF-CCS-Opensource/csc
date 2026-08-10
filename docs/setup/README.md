@@ -1,6 +1,6 @@
 # Test-production deployment
 
-This is the repeatable deployment runbook for the public test-production environment. For provisioning a new Supabase/Vercel/Resend stack, see [provisioning.md](./provisioning.md).
+This is the repeatable deployment runbook for the public test-production environment. For provisioning a new Supabase/Vercel stack, see [provisioning.md](./provisioning.md).
 
 ## Current environment
 
@@ -59,8 +59,6 @@ The Vercel Production environment must contain:
 - `CLERK_SECRET_KEY`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
-- `RESEND_API_KEY`
-- `RESEND_FROM_EMAIL`
 - `GOVERNOR_EMAILS`
 
 Redeploy after changing any Vercel environment variable. When deployment finishes, verify the public API is reachable without Vercel SSO:
