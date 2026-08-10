@@ -5,7 +5,6 @@ import { programs, students } from "@attendance/db";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { hasStudentRecord } from "@/lib/auth";
-import { sendConfirmationEmail } from "@/lib/email";
 import {
   ALREADY_TAKEN,
   validateOnboarding,
@@ -80,16 +79,8 @@ export async function completeOnboarding(
   // Pending Student stays pending rather than looping on a missing row.
   if (!created) return { errors: [{ field: "studentId", message: ALREADY_TAKEN }] };
 
-  // The record is already committed, so a Resend outage must not strand the
-  // new Student on a form they can no longer submit — /qr serves the same
-  // code on demand.
-  // ponytail: no retry, no queue. Add one if lost QR emails become a real
-  // support load.
-  try {
-    await sendConfirmationEmail(created.email, created);
-  } catch (error) {
-    console.error("onboarding: QR email failed for", created.email, error);
-  }
-
-  redirect("/dashboard");
+  // Nothing is mailed: the new Student lands where their live QR and their QR
+  // Card download already are. Unbranched on purpose — a bootstrap Governor
+  // gets the same destination, not dashboardDestination's role split (#130).
+  redirect("/my-attendance");
 }
