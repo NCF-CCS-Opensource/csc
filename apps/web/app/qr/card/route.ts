@@ -1,11 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { renderToBuffer } from "@react-pdf/renderer";
-import type { DocumentProps } from "@react-pdf/renderer";
-import React from "react";
 import { getCurrentStudent } from "@/lib/auth";
 import { buildQrCardModels } from "@/lib/qr";
-import { QrCardPdfDocument } from "@/components/reports/qr-card-pdf-document";
+import { renderQrCardPdf } from "@/components/reports/qr-card-pdf-document";
 
 // Self-scoped, sibling to /qr: any Student may fetch their own card, no
 // capability beyond having a Student record. Bulk (by-id, manage_operations)
@@ -24,9 +21,7 @@ export async function GET() {
   }
 
   const [card] = await buildQrCardModels([student]);
-  const pdfBuffer = await renderToBuffer(
-    QrCardPdfDocument({ cards: [card] }) as React.ReactElement<DocumentProps>,
-  );
+  const pdfBuffer = await renderQrCardPdf([card]);
 
   return new NextResponse(new Uint8Array(pdfBuffer), {
     headers: {
