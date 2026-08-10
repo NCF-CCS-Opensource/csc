@@ -1,7 +1,11 @@
 import * as SecureStore from "expo-secure-store";
 import { clerk, clerkHydrated } from "./clerk";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL!;
+// Every call site passes a path already starting with "/api/..."; strip a
+// trailing "/api" from the configured base so a misconfigured env value
+// (either shape works) can't silently double it into "/api/api/...", a 404
+// masquerading as "mobile access unavailable".
+const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? "").replace(/\/api\/?$/, "");
 const REQUEST_TIMEOUT_MS = 15_000;
 const OFFICER_IDENTITY_KEY = "attendance.officerIdentity.v1";
 
