@@ -45,7 +45,7 @@ The modal shown after a readable QR scan, displaying the Student's details for t
 _Avoid_: Verification
 
 **QR Card**:
-A printable card carrying a Student's QR alongside their name, Student ID, and Program — downloaded by the Student themselves, or issued in bulk by an Officer for a roster of Students without phones. It reproduces the QR payload and holds no authority of its own — it is not a school ID, and Scan Approval still matches against the worn one. Its payload is frozen at print time, so correcting a Student's Student ID or Program invalidates every card already printed for them.
+A printable card carrying a Student's QR alongside their name, Student ID, and Program, so a Student without a phone can still be scanned at the booth. A Student downloads their own; an Officer can also issue them in bulk for a roster. It reproduces the QR payload and holds no authority of its own — it is not a school ID, and Scan Approval still matches against the worn one. Its payload is frozen at print time, so correcting a Student's Student ID or Program invalidates every card already printed for them.
 _Avoid_: ID card, badge, student ID card
 
 **Recent Scans**:
