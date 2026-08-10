@@ -1,5 +1,6 @@
 import React from "react";
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import type { DocumentProps } from "@react-pdf/renderer";
 import type { QrCardModel } from "@/lib/qr";
 
 // 8-up on A4, ~credit-card sized, with cut guides — one document shape for a
@@ -78,5 +79,14 @@ export function QrCardPdfDocument({ cards }: { cards: QrCardModel[] }) {
         </Page>
       ))}
     </Document>
+  );
+}
+
+// Single render path for every QR Card PDF — the Student's own download and
+// the onboarding email go through here, so the two are byte-identical (spec
+// #118).
+export async function renderQrCardPdf(cards: QrCardModel[]): Promise<Buffer> {
+  return renderToBuffer(
+    QrCardPdfDocument({ cards }) as React.ReactElement<DocumentProps>,
   );
 }

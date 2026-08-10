@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
+import { matchesRedirectScheme, watchForRedirectUrl } from "../lib/ssoRedirect";
 
 // Google refuses OAuth inside an embedded WebView, so the flow runs in the
 // system browser and returns to the app through the deep link below.
@@ -49,6 +50,13 @@ export function LoginScreen() {
   async function signIn() {
     setPending(true);
     setError(null);
+    // Started before startSSOFlow so we catch the redirect via our own "url"
+    // listener too — expo-web-browser's Android path races an AppState
+    // "resumed" listener against its own Linking "url" listener and keeps
+    // whichever settles first, and on a warm resume (app backgrounded while
+    // the browser was open, not cold-launched) Linking.getInitialURL() alone
+    // never sees the redirect at all. See watchForRedirectUrl for the detail.
+    const redirectWatcher = watchForRedirectUrl(Linking);
     try {
       const { createdSessionId, setActive, authSessionResult, signIn, signUp } =
         await startSSOFlow({
@@ -59,19 +67,13 @@ export function LoginScreen() {
         await setActive({ session: createdSessionId });
         return;
       }
-      // expo-web-browser's Android path (WebBrowser.js, _openAuthSessionPolyfillAsync)
-      // races an AppState "resumed" listener against a Linking "url" listener
-      // and keeps whichever settles first. On some devices AppState wins
-      // every time, so startSSOFlow reports "dismiss" even though Google
-      // auth succeeded and Android actually delivered the redirect intent to
-      // MainActivity. Recover it from there instead of trusting the race.
       // ponytail: duplicates the tail of Clerk's own startSSOFlow (useSSO.js)
       // instead of a real fix, because that race lives inside expo-web-browser's
       // node_modules with no patch-package in this repo to pin a fix to.
       if (authSessionResult?.type === "dismiss" && signIn) {
-        const redirectedUrl = await Linking.getInitialURL();
+        const redirectedUrl = await redirectWatcher.resolve();
         const expectedPrefix = AuthSession.makeRedirectUri();
-        if (redirectedUrl?.startsWith(expectedPrefix)) {
+        if (redirectedUrl && matchesRedirectScheme(redirectedUrl, expectedPrefix)) {
           const nonce =
             new URL(redirectedUrl).searchParams.get("rotating_token_nonce") ?? "";
           await signIn.reload({ rotatingTokenNonce: nonce });
@@ -105,6 +107,7 @@ export function LoginScreen() {
         caught instanceof Error ? caught.message : "Unable to sign in",
       );
     } finally {
+      redirectWatcher.stop();
       setPending(false);
     }
   }
