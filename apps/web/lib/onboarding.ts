@@ -15,8 +15,17 @@ export type ValidationError = { field: string; message: string };
 // dashboard setting — invisible here and reversible from a console — so this
 // one lives in version control, carries a test, and fails closed if that
 // configuration ever drifts.
-export function isSchoolEmail(verifiedEmail: string): boolean {
-  return verifiedEmail.trim().toLowerCase().endsWith(SCHOOL_EMAIL_DOMAIN);
+// testEmails is ONBOARDING_TEST_EMAILS, split by the caller (same shape as
+// GOVERNOR_EMAILS/determineRole) — personal addresses let through for
+// testing. Also needs a matching allowlist exception in Clerk's dashboard
+// (Configure > Restrictions), which is the layer that actually gates sign-in;
+// this one only controls whether onboarding accepts the address afterward.
+export function isSchoolEmail(verifiedEmail: string, testEmails: string[] = []): boolean {
+  const normalized = verifiedEmail.trim().toLowerCase();
+  return (
+    normalized.endsWith(SCHOOL_EMAIL_DOMAIN) ||
+    testEmails.map((e) => e.trim().toLowerCase()).includes(normalized)
+  );
 }
 
 // Clerk's *verified primary* address — the only address the domain assertion
@@ -40,10 +49,11 @@ export function verifiedPrimaryEmail(user: {
 export function validateOnboarding(
   input: OnboardingInput,
   validPrograms: string[],
+  testEmails: string[] = [],
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  if (!isSchoolEmail(input.email)) {
+  if (!isSchoolEmail(input.email, testEmails)) {
     errors.push({
       field: "email",
       message: `Email must be a ${SCHOOL_EMAIL_DOMAIN} address`,

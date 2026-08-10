@@ -87,6 +87,15 @@ describe("isSchoolEmail", () => {
   it("rejects an empty address", () => {
     expect(isSchoolEmail("")).toBe(false);
   });
+
+  it("accepts a personal address only when passed in testEmails", () => {
+    expect(isSchoolEmail("tester@gmail.com")).toBe(false);
+    expect(isSchoolEmail("tester@gmail.com", ["tester@gmail.com"])).toBe(true);
+  });
+
+  it("matches testEmails regardless of case or surrounding whitespace", () => {
+    expect(isSchoolEmail("  Tester@Gmail.com ", ["tester@gmail.com"])).toBe(true);
+  });
 });
 
 describe("validateOnboarding", () => {
@@ -106,6 +115,15 @@ describe("validateOnboarding", () => {
     expect(errors).toEqual([
       { field: "email", message: "Email must be a @gbox.ncf.edu.ph address" },
     ]);
+  });
+
+  it("accepts an email outside the school domain when it is in testEmails", () => {
+    const errors = validateOnboarding(
+      { ...valid, email: "tester@gmail.com" },
+      PROGRAMS,
+      ["tester@gmail.com"],
+    );
+    expect(errors).toEqual([]);
   });
 
   it("rejects a program outside the Governor-managed list", () => {

@@ -4,6 +4,7 @@ import * as WebBrowser from "expo-web-browser";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -49,17 +50,56 @@ export function LoginScreen() {
     setPending(true);
     setError(null);
     try {
-      const { createdSessionId, setActive } = await startSSOFlow({
-        strategy: "oauth_google",
-        redirectUrl: AuthSession.makeRedirectUri(),
-      });
+      const { createdSessionId, setActive, authSessionResult, signIn, signUp } =
+        await startSSOFlow({
+          strategy: "oauth_google",
+          redirectUrl: AuthSession.makeRedirectUri(),
+        });
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
         return;
       }
+      // expo-web-browser's Android path (WebBrowser.js, _openAuthSessionPolyfillAsync)
+      // races an AppState "resumed" listener against a Linking "url" listener
+      // and keeps whichever settles first. On some devices AppState wins
+      // every time, so startSSOFlow reports "dismiss" even though Google
+      // auth succeeded and Android actually delivered the redirect intent to
+      // MainActivity. Recover it from there instead of trusting the race.
+      // ponytail: duplicates the tail of Clerk's own startSSOFlow (useSSO.js)
+      // instead of a real fix, because that race lives inside expo-web-browser's
+      // node_modules with no patch-package in this repo to pin a fix to.
+      if (authSessionResult?.type === "dismiss" && signIn) {
+        const redirectedUrl = await Linking.getInitialURL();
+        const expectedPrefix = AuthSession.makeRedirectUri();
+        if (redirectedUrl?.startsWith(expectedPrefix)) {
+          const nonce =
+            new URL(redirectedUrl).searchParams.get("rotating_token_nonce") ?? "";
+          await signIn.reload({ rotatingTokenNonce: nonce });
+          if (signIn.firstFactorVerification.status === "transferable" && signUp) {
+            await signUp.create({ transfer: true });
+          }
+          const recoveredSessionId = signUp?.createdSessionId ?? signIn.createdSessionId;
+          if (recoveredSessionId && setActive) {
+            await setActive({ session: recoveredSessionId });
+            return;
+          }
+        }
+      }
       // Cancelled in the browser, or Clerk needs more steps than a booth
       // sign-in should ever require (the school domain is the only gate).
-      setError("Sign-in was not completed");
+      // ponytail: dumps the raw SDK status instead of a friendly per-case
+      // message — narrow this once we know which cases actually show up.
+      console.warn("SSO did not produce a session", {
+        authSessionResultType: authSessionResult?.type,
+        signInStatus: signIn?.status,
+        signUpStatus: signUp?.status,
+        signUpErrors: signUp?.unverifiedFields,
+      });
+      setError(
+        `Sign-in was not completed (${authSessionResult?.type ?? "no result"}${
+          signIn?.status ? `, signIn: ${signIn.status}` : ""
+        }${signUp?.status ? `, signUp: ${signUp.status}` : ""})`,
+      );
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Unable to sign in",

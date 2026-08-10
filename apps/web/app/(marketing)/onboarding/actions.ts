@@ -19,6 +19,14 @@ const GOVERNOR_EMAILS = (process.env.GOVERNOR_EMAILS ?? "")
   .map((e) => e.trim())
   .filter(Boolean);
 
+// Test-only escape hatch, unset in production. Also needs a matching
+// allowlist exception in Clerk's dashboard (Configure > Restrictions) — that
+// is the layer which actually gates sign-in.
+const ONBOARDING_TEST_EMAILS = (process.env.ONBOARDING_TEST_EMAILS ?? "")
+  .split(",")
+  .map((e) => e.trim())
+  .filter(Boolean);
+
 export type OnboardingState = { errors: ValidationError[] };
 
 export async function completeOnboarding(
@@ -48,7 +56,7 @@ export async function completeOnboarding(
     (row) => row.name,
   );
 
-  const errors = validateOnboarding(input, validPrograms);
+  const errors = validateOnboarding(input, validPrograms, ONBOARDING_TEST_EMAILS);
   if (errors.length > 0) return { errors };
 
   // Program and Student ID stay here, never in Clerk metadata (ADR 0012):
