@@ -13,7 +13,7 @@ Someone holding a verified school identity — signed in with a school Google ac
 _Avoid_: Unregistered user, unconfirmed account
 
 **Officer**:
-A Student promoted (by the Governor) to run Events — creates, edits, and deletes **any** Event (not only ones they created), scans attendance at the booth, edits attendance records, marks Payments received, signs Clearance. Every Officer sees and acts on every Officer's Events; there is no per-Officer Event ownership. Cannot perform ADMIN actions (see Governor), which stay Governor-only.
+A Student promoted (by the Governor) to run Events — creates, edits, and deletes **any** Event (not only ones they created), scans attendance at the booth, edits attendance records, marks Payments received, signs Clearance, corrects any Student's Student ID and Program, and issues QR Cards. Every Officer sees and acts on every Officer's Events; there is no per-Officer Event ownership. Cannot perform ADMIN actions (see Governor), which stay Governor-only.
 _Avoid_: Admin, staff
 
 **Governor**:
@@ -41,8 +41,12 @@ A QR scan recorded against an Attendance Session, written under whichever mode t
 _Avoid_: Check-in/check-out
 
 **Scan Approval**:
-The modal shown after a readable QR scan, displaying the Student's details for the Officer to visually match against their worn school ID. The Officer approves (records the Time-in/Time-out) or rejects; an unreadable QR or one whose Student ID, name, and Program do not all match the current Student record shows no trusted Student details, cannot be approved, and is retained as a rejection. Rejections are logged for fraud pattern detection (e.g. a shared/stolen QR).
+The modal shown after a readable QR scan, displaying the Student's details for the Officer to visually match against their worn school ID — never against a QR Card, which carries the same details and so cannot corroborate itself. The Officer approves (records the Time-in/Time-out) or rejects; an unreadable QR or one whose Student ID, name, and Program do not all match the current Student record shows no trusted Student details, cannot be approved, and is retained as a rejection. Rejections are logged for fraud pattern detection (e.g. a shared/stolen QR).
 _Avoid_: Verification
+
+**QR Card**:
+A printed card carrying a Student's QR alongside their name, Student ID, and Program, issued by an Officer so a Student without a phone can still be scanned at the booth. It reproduces the QR payload and holds no authority of its own — it is not a school ID, and Scan Approval still matches against the worn one. Its payload is frozen at print time, so correcting a Student's Student ID or Program invalidates every card already printed for them.
+_Avoid_: ID card, badge, student ID card
 
 **Recent Scans**:
 A persistent five-item history of accepted and rejected Scan Approval decisions made on an Officer's current device, visible only to that Officer and used to verify recent booth activity. A decision appears immediately and remains visibly pending until it has synced; adding a sixth discards the oldest without affecting offline delivery.

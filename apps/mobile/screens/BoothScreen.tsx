@@ -14,7 +14,7 @@ import {
 import { Dropdown } from "../components/Dropdown";
 import { ApiError, apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
-import { isReadableQrPayload } from "../lib/qr";
+import { parseQrPayload } from "../lib/qr";
 import {
   addRecentScan,
   discardScan,
@@ -166,11 +166,11 @@ export function BoothScreen({
         error.status === 408 ||
         error.status === 429 ||
         error.status >= 500;
-      const pendingVerification =
-        retryable && isReadableQrPayload(result.data);
+      const offlineStudent = retryable ? parseQrPayload(result.data) : null;
+      const pendingVerification = offlineStudent !== null;
       const failed: ScannedResult = {
         raw: result.data,
-        student: null,
+        student: offlineStudent,
         scannedAt,
         verified: false,
         pendingVerification,
