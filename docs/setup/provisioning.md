@@ -1,13 +1,13 @@
 # Provisioning (manual, one-time)
 
-Everything code-side is scaffolded. These steps need your own Supabase, Vercel, and Resend accounts — an agent can't run them without your credentials.
+Everything code-side is scaffolded. These steps need your own Supabase and Vercel accounts — an agent can't run them without your credentials.
 
 The current public test-production web/API domain is `https://attendance.ncfccs.org`. For repeat deployments to that environment, use the [test-production deployment runbook](./README.md).
 
 ## 1. Supabase project
 
 1. Create a project at https://supabase.com/dashboard.
-2. No Supabase Auth variables are needed. Identity is Clerk for both `apps/web` and `apps/mobile` (step 6); Supabase is a Postgres and Storage host only (ADR-0012), so this project contributes just `DATABASE_URL`.
+2. No Supabase Auth variables are needed. Identity is Clerk for both `apps/web` and `apps/mobile` (step 5); Supabase is a Postgres and Storage host only (ADR-0012), so this project contributes just `DATABASE_URL`.
 3. Settings > Database > Connection string ("Transaction" pooler, port 6543): copy into `.env` as `DATABASE_URL`. This connects Drizzle to the same Supabase Postgres database; it is not a second database provider.
 
 ## 2. Run the Drizzle migrations
@@ -55,7 +55,7 @@ Set the variable *and redeploy* before the first sign-in to avoid this.
 
 1. https://vercel.com/new, import this repo, set **Root Directory** to `apps/web`.
 2. Framework preset: Next.js (auto-detected).
-3. Add all `.env.example` vars in Vercel project settings — `DATABASE_URL`, Resend, `GOVERNOR_EMAILS`, Clerk (`CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL` — see step 6). Vercel doesn't read your local `.env` — these must be entered in the dashboard, and adding/editing one after the first deploy needs a redeploy to take effect. `EXPO_PUBLIC_*` vars don't belong here — they're mobile-only, go in `apps/mobile/.env`.
+3. Add all `.env.example` vars in Vercel project settings — `DATABASE_URL`, `GOVERNOR_EMAILS`, Clerk (`CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL` — see step 5). Vercel doesn't read your local `.env` — these must be entered in the dashboard, and adding/editing one after the first deploy needs a redeploy to take effect. `EXPO_PUBLIC_*` vars don't belong here — they're mobile-only, go in `apps/mobile/.env`.
 4. Deploy. Then add the deployed origin to Clerk's allowed domains for this instance and redeploy if you changed any variable.
 5. **If `/onboarding` (or any DB-backed page) fails to load after deploy**: it's almost always step 2's migration never having actually run against this Supabase project (check Table Editor for the 8 tables), or a missing/stale env var in this Vercel project (not your local `.env`).
 6. **If web sign-in fails or bounces back to `/sign-in`**: check, in order — (a) the Clerk keys are set in *this* Vercel project (not just local `.env`), redeployed after setting them; (b) the deployed origin is allowed on the Clerk instance; (c) Clerk's Google connection is enabled and its sign-up restriction still allows `@gbox.ncf.edu.ph`.
@@ -69,22 +69,14 @@ The current test-production domain is `attendance.ncfccs.org`. Vercel > Project 
 3. Wait a few minutes, Vercel auto-rechecks (or hit "Refresh" on the domain).
 4. To re-enable Cloudflare's proxy afterward, set Cloudflare SSL mode to **Full (strict)** first, or you'll get cert/redirect errors.
 
-## 4. Resend — the confirmation email
+## 4. apps/mobile (Officer booth app)
 
-Neither module sends an auth email: Google SSO proves the identity (ADR-0012). Resend sends only the confirmation email `apps/web/lib/email.ts` fires at completed onboarding, with the QR attached.
-
-1. https://resend.com — add and verify the `ncfccs.org` domain (DNS records on Cloudflare per ADR 0001).
-2. Resend > API Keys: create a key with sending access.
-3. Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (an `ncfccs.org` address) in `.env` / Vercel.
-
-## 5. apps/mobile (Officer booth app)
-
-1. Set `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (step 6) and `EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org` in `apps/mobile/.env`. The API base is the deployed `apps/web` URL; `/api/events/mine` and `/api/scan/*` resolve against it, authenticated with the Officer's Clerk session token as a Bearer credential.
-2. Officers sign in with their school Google account. The flow opens in the system browser (Google blocks OAuth in an embedded WebView) and returns through the `attendkita://` scheme declared in `apps/mobile/app.json`, so add that redirect to Clerk's allowed redirect URLs in step 6.
+1. Set `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (step 5) and `EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org` in `apps/mobile/.env`. The API base is the deployed `apps/web` URL; `/api/events/mine` and `/api/scan/*` resolve against it, authenticated with the Officer's Clerk session token as a Bearer credential.
+2. Officers sign in with their school Google account. The flow opens in the system browser (Google blocks OAuth in an embedded WebView) and returns through the `attendkita://` scheme declared in `apps/mobile/app.json`, so add that redirect to Clerk's allowed redirect URLs in step 5.
 3. `npx expo run:ios` / `run:android` for a dev build (`expo-camera` needs a native build, not Expo Go), or `eas build` for a real device.
 4. Verify against the live test-production database and a physical device/camera; repository checks only cover typecheck and app-level logic (`pnpm --filter web test`).
 
-## 6. Clerk + Google (identity)
+## 5. Clerk + Google (identity)
 
 Identity is Clerk with Google SSO; Supabase is no longer an identity provider (ADR-0012). One Clerk instance serves both `apps/web` and `apps/mobile`.
 

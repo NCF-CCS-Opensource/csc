@@ -14,7 +14,7 @@
 
 ## 1. Abstract
 
-CCS Attendance is a QR-based attendance and Penalty system for the College of Computer Studies. A responsive Next.js web module supports Students, Officers, and Governors; an Expo mobile module supports booth scanning and shared Event management; Clerk provides identity for both clients and Supabase provides Postgres; Drizzle owns typed application data access; and Resend delivers booth OTP and QR email.
+CCS Attendance is a QR-based attendance and Penalty system for the College of Computer Studies. A responsive Next.js web module supports Students, Officers, and Governors; an Expo mobile module supports booth scanning and shared Event management; Clerk provides identity for both clients and Supabase provides Postgres; Drizzle owns typed application data access.
 
 The target guarantees are capability authorization inside deep command modules, strict client-UUID idempotency, atomic Scan Approval persistence, deterministic earliest Time-in/latest Time-out resolution, protected Event history, one Attendance Session per Event/Student/half, automatically derived Penalties, and one full Payment per Penalty. The Ledger remains the deep read module that keeps no-show and standing rules local across Student, Clearance, and operations views.
 
@@ -55,7 +55,6 @@ flowchart LR
     Event[Deep Event lifecycle module]
     Auth[Clerk]
     DB[(Supabase Postgres)]
-    Resend[Resend SMTP and API]
 
     Browser -->|cookie| Vercel
     Mobile -->|OTP session| Auth
@@ -67,8 +66,6 @@ flowchart LR
     Role --> Event
     Scan -->|one transaction| DB
     Event -->|validated commands| DB
-    Auth -->|confirmation and reset email| Resend
-    Vercel -->|verified QR email| Resend
 ```
 
 Figure 1. Current system architecture.
@@ -84,7 +81,6 @@ Figure 1. Current system architecture.
 | Offline Scan Queue | Retain Officer-owned decisions, retry temporary failures, and isolate permanent failures | AsyncStorage | Pending work survives restart; Needs Review does not block later delivery |
 | Role policy module | Map roles to capabilities and enforce command access | In-process policy | Missing identity fails as `401`; denied capability fails as `403` |
 | Ledger module | Compute Student standing and Event/Semester projections | Postgres rows loaded through Drizzle | Read fails with its request; full no-shows remain virtual until Payment needs rows |
-| Messaging module | Send confirmation/reset mail and QR attachment | Resend | No recovery job exists for a failed post-confirmation QR email |
 
 ### Module interfaces
 
@@ -190,7 +186,7 @@ Ledger reads are internally consistent for the rows loaded into `computeLedger`,
 ## 8. Security and Privacy Considerations
 
 - Privileged commands enforce capabilities inside their deep module. Client navigation is not an authorization control.
-- Clerk publishable keys are public client configuration; `DATABASE_URL`, `CLERK_SECRET_KEY`, Resend credentials, and any service-role key must remain server-only.
+- Clerk publishable keys are public client configuration; `DATABASE_URL`, `CLERK_SECRET_KEY`, and any service-role key must remain server-only.
 - The QR contains Student name, Student ID, and Program in unsigned plaintext JSON. Treat QR images and raw rejection payloads as personal data.
 - Scan Approval requires an Officer to visually compare the Student with a worn school ID.
 - No password is collected, transmitted, or stored anywhere in the system; identity on both clients is Google SSO through Clerk.
