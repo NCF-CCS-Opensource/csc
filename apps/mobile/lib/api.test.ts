@@ -68,6 +68,29 @@ describe("apiFetch", () => {
     );
   });
 
+  it("strips a trailing /api from EXPO_PUBLIC_API_BASE_URL so paths don't double up", async () => {
+    // Real repro: EXPO_PUBLIC_API_BASE_URL was set to ".../vercel.app/api"
+    // and every call site already passes "/api/...", producing
+    // ".../vercel.app/api/api/me" — a 404 the UI showed as "mobile access
+    // unavailable", for every role, not just Governor.
+    vi.resetModules();
+    vi.stubEnv("EXPO_PUBLIC_API_BASE_URL", "https://example.vercel.app/api");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ ok: true }),
+    } as Response));
+
+    const { apiFetch: reimportedApiFetch } = await import("./api");
+    await reimportedApiFetch("/api/me");
+
+    expect(fetch).toHaveBeenCalledWith(
+      "https://example.vercel.app/api/me",
+      expect.anything(),
+    );
+
+    vi.unstubAllEnvs();
+  });
+
   it("waits for Clerk to rehydrate before judging who is signed in", async () => {
     let hydrated = false;
     vi.mocked(clerkHydrated).mockImplementation(async () => {
