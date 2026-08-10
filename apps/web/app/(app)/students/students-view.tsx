@@ -60,12 +60,22 @@ function StudentTableRow({
   const [editing, setEditing] = useState(false);
   const [studentId, setStudentId] = useState(student.studentId);
   const [program, setProgram] = useState(student.program);
+  // Spec #121: a correction that actually changes a value freezes the
+  // Student's already-printed QR Card (its payload was captured at print
+  // time; the record wasn't). Nothing is persisted for this — the fix is
+  // telling the Officer right here, in the same interaction, and handing
+  // them the replacement download. Cleared on the next edit so it can't
+  // linger past the correction it belongs to.
+  const [cardInvalidated, setCardInvalidated] = useState(false);
 
   const save = useMutation({
     mutationFn: () => correctStudent(student.id, { studentId, program }),
     onSuccess: (result) => {
       if (result.errors.length > 0) return;
       setEditing(false);
+      setCardInvalidated(
+        studentId.trim() !== student.studentId || program !== student.program,
+      );
       queryClient.invalidateQueries({ queryKey: studentsQueryKey });
     },
   });
@@ -96,28 +106,60 @@ function StudentTableRow({
 
   if (!editing) {
     return (
-      <TableRow>
-        {checkboxCell}
-        <TableCell>{student.name}</TableCell>
-        <TableCell>{student.email}</TableCell>
-        <TableCell>{student.studentId}</TableCell>
-        <TableCell>{student.program}</TableCell>
-        <TableCell>
-          <Badge variant={student.role === "student" ? "secondary" : "default"}>
-            {ROLE_LABEL[student.role]}
-          </Badge>
-        </TableCell>
-        <TableCell className="text-right">
-          <Button type="button" variant="link" size="sm" onClick={() => setEditing(true)}>
-            Correct
-          </Button>
-        </TableCell>
-        <TableCell className="text-right">
-          <Button variant="ghost" size="sm" disabled={isDownloading} onClick={onDownload}>
-            <Download className="size-4" />
-          </Button>
-        </TableCell>
-      </TableRow>
+      <>
+        <TableRow>
+          {checkboxCell}
+          <TableCell>{student.name}</TableCell>
+          <TableCell>{student.email}</TableCell>
+          <TableCell>{student.studentId}</TableCell>
+          <TableCell>{student.program}</TableCell>
+          <TableCell>
+            <Badge variant={student.role === "student" ? "secondary" : "default"}>
+              {ROLE_LABEL[student.role]}
+            </Badge>
+          </TableCell>
+          <TableCell className="text-right">
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              onClick={() => {
+                setCardInvalidated(false);
+                setEditing(true);
+              }}
+            >
+              Correct
+            </Button>
+          </TableCell>
+          <TableCell className="text-right">
+            <Button variant="ghost" size="sm" disabled={isDownloading} onClick={onDownload}>
+              <Download className="size-4" />
+            </Button>
+          </TableCell>
+        </TableRow>
+        {cardInvalidated && (
+          <TableRow>
+            {/* colSpan set past the real column count on purpose — browsers clamp
+                it to the table's actual width, so the banner spans the row without
+                a hand-counted number to keep in sync with the header. */}
+            <TableCell colSpan={100} className="py-2">
+              <div
+                role="alert"
+                className="flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300"
+              >
+                <span>
+                  {student.name}&apos;s printed QR Card no longer matches their record and will be
+                  rejected at the booth. Hand them a replacement.
+                </span>
+                <Button size="sm" disabled={isDownloading} onClick={onDownload}>
+                  <Download className="mr-2 size-4" />
+                  Download replacement card
+                </Button>
+              </div>
+            </TableCell>
+          </TableRow>
+        )}
+      </>
     );
   }
 
