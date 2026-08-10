@@ -2,6 +2,7 @@ import { attendanceSessions, events, payments, penalties, programs, semesters, s
 import { eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
+import type { DocumentProps } from "@react-pdf/renderer";
 import React from "react";
 import { requireCapability } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -142,7 +143,7 @@ export async function GET(
   reportData.aiNarrative = aiNarrative;
 
   const pdfBuffer = await renderToBuffer(
-    FinancialPdfDocument({ data: reportData }) as any,
+    FinancialPdfDocument({ data: reportData }) as React.ReactElement<DocumentProps>,
   );
 
   const filename = `financial-report-${semester.startDate}-to-${semester.endDate}.pdf`;

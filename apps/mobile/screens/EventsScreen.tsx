@@ -15,7 +15,6 @@ import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
 
 import type { EventRow, EventType } from "../lib/events";
-export type { EventRow, EventType };
 
 type EventStatus = "Active" | "Upcoming" | "Completed";
 
