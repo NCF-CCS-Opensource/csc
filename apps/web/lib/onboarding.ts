@@ -81,4 +81,4 @@ export function validateOnboarding(
 }
 
 export const ALREADY_TAKEN =
-  "That Student ID or email already belongs to another Student record. Ask a Governor to sort it out.";
+  "That Student ID or email already belongs to another Student record. An Officer or Governor can correct it from the Students page.";

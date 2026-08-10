@@ -31,6 +31,8 @@ import {
   identifyScanStudent,
   ScanApprovalError,
 } from "./scan-approval";
+import { buildQrPayload } from "./qr";
+import { correctStudent, StudentCorrectionError } from "./students";
 
 const governor = { role: "governor" as const };
 const officer = { role: "officer" as const };
@@ -456,6 +458,164 @@ describe("Event lifecycle", () => {
     });
     expect(await db.query.penalties.findFirst()).toBeDefined();
     expect(await db.query.payments.findFirst()).toBeDefined();
+  });
+});
+
+describe("Student correction", () => {
+  async function seedTwoStudents() {
+    const [student, other] = await db
+      .insert(students)
+      .values([
+        {
+          email: "student@example.com",
+          authUserId: "user_student",
+          name: "Grace Hopper",
+          program: "Computer Science",
+          studentId: "24-001",
+        },
+        {
+          email: "other@example.com",
+          authUserId: "user_other",
+          name: "Katherine Johnson",
+          program: "Computer Science",
+          studentId: "24-002",
+        },
+      ])
+      .returning();
+    return { student, other };
+  }
+
+  it("lets an Officer correct a Student's Student ID and Program", async () => {
+    const { student } = await seedTwoStudents();
+
+    const updated = await correctStudent(officer, student.id, {
+      studentId: "24-999",
+      program: "Information Technology",
+    });
+
+    expect(updated).toMatchObject({
+      studentId: "24-999",
+      program: "Information Technology",
+    });
+  });
+
+  it("lets a Governor correct a Student's Student ID and Program", async () => {
+    const { student } = await seedTwoStudents();
+
+    const updated = await correctStudent(governor, student.id, {
+      studentId: "24-999",
+      program: "Information Technology",
+    });
+
+    expect(updated).toMatchObject({
+      studentId: "24-999",
+      program: "Information Technology",
+    });
+  });
+
+  it("refuses a Student actor", async () => {
+    const { student } = await seedTwoStudents();
+
+    await expect(
+      correctStudent({ role: "student" }, student.id, {
+        studentId: "24-999",
+        program: "Information Technology",
+      }),
+    ).rejects.toEqual(new StudentCorrectionError("Forbidden"));
+    expect(
+      await db.query.students.findFirst({ where: eq(students.id, student.id) }),
+    ).toMatchObject({ studentId: "24-001", program: "Computer Science" });
+  });
+
+  it("refuses a Student ID already held by another Student, changing neither record", async () => {
+    const { student, other } = await seedTwoStudents();
+
+    await expect(
+      correctStudent(officer, student.id, {
+        studentId: other.studentId,
+        program: "Computer Science",
+      }),
+    ).rejects.toEqual(
+      new StudentCorrectionError(
+        "That Student ID already belongs to another Student",
+        "studentId",
+      ),
+    );
+    expect(
+      await db.query.students.findFirst({ where: eq(students.id, student.id) }),
+    ).toMatchObject({ studentId: "24-001" });
+    expect(
+      await db.query.students.findFirst({ where: eq(students.id, other.id) }),
+    ).toMatchObject({ studentId: "24-002" });
+  });
+
+  it("refuses an unknown Program", async () => {
+    const { student } = await seedTwoStudents();
+
+    await expect(
+      correctStudent(officer, student.id, {
+        studentId: "24-999",
+        program: "Underwater Basketry",
+      }),
+    ).rejects.toEqual(
+      new StudentCorrectionError("Select a valid Program", "program"),
+    );
+  });
+
+  it("keeps Attendance Sessions, Penalties, and Payments resolving to the same Student after a Student ID correction", async () => {
+    const { actor, event, student } = await seedScanFixture();
+    const [session] = await db
+      .insert(attendanceSessions)
+      .values({
+        eventId: event.id,
+        studentId: student.id,
+        half: "am",
+        timeIn: new Date("2026-07-15T08:00:00Z"),
+      })
+      .returning();
+    await syncPenaltyForSession(session.id);
+    const penalty = await db.query.penalties.findFirst();
+    await recordPayments([penalty!.id], actor.id);
+
+    await correctStudent(officer, student.id, {
+      studentId: "24-999",
+      program: student.program,
+    });
+
+    expect(
+      await db.query.attendanceSessions.findFirst({
+        where: eq(attendanceSessions.studentId, student.id),
+      }),
+    ).toBeDefined();
+    expect(
+      await db.query.penalties.findFirst({ where: eq(penalties.studentId, student.id) }),
+    ).toBeDefined();
+    expect(await db.query.payments.findFirst()).toMatchObject({
+      penaltyId: penalty!.id,
+    });
+  });
+
+  it("rejects a stale QR payload and accepts a freshly generated one after correction", async () => {
+    const { actor, student } = await seedScanFixture();
+    const stalePayload = buildQrPayload(student);
+
+    const updated = await correctStudent(officer, student.id, {
+      studentId: "24-999",
+      program: "Information Technology",
+    });
+
+    await expect(identifyScanStudent(actor, stalePayload)).resolves.toEqual({
+      error: "QR does not match current Student record",
+    });
+    await expect(
+      identifyScanStudent(actor, buildQrPayload(updated)),
+    ).resolves.toEqual({
+      student: {
+        name: updated.name,
+        studentId: updated.studentId,
+        program: updated.program,
+      },
+    });
   });
 });
 

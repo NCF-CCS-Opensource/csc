@@ -2,9 +2,16 @@
 
 import { programs, students } from "@attendance/db";
 import { asc } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
+import type { ValidationError } from "@/lib/onboarding";
 import type { Role } from "@/lib/roles";
+import {
+  correctStudent as correctStudentCommand,
+  StudentCorrectionError,
+  type StudentCorrectionInput,
+} from "@/lib/students";
 
 export type StudentsSnapshot = {
   students: {
@@ -43,4 +50,27 @@ export async function studentsSnapshot(): Promise<StudentsSnapshot> {
     students: allStudents,
     programs: allPrograms.map((p) => p.name),
   };
+}
+
+// Corrects one Student's Student ID and Program in place (ADR-0014). Returns
+// field errors instead of throwing — a thrown Error loses its `field` across
+// the Server Action boundary, and the roster needs to know which input to
+// blame.
+export async function correctStudent(
+  id: string,
+  input: StudentCorrectionInput,
+): Promise<{ errors: ValidationError[] }> {
+  const actor = await requireOfficerOrGovernor();
+
+  try {
+    await correctStudentCommand(actor, id, input);
+  } catch (error) {
+    if (error instanceof StudentCorrectionError) {
+      return { errors: [{ field: error.field ?? "form", message: error.message }] };
+    }
+    throw error;
+  }
+
+  revalidatePath("/students");
+  return { errors: [] };
 }

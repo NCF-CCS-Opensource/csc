@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { studentsSnapshot, type StudentsSnapshot } from "./actions";
+import { correctStudent, studentsSnapshot, type StudentsSnapshot } from "./actions";
 import { studentsQueryKey } from "./query-key";
 
 const ALL_PROGRAMS = "__all__";
@@ -33,6 +33,145 @@ const ROLE_LABEL: Record<string, string> = {
   officer: "Officer",
   governor: "Governor",
 };
+
+type StudentRow = StudentsSnapshot["students"][number];
+
+// One row, editable in place (ADR-0014: any Officer or Governor may correct
+// Student ID and Program directly, no approval workflow). Name, email, and
+// role never appear in the edit form — there is nothing here to make them
+// editable. Selection and QR Card download (spec #119) are owned by the
+// parent — this row just renders the checkbox/button it's handed.
+function StudentTableRow({
+  student,
+  programs,
+  selected,
+  onToggleSelected,
+  isDownloading,
+  onDownload,
+}: {
+  student: StudentRow;
+  programs: string[];
+  selected: boolean;
+  onToggleSelected: (checked: boolean) => void;
+  isDownloading: boolean;
+  onDownload: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [studentId, setStudentId] = useState(student.studentId);
+  const [program, setProgram] = useState(student.program);
+
+  const save = useMutation({
+    mutationFn: () => correctStudent(student.id, { studentId, program }),
+    onSuccess: (result) => {
+      if (result.errors.length > 0) return;
+      setEditing(false);
+      queryClient.invalidateQueries({ queryKey: studentsQueryKey });
+    },
+  });
+
+  const errorFor = (field: string) =>
+    save.data?.errors.find((e) => e.field === field)?.message;
+  // save.isError covers what the action can't hand back as a field error —
+  // a thrown, unexpected failure (network blip, auth hiccup) — so a Save
+  // never fails silently (see attendance-grid.tsx's ScanCell).
+  const formError = errorFor("form") ?? (save.isError ? "Save failed" : undefined);
+
+  function cancel() {
+    setStudentId(student.studentId);
+    setProgram(student.program);
+    save.reset();
+    setEditing(false);
+  }
+
+  const checkboxCell = (
+    <TableCell>
+      <Checkbox
+        checked={selected}
+        onCheckedChange={(checked) => onToggleSelected(checked === true)}
+        aria-label={`Select ${student.name}`}
+      />
+    </TableCell>
+  );
+
+  if (!editing) {
+    return (
+      <TableRow>
+        {checkboxCell}
+        <TableCell>{student.name}</TableCell>
+        <TableCell>{student.email}</TableCell>
+        <TableCell>{student.studentId}</TableCell>
+        <TableCell>{student.program}</TableCell>
+        <TableCell>
+          <Badge variant={student.role === "student" ? "secondary" : "default"}>
+            {ROLE_LABEL[student.role]}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-right">
+          <Button type="button" variant="link" size="sm" onClick={() => setEditing(true)}>
+            Correct
+          </Button>
+        </TableCell>
+        <TableCell className="text-right">
+          <Button variant="ghost" size="sm" disabled={isDownloading} onClick={onDownload}>
+            <Download className="size-4" />
+          </Button>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  return (
+    <TableRow>
+      {checkboxCell}
+      <TableCell>{student.name}</TableCell>
+      <TableCell>{student.email}</TableCell>
+      <TableCell>
+        <Input
+          value={studentId}
+          onChange={(e) => setStudentId(e.target.value)}
+          className="w-32"
+        />
+        {errorFor("studentId") && (
+          <p className="text-destructive text-xs">{errorFor("studentId")}</p>
+        )}
+      </TableCell>
+      <TableCell>
+        <Select value={program} onValueChange={setProgram}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {programs.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {errorFor("program") && (
+          <p className="text-destructive text-xs">{errorFor("program")}</p>
+        )}
+      </TableCell>
+      <TableCell>
+        <Badge variant={student.role === "student" ? "secondary" : "default"}>
+          {ROLE_LABEL[student.role]}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right" colSpan={2}>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={cancel}>
+            Cancel
+          </Button>
+          <Button type="button" size="sm" disabled={save.isPending} onClick={() => save.mutate()}>
+            Save
+          </Button>
+        </div>
+        {formError && <p className="text-destructive text-xs">{formError}</p>}
+      </TableCell>
+    </TableRow>
+  );
+}
 
 // Single request path for a card download, one Student or many (spec #119):
 // a bare <a download> gives no feedback across a multi-second bulk render, so
@@ -197,44 +336,26 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
                   <TableHead>Student ID</TableHead>
                   <TableHead>Program</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead />
                   <TableHead className="text-right">QR Card</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selected.has(student.id)}
-                        onCheckedChange={(checked) => toggleOne(student.id, checked === true)}
-                        aria-label={`Select ${student.name}`}
-                      />
-                    </TableCell>
-                    <TableCell>{student.name}</TableCell>
-                    <TableCell>{student.email}</TableCell>
-                    <TableCell>{student.studentId}</TableCell>
-                    <TableCell>{student.program}</TableCell>
-                    <TableCell>
-                      <Badge variant={student.role === "student" ? "secondary" : "default"}>
-                        {ROLE_LABEL[student.role]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={isDownloading}
-                        onClick={() =>
-                          download.mutate({
-                            studentIds: [student.id],
-                            filename: `${student.studentId}-qr-card.pdf`,
-                          })
-                        }
-                      >
-                        <Download className="size-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                  <StudentTableRow
+                    key={student.id}
+                    student={student}
+                    programs={data.programs}
+                    selected={selected.has(student.id)}
+                    onToggleSelected={(checked) => toggleOne(student.id, checked)}
+                    isDownloading={isDownloading}
+                    onDownload={() =>
+                      download.mutate({
+                        studentIds: [student.id],
+                        filename: `${student.studentId}-qr-card.pdf`,
+                      })
+                    }
+                  />
                 ))}
               </TableBody>
             </Table>
