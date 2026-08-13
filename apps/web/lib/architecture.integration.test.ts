@@ -208,6 +208,32 @@ describe("Event lifecycle", () => {
     });
   });
 
+  it("lets a different Officer edit and delete another Officer's Event (ADR 0007)", async () => {
+    await db.insert(semesters).values({
+      startDate: "2026-06-01",
+      endDate: "2026-10-31",
+    });
+    const created = await createEvent(officer, {
+      name: "Foundation Day",
+      date: "2026-07-15",
+      type: "half_day",
+      halfDayPenaltyAmount: "50.00",
+    });
+    const otherOfficer = { role: "officer" as const };
+
+    const updated = await updateEvent(otherOfficer, created.id, {
+      ...created,
+      name: "CCS Foundation Day",
+      venue: created.venue ?? undefined,
+    });
+    expect(updated).toMatchObject({ name: "CCS Foundation Day" });
+
+    await deleteEvent(otherOfficer, created.id);
+    expect(
+      await db.query.events.findFirst({ where: eq(events.id, created.id) }),
+    ).toBeUndefined();
+  });
+
   it("allows only name and venue changes after attendance begins", async () => {
     await db.insert(semesters).values({
       startDate: "2026-06-01",

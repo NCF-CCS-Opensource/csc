@@ -2,16 +2,19 @@
 
 import { events } from "@attendance/db";
 import { desc } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   createEvent as createEventCommand,
+  deleteEvent as deleteEventCommand,
   deriveWholeDayPenalty,
   EVENT_TYPES,
   EventLifecycleError,
   findOpenSemester,
   parseEventInput,
+  updateEvent as updateEventCommand,
   type EventType,
 } from "@/lib/events";
 
@@ -85,4 +88,44 @@ export async function createEvent(formData: FormData) {
     throw error;
   }
   redirect("/events");
+}
+
+// Edit and delete run from a dialog on the same page rather than a full-page
+// form, so both report failure as a return value instead of a redirect —
+// the dialog stays open and shows the message inline (e.g. Semester-closure
+// rejections). No ownership check: any Officer may edit or delete any Event
+// (ADR 0007).
+export async function updateEvent(
+  id: string,
+  formData: FormData,
+): Promise<{ error: string | null }> {
+  const actor = await requireOfficerOrGovernor();
+  const input = parseEventInput({
+    name: String(formData.get("name") ?? "").trim(),
+    type: String(formData.get("type") ?? ""),
+    halfDayPenaltyAmount: String(formData.get("halfDayPenaltyAmount") ?? ""),
+    date: String(formData.get("date") ?? ""),
+    venue: String(formData.get("venue") ?? "").trim() || undefined,
+  });
+
+  try {
+    await updateEventCommand(actor, id, input);
+  } catch (error) {
+    if (error instanceof EventLifecycleError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath("/events");
+  return { error: null };
+}
+
+export async function deleteEvent(id: string): Promise<{ error: string | null }> {
+  const actor = await requireOfficerOrGovernor();
+  try {
+    await deleteEventCommand(actor, id);
+  } catch (error) {
+    if (error instanceof EventLifecycleError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath("/events");
+  return { error: null };
 }
