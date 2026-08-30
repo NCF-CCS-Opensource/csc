@@ -46,6 +46,30 @@ export function decodeQrPayload(raw: string): QrPayload | null {
   return { name, studentId, program };
 }
 
+// Why a Scan Approval is treated as a rejection. Shared by the Scan Approval
+// flow (scan-approval.ts) and the persistent Rejected-scans views, so the
+// reason vocabulary lives in one place. `student` is the current Student
+// record the payload references (null/undefined when it doesn't resolve).
+export type RejectionReason =
+  | "Unreadable QR"
+  | "QR does not match current Student record"
+  | "Rejected by Officer";
+
+export function qrRejectionReason(
+  decoded: ReturnType<typeof decodeQrPayload>,
+  student: { name: string; program: string } | null | undefined,
+): RejectionReason | null {
+  if (!decoded) return "Unreadable QR";
+  if (
+    !student ||
+    student.name !== decoded.name ||
+    student.program !== decoded.program
+  ) {
+    return "QR does not match current Student record";
+  }
+  return null;
+}
+
 export function isSessionAbsent(session: {
   timeIn: unknown;
   timeOut: unknown;

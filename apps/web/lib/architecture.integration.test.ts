@@ -32,6 +32,7 @@ import {
   ScanApprovalError,
 } from "./scan-approval";
 import { buildQrPayload } from "./qr";
+import { listOfficerRejections } from "./rejections";
 import { correctStudent, StudentCorrectionError } from "./students";
 
 const governor = { role: "governor" as const };
@@ -879,6 +880,103 @@ describe("Scan Approval", () => {
     expect(await db.query.scans.findFirst()).toBeUndefined();
     expect(await db.query.attendanceSessions.findFirst()).toBeUndefined();
     expect(await db.query.penalties.findFirst()).toBeUndefined();
+  });
+});
+
+describe("Rejected scans view", () => {
+  it("lists only the signed-in Officer's rejections with parsed details and reason", async () => {
+    const { actor, event, student } = await seedScanFixture();
+    const [otherOfficer] = await db
+      .insert(students)
+      .values({
+        email: "officer2@example.com",
+        authUserId: "user_officer2",
+        name: "Katherine Johnson",
+        program: "Computer Science",
+        studentId: "24-003",
+        role: "officer",
+      })
+      .returning();
+
+    // A mismatched-Student rejection by the acting Officer.
+    await applyScanDecision(actor, {
+      scanId: randomUUID(),
+      type: "reject",
+      eventId: event.id,
+      qrPayload: JSON.stringify({
+        name: "Wrong Name",
+        studentId: student.studentId,
+        program: "Information Technology",
+      }),
+      scannedAt: "2026-07-15T08:00:00.000Z",
+    });
+    // An unreadable rejection by the acting Officer.
+    await applyScanDecision(actor, {
+      scanId: randomUUID(),
+      type: "reject",
+      eventId: event.id,
+      qrPayload: "not-json",
+      scannedAt: "2026-07-15T09:00:00.000Z",
+    });
+    // A rejection by a different Officer — must not appear for the actor.
+    await applyScanDecision(otherOfficer, {
+      scanId: randomUUID(),
+      type: "reject",
+      eventId: event.id,
+      qrPayload: "not-json",
+      scannedAt: "2026-07-15T10:00:00.000Z",
+    });
+
+    const rejections = await listOfficerRejections(actor.id);
+    expect(rejections).toHaveLength(2);
+    expect(rejections.map(({ reason }) => reason)).toEqual([
+      "Unreadable QR",
+      "QR does not match current Student record",
+    ]);
+    expect(rejections.every(({ eventName }) => eventName === "Foundation Day")).toBe(true);
+    expect(rejections[1].student).toEqual({
+      name: "Wrong Name",
+      studentId: student.studentId,
+      program: "Information Technology",
+    });
+  });
+
+  it("labels an explicit rejection of an otherwise matching QR as Rejected by Officer", async () => {
+    const { actor, event, student } = await seedScanFixture();
+    await applyScanDecision(actor, {
+      scanId: randomUUID(),
+      type: "reject",
+      eventId: event.id,
+      qrPayload: JSON.stringify({
+        name: student.name,
+        studentId: student.studentId,
+        program: student.program,
+      }),
+      scannedAt: "2026-07-15T08:00:00.000Z",
+    });
+
+    const [rejection] = await listOfficerRejections(actor.id);
+    expect(rejection.reason).toBe("Rejected by Officer");
+    expect(rejection.student).toEqual({
+      name: student.name,
+      studentId: student.studentId,
+      program: student.program,
+    });
+  });
+
+  it("shows no parsed Student details for an unreadable rejection", async () => {
+    const { actor, event } = await seedScanFixture();
+    await applyScanDecision(actor, {
+      scanId: randomUUID(),
+      type: "reject",
+      eventId: event.id,
+      qrPayload: "not-json",
+      scannedAt: "2026-07-15T08:00:00.000Z",
+    });
+
+    const [rejection] = await listOfficerRejections(actor.id);
+    expect(rejection.student).toBeNull();
+    expect(rejection.reason).toBe("Unreadable QR");
   });
 });
 import { randomUUID } from "node:crypto";
