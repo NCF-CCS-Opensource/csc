@@ -60,6 +60,18 @@ function qrError(
     : null;
 }
 
+type PublicStudent = { name: string; studentId: string; program: string };
+
+function toPublicStudent(
+  student: Awaited<ReturnType<typeof findReferencedStudent>>["student"],
+): PublicStudent {
+  return {
+    name: student!.name,
+    studentId: student!.studentId,
+    program: student!.program,
+  };
+}
+
 export async function identifyScanStudent(
   actor: { role: Role },
   qrPayload: string,
@@ -69,15 +81,7 @@ export async function identifyScanStudent(
   }
   const { decoded, student } = await findReferencedStudent(db, qrPayload);
   const error = qrError(decoded, student);
-  return error
-    ? { error }
-    : {
-        student: {
-          name: student!.name,
-          studentId: student!.studentId,
-          program: student!.program,
-        },
-      };
+  return error ? { error } : { student: toPublicStudent(student) };
 }
 
 export async function applyScanDecision(
@@ -139,12 +143,23 @@ export async function applyScanDecision(
       return {
         ok: true as const,
         outcome: "approved" as const,
-        student: {
-          name: student.name,
-          studentId: student.studentId,
-          program: student.program,
-        },
+        alreadyScanned: true as const,
+        student: toPublicStudent(student),
       };
+    }
+
+    async function alreadyScannedForMode(
+      studentId: string,
+      mode: BoothMode,
+    ): Promise<boolean> {
+      const prior = await transaction.query.scans.findFirst({
+        where: sql`${scans.eventId} = ${decision.eventId}
+          and ${scans.studentId} = ${studentId}
+          and ${scans.result} = 'approved'
+          and ${scans.mode} = ${mode}
+          and ${scans.id} <> ${decision.scanId}`,
+      });
+      return !!prior;
     }
 
     const event = await transaction.query.events.findFirst({
@@ -190,6 +205,7 @@ export async function applyScanDecision(
     if (!student) throw new ScanApprovalError("Student not found", 404);
 
     const mode = decision.mode as BoothMode;
+    const alreadyScanned = await alreadyScannedForMode(student.id, mode);
     await transaction.insert(scans).values({
       id: decision.scanId,
       eventId: event.id,
@@ -240,11 +256,8 @@ export async function applyScanDecision(
     return {
       ok: true as const,
       outcome: "approved" as const,
-      student: {
-        name: student.name,
-        studentId: student.studentId,
-        program: student.program,
-      },
+      alreadyScanned,
+      student: toPublicStudent(student),
     };
   });
   if (!result.ok) throw new ScanApprovalError(result.error);

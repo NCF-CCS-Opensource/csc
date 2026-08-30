@@ -771,10 +771,104 @@ describe("Scan Approval", () => {
     const first = await applyScanDecision(actor, decision);
     const replay = await applyScanDecision(actor, decision);
 
-    expect(replay).toEqual(first);
+    expect(first).toMatchObject({ ok: true, outcome: "approved" });
+    expect(replay).toMatchObject({
+      ok: true,
+      outcome: "approved",
+      alreadyScanned: true,
+    });
     expect(await db.query.scans.findMany()).toHaveLength(1);
     expect(await db.query.attendanceSessions.findMany()).toHaveLength(1);
     expect(await db.query.penalties.findMany()).toHaveLength(1);
+  });
+
+  it("first records an approval as newly scanned, not already scanned", async () => {
+    const { actor, event, student } = await seedScanFixture();
+
+    const response = await applyScanDecision(actor, {
+      scanId: randomUUID(),
+      type: "approve",
+      eventId: event.id,
+      mode: "time_in_am",
+      qrPayload: JSON.stringify({
+        name: student.name,
+        studentId: student.studentId,
+        program: student.program,
+      }),
+      scannedAt: "2026-07-15T08:00:00.000Z",
+    });
+
+    expect(response).toMatchObject({
+      ok: true,
+      outcome: "approved",
+      alreadyScanned: false,
+    });
+  });
+
+  it("flags a rescan of an already-scanned Student for the same Event and mode, regardless of a fresh UUID", async () => {
+    const { actor, event, student } = await seedScanFixture();
+    const qrPayload = JSON.stringify({
+      name: student.name,
+      studentId: student.studentId,
+      program: student.program,
+    });
+
+    await applyScanDecision(actor, {
+      scanId: randomUUID(),
+      type: "approve",
+      eventId: event.id,
+      mode: "time_in_am",
+      qrPayload,
+      scannedAt: "2026-07-15T08:00:00.000Z",
+    });
+    const rescan = await applyScanDecision(actor, {
+      scanId: randomUUID(),
+      type: "approve",
+      eventId: event.id,
+      mode: "time_in_am",
+      qrPayload,
+      scannedAt: "2026-07-15T08:05:00.000Z",
+    });
+
+    expect(rescan).toMatchObject({
+      ok: true,
+      outcome: "approved",
+      alreadyScanned: true,
+    });
+    expect(await db.query.attendanceSessions.findMany()).toHaveLength(1);
+    expect(await db.query.penalties.findMany()).toHaveLength(1);
+  });
+
+  it("does not flag a different mode of the same Student as already scanned", async () => {
+    const { actor, event, student } = await seedScanFixture();
+    const qrPayload = JSON.stringify({
+      name: student.name,
+      studentId: student.studentId,
+      program: student.program,
+    });
+
+    await applyScanDecision(actor, {
+      scanId: randomUUID(),
+      type: "approve",
+      eventId: event.id,
+      mode: "time_in_am",
+      qrPayload,
+      scannedAt: "2026-07-15T08:00:00.000Z",
+    });
+    const timeOut = await applyScanDecision(actor, {
+      scanId: randomUUID(),
+      type: "approve",
+      eventId: event.id,
+      mode: "time_out_am",
+      qrPayload,
+      scannedAt: "2026-07-15T17:00:00.000Z",
+    });
+
+    expect(timeOut).toMatchObject({
+      ok: true,
+      outcome: "approved",
+      alreadyScanned: false,
+    });
   });
 
   it("rejects a conflicting reuse of a Scan UUID without changing attendance", async () => {
