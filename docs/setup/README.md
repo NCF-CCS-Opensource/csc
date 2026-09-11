@@ -33,7 +33,7 @@ Commit the migration with the code that needs it.
 
 ## 2. Apply database migrations
 
-The root `.env` must contain the test-production `DATABASE_URL`. Drizzle runs from `packages/db`, so create its ignored environment symlink once:
+The root `.env` must contain the production `DATABASE_URL` (or `POSTGRES_URL` from the Supabase connection string). Drizzle runs from `packages/db`, so create its ignored environment symlink once:
 
 ```bash
 cd packages/db
@@ -47,19 +47,41 @@ Apply every committed migration before deploying code that requires the new sche
 pnpm --filter @attendance/db db:migrate
 ```
 
-Do not treat a merged migration as applied. Confirm the command reports `migrations applied successfully`; otherwise the deployed app and Supabase schema can drift.
+Confirm the command reports `migrations applied successfully`; otherwise the deployed app and Supabase schema can drift.
+
+## 2b. Import the official enrollment roster (513 students)
+
+The CCS enrollment roster (`Enrollment List.xlsx`) contains the 513 official students. Import them into the production `enrollment_roster` table so that students' Google SSO logins can automatically claim their identity at onboarding:
+
+```bash
+# Against production database:
+DATABASE_URL="<production-supabase-url>" node packages/db/scripts/import-enrollment-roster.mjs "Enrollment List.xlsx"
+```
+
+Verify in Supabase Dashboard > Table Editor > `enrollment_roster` that **513 rows** are present.
+
+> [!NOTE]
+> Do **not** run `seed-all-roster-students.mjs` on production. That script is reserved for local testing and staging environments; in production, `students` rows are created with verified Clerk account IDs when each student signs in with their `@gbox.ncf.edu.ph` email for the first time.
 
 ## 3. Deploy the web app and API
 
-Merging or pushing the release commit to `main` triggers the Vercel production deployment for `apps/web`.
+Merging or pushing the release commit to `main` triggers the Vercel production deployment for `apps/web` (or `develop` for staging).
 
-The Vercel Production environment must contain:
+### Vercel + Supabase Integration
+Because Supabase is connected to Vercel via the native Supabase Integration, Vercel automatically receives:
+- `POSTGRES_URL` (Supavisor transaction pooler on port 6543)
+- `POSTGRES_URL_NON_POOLING` (direct connection on port 5432)
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`
 
-- `DATABASE_URL`
+`apps/web/lib/db.ts` automatically resolves `DATABASE_URL || POSTGRES_URL`, connecting seamlessly to the pooled Postgres instance without manual configuration.
+
+The remaining required variables in Vercel Project Settings are:
+
 - `CLERK_SECRET_KEY`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
-- `GOVERNOR_EMAILS`
+- `GOVERNOR_EMAILS` (comma-separated `@gbox.ncf.edu.ph` addresses)
+- `GEMINI_API_KEY` (optional, for report narrative generation)
 
 Redeploy after changing any Vercel environment variable. When deployment finishes, verify the public API is reachable without Vercel SSO:
 

@@ -38,10 +38,17 @@ pnpm db:migrate:local
 ### Step 3: Seed initial test data
 
 ```bash
+# Seed 3 basic student fixtures
 pnpm db:seed:local
+
+# OR import all 513 official enrollment roster rows from Enrollment List.xlsx:
+pnpm db:import-roster:local
+
+# (Optional) Populate all 513 roster students directly into the `students` table for UI testing:
+pnpm db:seed-all:local
 ```
 
-This populates sample student records and default programs (`Computer Science`, `Information Technology`, `Information Systems`, `Associate in Computer Technology`).
+This populates the default programs (`Computer Science`, `Information Technology`, `Information System`, `ACT`) and the 513 student roster records.
 
 ### Step 4: Verify in Supabase Studio
 
@@ -155,8 +162,10 @@ pnpm supabase:stop        # Stop Supabase Docker containers
 pnpm supabase:status      # Show URLs and status of Supabase services
 
 # Database commands
-pnpm db:migrate:local     # Apply Drizzle migrations to local Docker DB
-pnpm db:seed:local        # Seed sample students into local Docker DB
+pnpm db:migrate:local       # Apply Drizzle migrations to local Docker DB
+pnpm db:seed:local          # Seed 3 sample students into local Docker DB
+pnpm db:import-roster:local # Import all 513 enrollment rows from Enrollment List.xlsx
+pnpm db:seed-all:local      # Sync all 513 roster students into students table
 
 # Docker Compose commands
 pnpm docker:up            # Start all services (db, studio, meta, web)

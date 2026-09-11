@@ -4,11 +4,19 @@ Everything code-side is scaffolded. These steps need your own Supabase and Verce
 
 The current public test-production web/API domain is `https://attendance.ncfccs.org`. For repeat deployments to that environment, use the [test-production deployment runbook](./README.md).
 
-## 1. Supabase project
+## 1. Supabase project & Vercel Integration
 
 1. Create a project at https://supabase.com/dashboard.
-2. No Supabase Auth variables are needed. Identity is Clerk for both `apps/web` and `apps/mobile` (step 5); Supabase is a Postgres and Storage host only (ADR-0012), so this project contributes just `DATABASE_URL`.
-3. Settings > Database > Connection string ("Transaction" pooler, port 6543): copy into `.env` as `DATABASE_URL`. This connects Drizzle to the same Supabase Postgres database; it is not a second database provider.
+2. No Supabase Auth variables are needed. Identity is Clerk for both `apps/web` and `apps/mobile` (step 5); Supabase is a Postgres and Storage host only (ADR-0012).
+3. **Connect Supabase to Vercel**:
+   - In Vercel Project Settings > **Integrations** (or via Supabase dashboard > Integrations > Vercel), connect your Supabase project.
+   - Vercel automatically creates:
+     - `POSTGRES_URL` (Supavisor Transaction Pooler on port 6543)
+     - `POSTGRES_URL_NON_POOLING` (Direct connection on port 5432)
+     - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`
+   - `apps/web/lib/db.ts` automatically resolves `process.env.DATABASE_URL || process.env.POSTGRES_URL`, so the web app connects immediately.
+4. For local developer machines or CI running migrations:
+   - Supabase Dashboard > Settings > Database > Connection string ("Transaction" pooler, port 6543): copy into your local `.env` as `DATABASE_URL`.
 
 ## 2. Run the Drizzle migrations
 
@@ -22,22 +30,23 @@ Then:
 
 ```bash
 pnpm --filter @attendance/db db:generate   # writes packages/db/migrations from src/schema.ts (only needed after a schema change)
-pnpm --filter @attendance/db db:migrate    # applies migrations against DATABASE_URL
+pnpm --filter @attendance/db db:migrate    # applies migrations against DATABASE_URL (or POSTGRES_URL)
 ```
 
-`students`, `programs` (seeded with the 4 defaults), `semesters`, `events`, `attendance_sessions`, `scans`, `penalties`, and `payments` exist so far. Verify in Supabase dashboard > Table Editor, or from `packages/db`:
+`students`, `programs` (seeded with the 4 defaults: `Computer Science`, `Information Technology`, `Information System`, `ACT`), `enrollment_roster`, `semesters`, `events`, `attendance_sessions`, `scans`, `penalties`, and `payments` exist. Verify in Supabase dashboard > Table Editor.
 
-```js
-// packages/db/verify.mjs — delete after running
-import postgres from "postgres";
-const sql = postgres(process.env.DATABASE_URL);
-console.log(await sql`select table_name from information_schema.tables where table_schema='public' order by table_name`);
-await sql.end();
-```
+## 2b. Import the official enrollment roster (513 students)
+
+The official CCS enrollment list (`Enrollment List.xlsx`) must be loaded into the `enrollment_roster` table. This allows students to immediately claim their student records when logging in via `@gbox.ncf.edu.ph` Google SSO:
 
 ```bash
-cd packages/db && node --env-file=.env verify.mjs && rm verify.mjs
+DATABASE_URL="<your-supabase-connection-string>" node packages/db/scripts/import-enrollment-roster.mjs "Enrollment List.xlsx"
 ```
+
+Verify in Supabase Table Editor that `enrollment_roster` has **513 rows** across BSCS, BSIT, BSIS, and ACT programs.
+
+> [!IMPORTANT]
+> Do **not** run `seed-all-roster-students.mjs` on production. Production student records must be created organically through Clerk Google SSO onboarding so each student's record is tied to their real Clerk user ID. `seed-all-roster-students.mjs` is strictly for local Docker and staging test environments.
 
 ## 1b. Bootstrap the Governor account
 
@@ -55,9 +64,15 @@ Set the variable *and redeploy* before the first sign-in to avoid this.
 
 1. https://vercel.com/new, import this repo, set **Root Directory** to `apps/web`.
 2. Framework preset: Next.js (auto-detected).
-3. Add all `.env.example` vars in Vercel project settings — `DATABASE_URL`, `GOVERNOR_EMAILS`, Clerk (`CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL` — see step 5). Vercel doesn't read your local `.env` — these must be entered in the dashboard, and adding/editing one after the first deploy needs a redeploy to take effect. `EXPO_PUBLIC_*` vars don't belong here — they're mobile-only, go in `apps/mobile/.env`.
-4. Deploy. Then add the deployed origin to Clerk's allowed domains for this instance and redeploy if you changed any variable.
-5. **If `/onboarding` (or any DB-backed page) fails to load after deploy**: it's almost always step 2's migration never having actually run against this Supabase project (check Table Editor for the 8 tables), or a missing/stale env var in this Vercel project (not your local `.env`).
+3. With the Supabase Vercel integration connected, database variables (`POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`) are automatically set. Add the remaining variables in Vercel project settings:
+   - `CLERK_SECRET_KEY`
+   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+   - `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
+   - `GOVERNOR_EMAILS` (e.g. `governor@gbox.ncf.edu.ph`)
+   - `GEMINI_API_KEY` (optional, for report narrative generation)
+   *(Note: `EXPO_PUBLIC_*` variables are mobile-only and belong in `apps/mobile/.env`, not Vercel).*
+4. Deploy. Then add the deployed origin (`https://attendance.ncfccs.org` or your Vercel URL) to Clerk's allowed domains for this instance and redeploy if you changed any variable.
+5. **If `/onboarding` (or any DB-backed page) fails to load after deploy**: it's almost always step 2's migration never having actually run against this Supabase project (check Table Editor for the 9 tables), or a missing/stale env var in this Vercel project (not your local `.env`).
 6. **If web sign-in fails or bounces back to `/sign-in`**: check, in order — (a) the Clerk keys are set in *this* Vercel project (not just local `.env`), redeployed after setting them; (b) the deployed origin is allowed on the Clerk instance; (c) Clerk's Google connection is enabled and its sign-up restriction still allows `@gbox.ncf.edu.ph`.
 
 ### Custom domain via Cloudflare DNS

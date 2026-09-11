@@ -13,6 +13,8 @@
     "watch:obsidian": "./scripts/watch-obsidian.sh",
     "db:migrate:local": "DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres pnpm --filter @attendance/db db:migrate",
     "db:seed:local": "DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres node --env-file=.env.docker packages/db/scripts/seed-students.mjs",
+    "db:import-roster:local": "DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres node packages/db/scripts/import-enrollment-roster.mjs \"Enrollment List.xlsx\"",
+    "db:seed-all:local": "DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres node packages/db/scripts/seed-all-roster-students.mjs",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
