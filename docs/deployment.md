@@ -16,6 +16,8 @@ This is the DevOps entry point for CCS Attendance. It summarizes the repeatable 
 
 The documented test-production endpoint is `https://attendance.ncfccs.org`. Confirm the live target in Vercel before deploying; the repository does not verify external state.
 
+A self-hosted alternative to the Vercel path exists in-repo as `docker-compose.yml` / `Dockerfile` (web) plus the `db`/`meta`/`studio` services (Supabase Postgres + Studio, no managed Auth/Storage/backups). See [Self-hosted Docker deployment](#self-hosted-docker-deployment) below; day-to-day local use of the same stack is [docs/setup/docker.md](./setup/docker.md).
+
 ## Prerequisites
 
 - Node.js 20 or newer
@@ -165,13 +167,69 @@ When deploying the approved architecture refactor:
 5. Build and distribute the mobile queue/Recent Scans/role-gate release only after the server contract is live.
 6. Verify a pre-upgrade queued decision still synchronizes after upgrade.
 
+## Self-hosted Docker deployment
+
+Use this path instead of Vercel when running the stack on your own host (VM, bare metal, etc.). It builds `apps/web` into the standalone `csc-web` image and runs it alongside a self-managed Postgres (the `public.ecr.aws/supabase/postgres` image, not Supabase's managed cloud — no automatic backups, PITR, or Auth/Storage APIs).
+
+### Environment
+
+Copy `.env.docker` to `.env` and fill in real values before deploying:
+
+```bash
+cp .env.docker .env
+```
+
+Required overrides for a real deployment (the file ships with local/dev defaults):
+
+- `CLERK_SECRET_KEY` / `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — production Clerk keys, not the `sk_test_...` / `pk_test_...` dev keys
+- `POSTGRES_PASSWORD` — replace the `postgres` default
+- `GOVERNOR_EMAILS` — real Governor allowlist
+- `EXPO_PUBLIC_API_BASE_URL` — the public origin mobile clients will hit, not `127.0.0.1`
+
+`docker-compose.yml` reads these from the shell environment (via `${VAR:-default}`), so `export $(grep -v '^#' .env | xargs)` or an equivalent before `docker compose up`, or point compose at the file with `docker compose --env-file .env up -d`.
+
+### Build and run
+
+```bash
+docker compose up -d --build      # db, meta, studio, web
+# or: pnpm docker:up
+```
+
+`web` waits on `db`'s healthcheck. Studio (`STUDIO_PORT`, default 54323) is a local admin UI, not part of the production surface — don't expose it publicly without auth in front of it.
+
+### Migrate
+
+Point Drizzle at the running `db` container:
+
+```bash
+DATABASE_URL="postgresql://postgres:<POSTGRES_PASSWORD>@localhost:${POSTGRES_PORT:-54322}/postgres" \
+  pnpm --filter @attendance/db db:migrate
+```
+
+### Update a running deployment
+
+```bash
+git pull
+docker compose up -d --build web   # rebuild and replace only the web container
+```
+
+The `db` container is left untouched; run the migration step above before or as part of the rollout if the release includes a schema change (same ordering rule as the Vercel path).
+
+### Logs and teardown
+
+```bash
+docker compose logs -f web
+docker compose down                # add -v to also drop the Postgres volume (destroys data)
+```
+
 ## Rollback
 
 | Workload | Rollback |
 | --- | --- |
-| Web and routes | Promote the previous successful Vercel deployment |
+| Web and routes (Vercel) | Promote the previous successful Vercel deployment |
+| Web and routes (Docker) | `git checkout <previous-sha> && docker compose up -d --build web` |
 | Mobile | Rebuild and redistribute the previous known-good commit |
-| Database | No automatic down migration; restore only under an approved recovery plan or forward-fix with a new reviewed migration |
+| Database | No automatic down migration; restore only under an approved recovery plan or forward-fix with a new reviewed migration. On Docker, take your own `pg_dump`/volume backups — the self-hosted Postgres has no managed backup |
 | Environment | Restore the previous values and redeploy/rebuild the affected workload |
 
 If code depends on a newly applied schema, do not roll back only the web deployment without checking compatibility.
