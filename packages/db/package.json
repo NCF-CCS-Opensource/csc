@@ -13,7 +13,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:seed": "node --env-file=../../.env scripts/seed-students.mjs",
-    "db:import-enrollment": "node --env-file=../../.env scripts/import-enrollment-roster.mjs ../../Enrollment List.xlsx"
+    "db:import-enrollment": "node --env-file=../../.env scripts/import-enrollment-roster.mjs \"../../Enrollment List.xlsx\"",
+    "db:seed-all-roster": "node --env-file=../../.env scripts/seed-all-roster-students.mjs"
   },
   "dependencies": {
     "drizzle-orm": "^0.38.3",

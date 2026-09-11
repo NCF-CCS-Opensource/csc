@@ -31,15 +31,15 @@ The documented test-production endpoint is `https://attendance.ncfccs.org`. Conf
 
 | Variable | Purpose | Exposure |
 | --- | --- | --- |
-| `DATABASE_URL` | Supabase Postgres transaction-pooler connection | Server only |
+| `DATABASE_URL` / `POSTGRES_URL` | Supabase Postgres transaction-pooler connection (injected automatically when connected via Vercel Supabase integration) | Server only |
 | `CLERK_SECRET_KEY` | Clerk server key — the web module's only identity provider | Server only |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk client key | Public |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` — keeps Clerk's redirects on the self-hosted page | Public |
 | `GOVERNOR_EMAILS` | Comma-separated Governor allowlist, read at onboarding | Server only |
 
-The web module no longer holds Supabase Auth variables: identity is Clerk (ADR-0012), and Supabase is only where Postgres lives.
+The web module no longer holds Supabase Auth variables: identity is Clerk (ADR-0012), and Supabase is strictly the Postgres and Storage host. Connecting Supabase to Vercel via the native integration automatically provides `POSTGRES_URL` (transaction pooled, port 6543) and `POSTGRES_URL_NON_POOLING` (direct, port 5432).
 
-Never place `DATABASE_URL` or a Supabase service-role key in an `EXPO_PUBLIC_*` or `NEXT_PUBLIC_*` variable.
+Never place `DATABASE_URL`, `POSTGRES_URL`, or a Supabase service-role key in an `EXPO_PUBLIC_*` or `NEXT_PUBLIC_*` variable.
 
 ### Mobile build
 

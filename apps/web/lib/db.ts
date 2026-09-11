@@ -1,3 +1,9 @@
 import { createDb } from "@attendance/db";
 
-export const db = createDb(process.env.DATABASE_URL!);
+const connectionString =
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL ||
+  "postgresql://postgres:postgres@localhost:5432/placeholder";
+
+export const db = createDb(connectionString);
+
