@@ -5,6 +5,8 @@ dist/
 .expo/
 .env
 .env.local
+# Enrollment workbooks contain student PII and stay local.
+Enrollment List.xlsx
 *.log
 .DS_Store
 .idea/
@@ -17,3 +19,11 @@ graphify-out/cache/
 graphify-out/graph.html
 graphify-out/cost.json
 graphify-out/20*
+
+# Supabase CLI local cache
+supabase/.temp/
+supabase/.branches/
+
+# Agent receipts
+receipts/
+review-receipts/

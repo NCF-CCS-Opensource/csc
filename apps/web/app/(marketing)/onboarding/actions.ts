@@ -1,34 +1,19 @@
 "use server";
 
 import { currentUser } from "@clerk/nextjs/server";
-import { programs, students } from "@attendance/db";
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
 import { hasStudentRecord } from "@/lib/auth";
-import {
-  ALREADY_TAKEN,
-  validateOnboarding,
-  verifiedPrimaryEmail,
-  type ValidationError,
-} from "@/lib/onboarding";
-import { determineRole } from "@/lib/roles";
+import { claimRosterByStudentId } from "@/lib/enrollment-roster";
+import { isSchoolEmail, verifiedPrimaryEmail, type ValidationError } from "@/lib/onboarding";
 
-const GOVERNOR_EMAILS = (process.env.GOVERNOR_EMAILS ?? "")
-  .split(",")
-  .map((e) => e.trim())
-  .filter(Boolean);
-
-// Test-only escape hatch, unset in production. Also needs a matching
-// allowlist exception in Clerk's dashboard (Configure > Restrictions) — that
-// is the layer which actually gates sign-in.
 const ONBOARDING_TEST_EMAILS = (process.env.ONBOARDING_TEST_EMAILS ?? "")
   .split(",")
-  .map((e) => e.trim())
+  .map((email) => email.trim())
   .filter(Boolean);
 
 export type OnboardingState = { errors: ValidationError[] };
 
-export async function completeOnboarding(
+export async function claimEnrollmentRoster(
   _prevState: OnboardingState,
   formData: FormData,
 ): Promise<OnboardingState> {
@@ -43,41 +28,26 @@ export async function completeOnboarding(
       errors: [{ field: "email", message: "Your Google account has no verified email address." }],
     };
   }
+  if (!isSchoolEmail(email, ONBOARDING_TEST_EMAILS)) {
+    return { errors: [{ field: "email", message: "Email must be a @gbox.ncf.edu.ph address" }] };
+  }
 
-  const input = {
-    email: email.toLowerCase(),
-    name: user.fullName?.trim() ?? "",
-    program: String(formData.get("program") ?? ""),
-    studentId: String(formData.get("studentId") ?? "").trim(),
-  };
+  const name = user.fullName?.trim() ?? "";
+  if (!name) {
+    return { errors: [{ field: "studentId", message: "Your Google account has no name set." }] };
+  }
+  const studentId = String(formData.get("studentId") ?? "").trim();
+  if (!studentId) return { errors: [{ field: "studentId", message: "Student ID is required" }] };
 
-  const validPrograms = (await db.select({ name: programs.name }).from(programs)).map(
-    (row) => row.name,
-  );
-
-  const errors = validateOnboarding(input, validPrograms, ONBOARDING_TEST_EMAILS);
-  if (errors.length > 0) return { errors };
-
-  // Program and Student ID stay here, never in Clerk metadata (ADR 0012):
-  // Clerk answers who this is, the database answers everything else.
-  const [created] = await db
-    .insert(students)
-    .values({
-      authUserId: user.id,
-      email: input.email,
-      name: input.name,
-      program: input.program,
-      studentId: input.studentId,
-      // Governor bootstrap: the configured list decides the role at record
-      // creation — the only moment it is consulted.
-      role: determineRole(input.email, GOVERNOR_EMAILS),
-    })
-    .onConflictDoNothing()
-    .returning();
-
-  // Lost to somebody else's email or student id. Nothing was created, so the
-  // Pending Student stays pending rather than looping on a missing row.
-  if (!created) return { errors: [{ field: "studentId", message: ALREADY_TAKEN }] };
+  const created = await claimRosterByStudentId({ authUserId: user.id, email, name }, studentId);
+  if (!created) {
+    return {
+      errors: [{
+        field: "studentId",
+        message: "That Student ID could not be matched to your Google profile. Contact an Officer.",
+      }],
+    };
+  }
 
   // Nothing is mailed: the new Student lands where their live QR and their QR
   // Card download already are. Unbranched on purpose — a bootstrap Governor

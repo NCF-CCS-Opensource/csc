@@ -1,0 +1,91 @@
+name: csc-stack
+
+services:
+  # Supabase Postgres Database with pgvector, extensions, and pre-configured roles
+  db:
+    container_name: csc-supabase-db
+    image: public.ecr.aws/supabase/postgres:17.6.1.167
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-54322}:5432"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    volumes:
+      - supabase_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Postgres Meta API for Supabase Studio
+  meta:
+    container_name: csc-supabase-meta
+    image: public.ecr.aws/supabase/postgres-meta:v0.99.0
+    restart: unless-stopped
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: ${POSTGRES_DB:-postgres}
+      PG_META_DB_USER: ${POSTGRES_USER:-postgres}
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Supabase Studio Web UI (Table Editor, SQL runner, Schema visualizer)
+  studio:
+    container_name: csc-supabase-studio
+    image: public.ecr.aws/supabase/studio:2026.08.24-sha-8ec45b2
+    restart: unless-stopped
+    ports:
+      - "${STUDIO_PORT:-54323}:3000"
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER_READ_WRITE: postgres
+      DEFAULT_ORGANIZATION_NAME: "NCF CCS Attendance"
+      DEFAULT_PROJECT_NAME: "Attendance Local"
+      SUPABASE_URL: http://db:5432
+      SUPABASE_PUBLIC_URL: http://localhost:54323
+      AUTH_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+    depends_on:
+      db:
+        condition: service_healthy
+      meta:
+        condition: service_started
+
+  # Web Application (Next.js)
+  web:
+    container_name: csc-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-pk_test_Zm9vLWJhci0xMy5jbGVyay5hY2NvdW50cy5kZXYk}
+        CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-sk_test_mock_secret_key_for_docker_build_00000000000000000000000000}
+        DATABASE_URL: postgresql://postgres:postgres@db:5432/postgres
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/postgres
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-pk_test_Zm9vLWJhci0xMy5jbGVyay5hY2NvdW50cy5kZXYk}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-sk_test_mock_secret_key_for_docker_build_00000000000000000000000000}
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+      GOVERNOR_EMAILS: ${GOVERNOR_EMAILS:-governor@gbox.ncf.edu.ph}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  supabase_db_data:

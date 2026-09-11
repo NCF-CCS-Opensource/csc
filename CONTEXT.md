@@ -12,6 +12,14 @@ _Avoid_: User, enrollee
 Someone holding a verified school identity — signed in with a school Google account — who has no Student record yet. They can complete onboarding and nothing else: no Events, no QR, no Penalties, since those all belong to a Student.
 _Avoid_: Unregistered user, unconfirmed account
 
+**Enrollment Roster**:
+A semester's imported master list of enrolled people, including people who have not yet signed in and therefore are not Students. It supplies the department-owned Student ID, Program, and Section used to establish a Student after identity verification.
+_Avoid_: Student list, user list
+
+**Roster Claim**:
+The one-time establishment of a Student record from an Enrollment Roster entry by a verified school Google identity. An exact GBox email claims directly; otherwise the supplied Student ID and the Google profile's first and last name must match the roster entry.
+_Avoid_: Registration, self-enrollment
+
 **Officer**:
 A Student promoted (by the Governor) to run Events — creates, edits, and deletes **any** Event (not only ones they created), scans attendance at the booth, edits attendance records, marks Payments received, signs Clearance, corrects any Student's Student ID and Program, and issues QR Cards. Every Officer sees and acts on every Officer's Events; there is no per-Officer Event ownership. Cannot perform ADMIN actions (see Governor), which stay Governor-only.
 _Avoid_: Admin, staff

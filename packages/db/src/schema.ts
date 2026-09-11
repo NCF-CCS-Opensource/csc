@@ -33,8 +33,29 @@ export const students = pgTable("students", {
   program: text("program")
     .notNull()
     .references(() => programs.name),
+  // A current class grouping when it is known from the enrollment roster.
+  // Manual onboarding has no authoritative source for it, so it stays null.
+  section: text("section"),
   studentId: text("student_id").notNull().unique(),
   role: roleEnum("role").notNull().default("student"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Imported master-list record. It is deliberately separate from Student:
+// a roster row predates Google sign-in and therefore has no auth_user_id.
+// The verified school email is an optional convenience matcher; Student ID
+// plus a name check handles rows where the spreadsheet has no GBox address.
+export const enrollmentRoster = pgTable("enrollment_roster", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").unique(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  middleName: text("middle_name"),
+  program: text("program")
+    .notNull()
+    .references(() => programs.name),
+  section: text("section").notNull(),
+  studentId: text("student_id").notNull().unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
