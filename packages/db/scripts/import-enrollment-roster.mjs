@@ -11,7 +11,7 @@ if (!source || !process.env.DATABASE_URL) {
 }
 
 const workbook = resolve(source);
-const readZipEntry = (entry) => execFileSync("unzip", ["-p", workbook, entry], { encoding: "utf8" });
+const readZipEntry = (entry) => execFileSync("/usr/bin/unzip", ["-p", workbook, entry], { encoding: "utf8" });
 const decodeXml = (value) =>
   value
     .replace(/&amp;/g, "&")
