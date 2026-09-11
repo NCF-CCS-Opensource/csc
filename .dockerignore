@@ -1,0 +1,14 @@
+node_modules
+.next
+.turbo
+.git
+.agents
+graphify-out
+receipts
+review-receipts
+*.log
+.env
+.env.local
+.env*.local
+dist
+coverage

@@ -1,6 +1,6 @@
 # Test-production deployment
 
-This is the repeatable deployment runbook for the public test-production environment. For provisioning a new Supabase/Vercel stack, see [provisioning.md](./provisioning.md).
+This is the repeatable deployment runbook for the public test-production environment. For provisioning a new Supabase/Vercel stack, see [provisioning.md](./provisioning.md). For local development and testing with Docker & Supabase, see [docker.md](./docker.md).
 
 ## Current environment
 

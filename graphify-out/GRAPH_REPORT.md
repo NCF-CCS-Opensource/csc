@@ -1,16 +1,16 @@
 # Graph Report - csc  (2026-09-11)
 
 ## Corpus Check
-- 225 files · ~114,943 words
+- 231 files · ~118,343 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1175 nodes · 2665 edges · 69 communities (60 shown, 8 thin omitted)
+- 1226 nodes · 2727 edges · 64 communities (52 shown, 11 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 39 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ad2e7ca8`
+- Built from commit: `92b525ee`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -24,18 +24,18 @@
 - admin/page.tsx
 - Attendance Session
 - scanQueue.ts
-- auth.ts
-- dashboard/page.tsx
+- my-attendance/actions.ts
+- Local Development & Testing with Docker and Supabase
 - db/package.json
 - architecture.integration.test.ts
 - SettingsScreen.tsx
 - students-view.tsx
 - web/package.json
-- useTheme
+- theme-context.tsx
 - CCS Attendance Repository
 - expo
-- students/actions.ts
-- App.tsx
+- auth.ts
+- mobile/package.json
 - dependencies
 - components.json
 - EventsScreen.tsx
@@ -45,13 +45,13 @@
 - students-view.test.tsx
 - compilerOptions
 - scripts
-- admin/actions.ts
-- ssoRedirect.test.ts
+- 2. Quickstart (Supabase CLI)
+- LoginScreen.tsx
 - attendance-grid.tsx
 - app/layout.tsx
 - devDependencies
 - tasks
-- api.ts
+- App.tsx
 - compilerOptions
 - Test-Driven Development Loop
 - Events Page
@@ -60,13 +60,8 @@
 - db/tsconfig.json
 - Mobile App Icon
 - mobile/tsconfig.json
-- BoothScreen
-- my-attendance/page.tsx
-- events/page.tsx
-- store.ts
-- proxy.ts
-- devDependencies
-- StudentTableRow
+- @clerk/nextjs
+- next
 - Graphify Knowledge Graph Rule
 - File Document Icon
 - Governor Workflow
@@ -80,21 +75,21 @@
 - Student
 - get_latest_mtime
 - watch-obsidian.sh script
-- Student Workflow
-- mobile/lib/qr.ts
+- src/index.ts
 - sync-obsidian.sh
+- 0016-enrollment-roster-precedes-student-identity.md
 
 ## God Nodes (most connected - your core abstractions)
 1. `cn()` - 101 edges
-2. `db` - 31 edges
+2. `db` - 30 edges
 3. `students` - 24 edges
 4. `requireCapability()` - 22 edges
 5. `Button()` - 20 edges
 6. `authorizeRequest()` - 20 edges
-7. `useTheme()` - 19 edges
-8. `requireOfficerOrGovernor()` - 18 edges
-9. `events` - 18 edges
-10. `hasCapability()` - 17 edges
+7. `scripts` - 20 edges
+8. `useTheme()` - 19 edges
+9. `requireOfficerOrGovernor()` - 18 edges
+10. `events` - 18 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Scan Approval` --semantically_similar_to--> `Integration-Style Tests vs Implementation Details`  [INFERRED] [semantically similar]
@@ -121,35 +116,35 @@
 - **Web Starter Template UI Icons** — apps_web_public_file_file_icon, apps_web_public_globe_globe_icon, apps_web_public_window_window_icon [INFERRED 0.85]
 - **Android Adaptive Icon Asset Suite** — apps_mobile_assets_android_icon_background_android_icon_background, apps_mobile_assets_android_icon_foreground_android_icon_foreground, apps_mobile_assets_android_icon_monochrome_android_icon_monochrome [INFERRED 0.95]
 
-## Communities (69 total, 8 thin omitted)
+## Communities (64 total, 11 thin omitted)
 
 ### Community 0 - "web/lib/events.ts"
-Cohesion: 0.16
-Nodes (17): createEvent(), deleteEvent(), eventsSnapshot, fail(), ADR-0007, ADR-0013, updateEvent(), eventGrid() (+9 more)
+Cohesion: 0.08
+Nodes (41): DELETE(), lifecycleError(), PATCH(), POST(), createEvent(), deleteEvent(), eventsSnapshot, fail() (+33 more)
 
 ### Community 1 - "reports.ts"
 Cohesion: 0.08
-Nodes (46): GET(), GET(), GET(), GET(), AnalyticsPage(), FinancialPdfDocument(), styles, PerEventPdfDocument() (+38 more)
+Nodes (47): GET(), GET(), GET(), GET(), AnalyticsPage(), dynamic, FinancialPdfDocument(), styles (+39 more)
 
 ### Community 2 - "cn"
 Cohesion: 0.08
-Nodes (30): AlertDialogMedia(), AlertDialogOverlay(), Avatar(), AvatarBadge(), AvatarFallback(), AvatarGroup(), AvatarGroupCount(), AvatarImage() (+22 more)
+Nodes (28): AlertDialogMedia(), AlertDialogOverlay(), Avatar(), AvatarBadge(), AvatarFallback(), AvatarGroup(), AvatarGroupCount(), AvatarImage() (+20 more)
 
 ### Community 3 - "scan-approval.ts"
-Cohesion: 0.07
-Nodes (48): DELETE(), lifecycleError(), PATCH(), GET(), POST(), GET(), POST(), POST() (+40 more)
+Cohesion: 0.10
+Nodes (28): GET(), POST(), POST(), POST(), GET(), authorizeRequest(), getUserFromBearer(), verifyToken (+20 more)
 
 ### Community 4 - "sidebar.tsx"
-Cohesion: 0.07
-Nodes (39): AppSidebar(), Identity, NAV_ITEMS, navForRole(), NavItem, readCachedIdentity(), Sidebar(), SidebarContent() (+31 more)
+Cohesion: 0.06
+Nodes (40): AppSidebar(), Identity, NAV_ITEMS, navForRole(), NavItem, readCachedIdentity(), ModeToggle(), Sidebar() (+32 more)
 
 ### Community 5 - "ledger.ts"
 Cohesion: 0.09
-Nodes (32): ClearancePage(), dashboardSnapshot, ADR-0013, myAttendanceSnapshot, ADR-0013, requireCapability(), findOpenSemester(), attendanceStatus() (+24 more)
+Nodes (28): dashboardSnapshot, ADR-0013, DashboardView(), DashboardPage(), dynamic, ADR-0013, db, attendanceStatus() (+20 more)
 
 ### Community 6 - "admin/page.tsx"
-Cohesion: 0.10
-Nodes (34): dynamic, dynamic, dashboardQueryKey, ADR-0013, RefreshButton(), ADR-0013, myAttendanceQueryKey, ADR-0013 (+26 more)
+Cohesion: 0.12
+Nodes (30): dynamic, dynamic, dashboardQueryKey, ADR-0013, RefreshButton(), ADR-0013, myAttendanceQueryKey, ADR-0013 (+22 more)
 
 ### Community 7 - "Attendance Session"
 Cohesion: 0.18
@@ -159,37 +154,37 @@ Nodes (16): Attendance Session, Clearance, Event, Governor, Ledger, Officer, Off
 Cohesion: 0.13
 Nodes (36): BoothApp(), addRecentScan(), blockingScanCount(), claimLegacyScans(), DeliveryState, dequeue(), discardLegacyScans(), discardScan() (+28 more)
 
-### Community 9 - "auth.ts"
-Cohesion: 0.11
-Nodes (23): dynamic, authMock, ADR-0007, dynamic, ADR-0013, Identity, ADR-0012, db (+15 more)
+### Community 9 - "my-attendance/actions.ts"
+Cohesion: 0.20
+Nodes (12): ClearancePage(), myAttendanceSnapshot, ADR-0013, MyAttendanceView(), dynamic, MyAttendancePage(), ADR-0013, findOpenSemester() (+4 more)
 
-### Community 10 - "dashboard/page.tsx"
-Cohesion: 0.40
-Nodes (4): DashboardView(), DashboardPage(), dynamic, ADR-0013
+### Community 10 - "Local Development & Testing with Docker and Supabase"
+Cohesion: 0.17
+Nodes (11): 1. Prerequisites, 3. Quickstart (Docker Compose), 4. Building the Web Application Docker Image, 5. Port Reference Table, 6. Helper Commands Summary, Local Development & Testing with Docker and Supabase, Run Migrations & Seed against Docker Compose DB, Start Database & Supabase Studio only (+3 more)
 
 ### Community 11 - "db/package.json"
-Cohesion: 0.06
-Nodes (29): dependencies, drizzle-orm, postgres, devDependencies, drizzle-kit, typescript, vitest, drizzle-orm (+21 more)
+Cohesion: 0.05
+Nodes (41): dependencies, drizzle-orm, postgres, devDependencies, drizzle-kit, typescript, vitest, drizzle-orm (+33 more)
 
 ### Community 12 - "architecture.integration.test.ts"
-Cohesion: 0.20
-Nodes (14): markPaid(), setScanField(), ADR-0013, governor, officer, computeSessionPenalty(), correctAttendance(), recordPayments() (+6 more)
+Cohesion: 0.15
+Nodes (17): GET(), markPaid(), setScanField(), ADR-0013, governor, officer, EventGridRow, materializeEventNoShows() (+9 more)
 
 ### Community 13 - "SettingsScreen.tsx"
 Cohesion: 0.13
 Nodes (18): colorOf(), COLORS, initialsOf(), fetchRejectedScans(), RejectedScanRow, RejectionReason, apiFetch, useRejectedScans() (+10 more)
 
 ### Community 14 - "students-view.tsx"
-Cohesion: 0.11
-Nodes (23): Event, ReportsClient(), ReportsClientProps, Semester, Student, ADR-0013, studentsQueryKey, ADR-0013 (+15 more)
+Cohesion: 0.08
+Nodes (29): Event, ReportsClient(), ReportsClientProps, Semester, Student, ADR-0013, studentsQueryKey, ADR-0013 (+21 more)
 
 ### Community 15 - "web/package.json"
 Cohesion: 0.07
-Nodes (26): drizzle-orm, react, @tanstack/react-query, @types/react, typescript, vitest, name, private (+18 more)
+Nodes (27): drizzle-orm, react, @tanstack/react-query, @types/react, typescript, vitest, name, private (+19 more)
 
-### Community 16 - "useTheme"
-Cohesion: 0.10
-Nodes (26): AuthenticatedApp(), CalendarGrid(), CELL_SIZE, makeStyles(), MONTH_NAMES, toDateString(), WEEKDAYS, Dropdown() (+18 more)
+### Community 16 - "theme-context.tsx"
+Cohesion: 0.13
+Nodes (18): CalendarGrid(), CELL_SIZE, makeStyles(), MONTH_NAMES, toDateString(), WEEKDAYS, Dropdown(), makeStyles() (+10 more)
 
 ### Community 17 - "CCS Attendance Repository"
 Cohesion: 0.18
@@ -199,13 +194,13 @@ Nodes (17): Agent Guidelines and Repo Conventions, CCS Attendance System Domain 
 Cohesion: 0.08
 Nodes (23): backgroundColor, backgroundImage, foregroundImage, monochromeImage, adaptiveIcon, package, permissions, predictiveBackGestureEnabled (+15 more)
 
-### Community 19 - "students/actions.ts"
-Cohesion: 0.11
-Nodes (26): correctStudent(), ADR-0013, ADR-0014, completeOnboarding(), GOVERNOR_EMAILS, ONBOARDING_TEST_EMAILS, ADR-0012, OnboardingForm() (+18 more)
+### Community 19 - "auth.ts"
+Cohesion: 0.06
+Nodes (60): addProgram(), closeSemester(), createSemester(), deleteSemester(), editSemester(), fail(), promoteToOfficer(), removeProgram() (+52 more)
 
-### Community 20 - "App.tsx"
-Cohesion: 0.07
-Nodes (36): App(), AppShell(), MobileAdmission, navTheme(), styles, Tab, TAB_ICONS, ADR-0012 (+28 more)
+### Community 20 - "mobile/package.json"
+Cohesion: 0.06
+Nodes (33): App(), apiFetch, boothQueryDefaults, BoothQueryProvider(), cacheMaxAgeMs, persister, queryClient, devDependencies (+25 more)
 
 ### Community 21 - "dependencies"
 Cohesion: 0.09
@@ -216,16 +211,16 @@ Cohesion: 0.09
 Nodes (21): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+13 more)
 
 ### Community 23 - "EventsScreen.tsx"
-Cohesion: 0.14
-Nodes (17): EventRow, EventType, fetchMyEvents(), myEventsKey, useMyEvents(), DeleteEventModal(), confirmDelete(), deriveStatus() (+9 more)
+Cohesion: 0.15
+Nodes (18): apiFetch(), EventRow, EventType, fetchMyEvents(), myEventsKey, useMyEvents(), DeleteEventModal(), confirmDelete() (+10 more)
 
 ### Community 24 - "qr-cards/route.ts"
 Cohesion: 0.20
 Nodes (15): GET(), maxDuration, POST(), GET(), GET(), chunk(), QrCardPdfDocument(), renderQrCardPdf() (+7 more)
 
 ### Community 25 - "BoothScreen.tsx"
-Cohesion: 0.18
-Nodes (13): isAlreadyScanned(), recentScanOutcomeLabel(), ScanOutcome, scan, RecentScan, BOOTH_MODES, BoothMode, RecentScanRow() (+5 more)
+Cohesion: 0.12
+Nodes (22): isReadableQrPayload(), parseQrPayload(), QrStudent, isAlreadyScanned(), recentScanOutcomeLabel(), ScanOutcome, scan, RecentScan (+14 more)
 
 ### Community 26 - "dependencies"
 Cohesion: 0.10
@@ -240,24 +235,24 @@ Cohesion: 0.11
 Nodes (18): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, lib, module (+10 more)
 
 ### Community 29 - "scripts"
-Cohesion: 0.10
-Nodes (20): devDependencies, turbo, typescript, engines, node, typescript, name, packageManager (+12 more)
+Cohesion: 0.06
+Nodes (30): devDependencies, turbo, typescript, engines, node, typescript, name, packageManager (+22 more)
 
-### Community 30 - "admin/actions.ts"
-Cohesion: 0.24
-Nodes (15): addProgram(), closeSemester(), createSemester(), deleteSemester(), editSemester(), fail(), promoteToOfficer(), removeProgram() (+7 more)
+### Community 30 - "2. Quickstart (Supabase CLI)"
+Cohesion: 0.33
+Nodes (6): 2. Quickstart (Supabase CLI), Step 1: Start the local Supabase containers, Step 2: Apply Drizzle migrations, Step 3: Seed initial test data, Step 4: Verify in Supabase Studio, Step 5: Run the Web App locally
 
-### Community 31 - "ssoRedirect.test.ts"
-Cohesion: 0.39
-Nodes (5): LinkingLike, matchesRedirectScheme(), UrlHandler, watchForRedirectUrl(), signIn()
+### Community 31 - "LoginScreen.tsx"
+Cohesion: 0.19
+Nodes (11): LinkingLike, matchesRedirectScheme(), UrlHandler, watchForRedirectUrl(), LoginScreen(), signIn(), makeStyles(), Styles (+3 more)
 
 ### Community 32 - "attendance-grid.tsx"
 Cohesion: 0.15
-Nodes (22): AttendanceGrid(), PaymentCell(), ScanCell(), ADR-0013, eventGridQueryKey(), ADR-0013, EventRow, ADR-0007 (+14 more)
+Nodes (22): PaymentCell(), ScanCell(), ADR-0013, eventGridQueryKey(), ADR-0013, EventRow, ADR-0007, eventsQueryKey (+14 more)
 
 ### Community 33 - "app/layout.tsx"
-Cohesion: 0.12
-Nodes (12): geistMono, geistSans, metadata, spaceGrotesk, ADR-0012, QueryProvider(), ADR-0013, ThemeProvider() (+4 more)
+Cohesion: 0.20
+Nodes (8): geistMono, geistSans, metadata, spaceGrotesk, QueryProvider(), ADR-0013, ThemeProvider(), next-themes
 
 ### Community 34 - "devDependencies"
 Cohesion: 0.13
@@ -267,9 +262,9 @@ Nodes (15): devDependencies, eslint, eslint-config-next, jsdom, tailwindcss, @ta
 Cohesion: 0.15
 Nodes (12): dependsOn, outputs, cache, persistent, $schema, tasks, build, dev (+4 more)
 
-### Community 36 - "api.ts"
-Cohesion: 0.23
-Nodes (11): API_BASE_URL, ApiError, apiFetch(), endOfficerSession(), rememberedOfficerIdentity(), rememberOfficerIdentity(), getToken, ADR-0012 (+3 more)
+### Community 36 - "App.tsx"
+Cohesion: 0.13
+Nodes (20): AppShell(), AuthenticatedApp(), MobileAdmission, navTheme(), styles, Tab, TAB_ICONS, ADR-0012 (+12 more)
 
 ### Community 37 - "compilerOptions"
 Cohesion: 0.18
@@ -303,34 +298,6 @@ Nodes (6): Android Adaptive Icon Background, Android Adaptive Icon Foreground, A
 Cohesion: 0.40
 Nodes (4): compilerOptions, strict, extends, expo/tsconfig.base
 
-### Community 45 - "BoothScreen"
-Cohesion: 0.38
-Nodes (7): BoothScreen(), confirmDiscard(), decide(), onBarcodeScanned(), queueDecision(), retrySelectedReview(), makeStyles()
-
-### Community 46 - "my-attendance/page.tsx"
-Cohesion: 0.40
-Nodes (4): MyAttendanceView(), dynamic, MyAttendancePage(), ADR-0013
-
-### Community 47 - "events/page.tsx"
-Cohesion: 0.40
-Nodes (4): EventsView(), dynamic, EventsPage(), ADR-0013
-
-### Community 48 - "store.ts"
-Cohesion: 0.40
-Nodes (4): ReportSelections, ADR-0013, WebStore, zustand
-
-### Community 49 - "proxy.ts"
-Cohesion: 0.50
-Nodes (4): config, isAppRoute, proxy, ADR-0005
-
-### Community 50 - "devDependencies"
-Cohesion: 0.50
-Nodes (4): devDependencies, @types/react, typescript, vitest
-
-### Community 51 - "StudentTableRow"
-Cohesion: 0.67
-Nodes (3): StudentTableRow(), requestSave(), wouldInvalidateQrCard()
-
 ### Community 52 - "Graphify Knowledge Graph Rule"
 Cohesion: 0.67
 Nodes (3): Graphify Knowledge Graph Rule, Graphify Query and Inspection Tools, Graphify Workflow
@@ -344,8 +311,8 @@ Cohesion: 0.67
 Nodes (3): Governor Mobile Booth Access, Anonymized AI Reporting with Gemini, Governor Workflow
 
 ### Community 62 - "Deep Module Specifications"
-Cohesion: 0.25
-Nodes (8): Shared Event Ownership, Sentinel Attendance Timestamp, Officer Direct Student Corrections, Architecture Deepening Plan, Officer Workflow, Deep Module Specifications, Event Lifecycle Manager, Scan Approval Engine
+Cohesion: 0.15
+Nodes (13): Shared Event Ownership, Late Registrants Full Semester Liability, Sentinel Attendance Timestamp, Clerk Google SSO Domain Restriction, Officer Direct Student Corrections, On-Demand QR Card Pull Model, Architecture Deepening Plan, Officer Workflow (+5 more)
 
 ### Community 63 - "Student"
 Cohesion: 0.33
@@ -355,33 +322,29 @@ Nodes (7): CCS Web Application, Pending Student, Student, ADR-0001: Supabase, Dr
 Cohesion: 0.67
 Nodes (3): Path, get_latest_mtime(), main()
 
-### Community 66 - "Student Workflow"
-Cohesion: 0.40
-Nodes (5): Late Registrants Full Semester Liability, Clerk Google SSO Domain Restriction, On-Demand QR Card Pull Model, Student Workflow, Ledger Calculation Engine
-
-### Community 69 - "mobile/lib/qr.ts"
-Cohesion: 0.70
-Nodes (3): isReadableQrPayload(), parseQrPayload(), QrStudent
+### Community 69 - "src/index.ts"
+Cohesion: 0.13
+Nodes (15): authMock, ADR-0007, createDb(), schema, boothModeEnum, enrollmentRoster, eventTypeEnum, halfEnum (+7 more)
 
 ## Knowledge Gaps
-- **429 isolated node(s):** `Tab`, `MobileAdmission`, `TAB_ICONS`, `styles`, `ADR-0012` (+424 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 501 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **461 isolated node(s):** `Tab`, `MobileAdmission`, `TAB_ICONS`, `styles`, `ADR-0012` (+456 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 535 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **11 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
+- **Why does `postgres` connect `db/package.json` to `src/index.ts`?**
+  _High betweenness centrality (0.045) - this node is a cross-community bridge._
 - **Why does `cn()` connect `cn` to `attendance-grid.tsx`, `sidebar.tsx`, `admin/page.tsx`, `students-view.tsx`?**
-  _High betweenness centrality (0.046) - this node is a cross-community bridge._
+  _High betweenness centrality (0.038) - this node is a cross-community bridge._
 - **Why does `@react-pdf/renderer` connect `reports.ts` to `qr-cards/route.ts`, `web/package.json`?**
-  _High betweenness centrality (0.030) - this node is a cross-community bridge._
-- **Why does `postgres` connect `db/package.json` to `auth.ts`?**
-  _High betweenness centrality (0.022) - this node is a cross-community bridge._
+  _High betweenness centrality (0.031) - this node is a cross-community bridge._
 - **What connects `Tab`, `MobileAdmission`, `TAB_ICONS` to the rest of the system?**
-  _429 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _461 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `web/lib/events.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.08 - nodes in this community are weakly interconnected._
 - **Should `reports.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.08166969147005444 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08418079096045197 - nodes in this community are weakly interconnected._
 - **Should `cn` be split into smaller, more focused modules?**
-  _Cohesion score 0.07678075855689177 - nodes in this community are weakly interconnected._
-- **Should `scan-approval.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.06760316066725197 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08084163898117387 - nodes in this community are weakly interconnected._

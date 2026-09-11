@@ -19,3 +19,11 @@ graphify-out/cache/
 graphify-out/graph.html
 graphify-out/cost.json
 graphify-out/20*
+
+# Supabase CLI local cache
+supabase/.temp/
+supabase/.branches/
+
+# Agent receipts
+receipts/
+review-receipts/
