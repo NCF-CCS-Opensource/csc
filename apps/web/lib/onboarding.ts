@@ -82,3 +82,27 @@ export function validateOnboarding(
 
 export const ALREADY_TAKEN =
   "That Student ID or email already belongs to another Student record. An Officer or Governor can correct it from the Students page.";
+
+// Google may omit a middle name, preserve different casing, or use accents.
+// Compare only whole first/last-name tokens; never fuzzy-match a roster claim.
+const nameTokens = (name: string) =>
+  name
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase()
+    .match(/[\p{L}\p{N}]+/gu) ?? [];
+
+export function rosterNameMatches(
+  googleName: string,
+  rosterName: { firstName: string; lastName: string },
+): boolean {
+  const googleTokens = new Set(nameTokens(googleName));
+  const firstTokens = nameTokens(rosterName.firstName);
+  const lastTokens = nameTokens(rosterName.lastName);
+  return (
+    firstTokens.length > 0 &&
+    lastTokens.length > 0 &&
+    firstTokens.every((token) => googleTokens.has(token)) &&
+    lastTokens.every((token) => googleTokens.has(token))
+  );
+}

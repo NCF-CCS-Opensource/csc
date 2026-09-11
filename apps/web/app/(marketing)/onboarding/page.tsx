@@ -1,9 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
-import { programs } from "@attendance/db";
-import { asc } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { hasStudentRecord } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { claimRosterByEmail } from "@/lib/enrollment-roster";
 import { verifiedPrimaryEmail } from "@/lib/onboarding";
 import { OnboardingForm } from "./onboarding-form";
 
@@ -20,14 +18,14 @@ export default async function OnboardingPage() {
   // The same address the domain assertion reads, so the form never shows an
   // identity the action would then refuse.
   const email = verifiedPrimaryEmail(user) ?? "";
+  if (email) {
+    const claimed = await claimRosterByEmail({
+      authUserId: user.id,
+      email,
+      name: user.fullName?.trim() ?? "",
+    });
+    if (claimed) redirect("/my-attendance");
+  }
 
-  const rows = await db.select({ name: programs.name }).from(programs).orderBy(asc(programs.name));
-
-  return (
-    <OnboardingForm
-      programs={rows.map((row) => row.name)}
-      name={user.fullName ?? ""}
-      email={email}
-    />
-  );
+  return <OnboardingForm name={user.fullName ?? ""} email={email} />;
 }

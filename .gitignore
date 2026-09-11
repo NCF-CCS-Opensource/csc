@@ -5,6 +5,8 @@ dist/
 .expo/
 .env
 .env.local
+# Enrollment workbooks contain student PII and stay local.
+Enrollment List.xlsx
 *.log
 .DS_Store
 .idea/

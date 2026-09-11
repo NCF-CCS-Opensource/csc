@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSchoolEmail, validateOnboarding, verifiedPrimaryEmail } from "./onboarding";
+import { isSchoolEmail, rosterNameMatches, validateOnboarding, verifiedPrimaryEmail } from "./onboarding";
 
 describe("verifiedPrimaryEmail", () => {
   const primary = {
@@ -161,5 +161,22 @@ describe("validateOnboarding", () => {
       "program",
       "studentId",
     ]);
+  });
+});
+
+describe("rosterNameMatches", () => {
+  const roster = { firstName: "José Maria", lastName: "Dela Cruz" };
+
+  it("ignores case, accents, and punctuation", () => {
+    expect(rosterNameMatches("JOSE MARIA DELA-CRUZ", roster)).toBe(true);
+  });
+
+  it("refuses a different first or last name", () => {
+    expect(rosterNameMatches("Jose Santos", roster)).toBe(false);
+    expect(rosterNameMatches("Maria Dela Cruz", roster)).toBe(false);
+  });
+
+  it("refuses a roster row with no usable first or last name", () => {
+    expect(rosterNameMatches("Jose Dela Cruz", { firstName: "", lastName: "Dela Cruz" })).toBe(false);
   });
 });
