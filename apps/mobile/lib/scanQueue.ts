@@ -89,7 +89,9 @@ async function saveQueue(queue: QueuedScan[]): Promise<void> {
 }
 
 export async function loadQueue(officerId: string): Promise<QueuedScan[]> {
-  return (await loadAllQueue()).filter((scan) => scan.officerId === officerId);
+  return mutate(async () =>
+    (await loadAllQueue()).filter((scan) => scan.officerId === officerId),
+  );
 }
 
 export async function enqueue(scan: QueuedScan): Promise<number> {
@@ -167,12 +169,16 @@ export async function discardLegacyScans(): Promise<void> {
 }
 
 export async function blockingScanCount(officerId: string): Promise<number> {
-  const queue = await loadAllQueue();
-  return queue.filter((scan) => scan.officerId === officerId).length;
+  return mutate(async () => {
+    const queue = await loadAllQueue();
+    return queue.filter((scan) => scan.officerId === officerId).length;
+  });
 }
 
 export async function legacyScans(): Promise<QueuedScan[]> {
-  return (await loadAllQueue()).filter((scan) => scan.officerId === null);
+  return mutate(async () =>
+    (await loadAllQueue()).filter((scan) => scan.officerId === null),
+  );
 }
 
 export async function claimLegacyScans(officerId: string): Promise<number> {

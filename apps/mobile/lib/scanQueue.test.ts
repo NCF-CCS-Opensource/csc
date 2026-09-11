@@ -130,6 +130,17 @@ describe("Offline Scan Queue ownership", () => {
     expect(await blockingScanCount("officer-b")).toBe(1);
   });
 
+  it("reports the post-write count when a count read fires right after the last dequeue, unawaited", async () => {
+    await enqueue(queued("1"));
+
+    const dequeuePromise = discardScan("officer-a", "1");
+    const countPromise = blockingScanCount("officer-a");
+
+    await dequeuePromise;
+    expect(await countPromise).toBe(0);
+    expect(await needsReviewScans("officer-a")).toHaveLength(0);
+  });
+
   it("restores the owner queue after an app-module reload", async () => {
     await enqueue(queued("1"));
 

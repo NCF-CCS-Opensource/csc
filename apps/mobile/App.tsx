@@ -22,6 +22,7 @@ import {
   rememberedOfficerIdentity,
   type OfficerIdentity,
 } from "./lib/api";
+import { clerk } from "./lib/clerk";
 import { BoothScreen } from "./screens/BoothScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { LoginScreen } from "./screens/LoginScreen";
@@ -103,9 +104,18 @@ function AuthenticatedApp({
 }
 
 
+// The publishable key must be passed explicitly. Expo only inlines
+// EXPO_PUBLIC_* in our own source, never inside node_modules, so
+// ClerkProvider's internal `process.env` fallback reads empty in a release
+// bundle — Clerk then never starts loading at all (infinite spinner, zero
+// network calls), while dev builds work because the dev server injects a real
+// runtime `process.env`.
 export default function App() {
   return (
-    <ClerkProvider tokenCache={tokenCache}>
+    <ClerkProvider
+      publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
+      tokenCache={tokenCache}
+    >
       <GestureHandlerRootView style={styles.container}>
         <SafeAreaProvider>
           <ThemeProvider>
@@ -130,6 +140,10 @@ function BoothApp() {
   const [admissionAttempt, setAdmissionAttempt] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [queueRevision, setQueueRevision] = useState(0);
+  // A booth on a bad connection must never be stuck on a bare spinner with no
+  // way out, so bound the wait on sign-in state and offer a retry.
+  const [retryTick, setRetryTick] = useState(0);
+  const [authTimedOut, setAuthTimedOut] = useState(false);
 
   const refreshQueue = useCallback(async (officerId: string) => {
     setPendingCount(await blockingScanCount(officerId));
@@ -195,6 +209,21 @@ function BoothApp() {
     };
   }, [admissionAttempt, isLoaded, isSignedIn, refreshQueue, userId]);
 
+  useEffect(() => {
+    if (identity !== undefined) {
+      setAuthTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => setAuthTimedOut(true), 10000);
+    return () => clearTimeout(timer);
+  }, [identity, retryTick]);
+
+  const retryAuth = useCallback(() => {
+    setAuthTimedOut(false);
+    setRetryTick((tick) => tick + 1);
+    clerk.load().catch(() => {});
+  }, []);
+
   const officerId = identity?.authUserId;
 
   useEffect(() => {
@@ -220,6 +249,8 @@ function BoothApp() {
   return (
     <AppShell
       identityResolved={identity !== undefined}
+      authTimedOut={authTimedOut}
+      onRetryAuth={retryAuth}
       officerId={officerId}
       admission={admission}
       pendingCount={pendingCount}
@@ -246,6 +277,8 @@ function navTheme(colors: ThemeColors): Theme {
 
 function AppShell({
   identityResolved,
+  authTimedOut,
+  onRetryAuth,
   officerId,
   admission,
   pendingCount,
@@ -253,6 +286,8 @@ function AppShell({
   refreshQueue,
 }: {
   identityResolved: boolean;
+  authTimedOut: boolean;
+  onRetryAuth: () => void;
   officerId: string | undefined;
   admission: MobileAdmission;
   pendingCount: number;
@@ -263,7 +298,23 @@ function AppShell({
   const { signOut } = useAuth();
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {!identityResolved ? (
+      {!identityResolved && authTimedOut ? (
+        <View style={styles.accessState}>
+          <Text style={[styles.accessTitle, { color: colors.text }]}>
+            Taking longer than expected
+          </Text>
+          <Text style={[styles.accessMessage, { color: colors.textMuted }]}>
+            Check your connection, then try again.
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={[styles.signOutButton, { backgroundColor: colors.primary }]}
+            onPress={onRetryAuth}
+          >
+            <Text style={{ color: colors.primaryText, fontWeight: "600" }}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      ) : !identityResolved ? (
         <ActivityIndicator style={styles.accessState} color={colors.primary} />
       ) : !officerId && !admission ? (
         <LoginScreen />
