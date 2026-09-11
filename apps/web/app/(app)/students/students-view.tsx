@@ -3,6 +3,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +35,23 @@ import {
 } from "@/components/ui/table";
 import { correctStudent, studentsSnapshot, type StudentsSnapshot } from "./actions";
 import { studentsQueryKey } from "./query-key";
+
+// Whether a correction to Student ID or Program invalidates a Student's
+// already-printed QR Card: the card's payload is frozen at print time while the
+// record is not, so any change to either makes the old card stop matching and
+// fail Scan Approval. `current` is the persisted row (studentId already
+// trimmed); `next` is the proposed edit, whose studentId is trimmed the same way
+// correctStudent persists it, so a whitespace-only tweak isn't treated as a real
+// change. Lives here (not lib/students, which pulls in the db client) so the
+// `"use client"` view can gate on it without dragging server code into the
+// bundle. The system records no QR Card issuance (ADR-0015), so every Student is
+// treated as card-bearing and the gate is just "does the edit change a value".
+function wouldInvalidateQrCard(
+  current: { studentId: string; program: string },
+  next: { studentId: string; program: string },
+): boolean {
+  return next.studentId.trim() !== current.studentId || next.program !== current.program;
+}
 
 const ALL_PROGRAMS = "__all__";
 
@@ -67,18 +94,33 @@ function StudentTableRow({
   // them the replacement download. Cleared on the next edit so it can't
   // linger past the correction it belongs to.
   const [cardInvalidated, setCardInvalidated] = useState(false);
+  // Spec #143: before a correction that would invalidate a printed QR Card is
+  // applied, the Officer confirms it in a modal (the card's payload is frozen
+  // at print time, so ID/Program edits make it fail Scan Approval). Informational
+  // and confirm-only — confirming applies the correction immediately, cancelling
+  // leaves the record untouched (ADR-0014: no approval step, no audit trail).
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const save = useMutation({
     mutationFn: () => correctStudent(student.id, { studentId, program }),
     onSuccess: (result) => {
       if (result.errors.length > 0) return;
       setEditing(false);
-      setCardInvalidated(
-        studentId.trim() !== student.studentId || program !== student.program,
-      );
+      setCardInvalidated(wouldInvalidateQrCard(student, { studentId, program }));
       queryClient.invalidateQueries({ queryKey: studentsQueryKey });
     },
   });
+
+  // The QR Card invalidation gate (spec #143): a Save that would actually
+  // change Student ID or Program opens the confirmation modal first; a no-op
+  // Save (or one that only re-types the same values) applies directly.
+  function requestSave() {
+    if (wouldInvalidateQrCard(student, { studentId, program })) {
+      setConfirmOpen(true);
+      return;
+    }
+    save.mutate();
+  }
 
   const errorFor = (field: string) =>
     save.data?.errors.find((e) => e.field === field)?.message;
@@ -164,21 +206,22 @@ function StudentTableRow({
   }
 
   return (
-    <TableRow>
-      {checkboxCell}
-      <TableCell>{student.name}</TableCell>
-      <TableCell>{student.email}</TableCell>
-      <TableCell>
-        <Input
-          value={studentId}
-          onChange={(e) => setStudentId(e.target.value)}
-          className="w-32"
-        />
-        {errorFor("studentId") && (
-          <p className="text-destructive text-xs">{errorFor("studentId")}</p>
-        )}
-      </TableCell>
-      <TableCell>
+    <>
+      <TableRow>
+        {checkboxCell}
+        <TableCell>{student.name}</TableCell>
+        <TableCell>{student.email}</TableCell>
+        <TableCell>
+          <Input
+            value={studentId}
+            onChange={(e) => setStudentId(e.target.value)}
+            className="w-32"
+          />
+          {errorFor("studentId") && (
+            <p className="text-destructive text-xs">{errorFor("studentId")}</p>
+          )}
+        </TableCell>
+        <TableCell>
         <Select value={program} onValueChange={setProgram}>
           <SelectTrigger className="w-full">
             <SelectValue />
@@ -205,14 +248,40 @@ function StudentTableRow({
           <Button type="button" variant="ghost" size="sm" onClick={cancel}>
             Cancel
           </Button>
-          <Button type="button" size="sm" disabled={save.isPending} onClick={() => save.mutate()}>
+          <Button type="button" size="sm" disabled={save.isPending} onClick={requestSave}>
             Save
           </Button>
         </div>
         {formError && <p className="text-destructive text-xs">{formError}</p>}
       </TableCell>
     </TableRow>
-  );
+    <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              This correction invalidates {student.name}&apos;s printed QR Card
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The printed card&apos;s payload was frozen at print time and no longer matches
+              this correction, so it will be rejected at Scan Approval. Confirm to apply the
+              change — you&apos;ll hand the Student a replacement card.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmOpen(false);
+                save.mutate();
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+  </>
+);
 }
 
 // Single request path for a card download, one Student or many (spec #119):
