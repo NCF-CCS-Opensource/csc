@@ -11,6 +11,7 @@ import {
   BOOTH_MODES,
   decodeQrPayload,
   modeToHalfAndField,
+  qrRejectionReason,
   type BoothMode,
 } from "./scan";
 import { hasCapability, type Role } from "./roles";
@@ -52,12 +53,8 @@ function qrError(
   decoded: ReturnType<typeof decodeQrPayload>,
   student: Awaited<ReturnType<typeof findReferencedStudent>>["student"],
 ): string | null {
-  if (!decoded) return "Unreadable QR";
-  return !student ||
-    student.name !== decoded.name ||
-    student.program !== decoded.program
-    ? "QR does not match current Student record"
-    : null;
+  const reason = qrRejectionReason(decoded, student);
+  return reason === "Rejected by Officer" ? null : reason;
 }
 
 export async function identifyScanStudent(
@@ -125,9 +122,10 @@ export async function applyScanDecision(
           ? {
               ok: false as const,
               outcome: "rejected" as const,
-              error: decodeQrPayload(existing.qrPayload)
-                ? "QR does not match current Student record"
-                : "Unreadable QR",
+              error: qrRejectionReason(
+                decodeQrPayload(existing.qrPayload),
+                undefined,
+              )!,
             }
           : { ok: true as const, outcome: "rejected" as const };
       }

@@ -26,6 +26,7 @@ import { clerk } from "./lib/clerk";
 import { BoothScreen } from "./screens/BoothScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { LoginScreen } from "./screens/LoginScreen";
+import { RejectionsScreen } from "./screens/RejectionsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { blockingScanCount, claimLegacyScans } from "./lib/scanQueue";
 import { flushQueue, stopQueueRetries } from "./lib/syncScans";
@@ -42,6 +43,7 @@ type MobileAdmission =
 const TAB_ICONS: Record<string, string> = {
   Scanner: "⛶",
   Events: "📅",
+  Rejections: "✕",
   Settings: "⚙",
 };
 
@@ -96,6 +98,7 @@ function AuthenticatedApp({
         )}
       </Tab.Screen>
       <Tab.Screen name="Events" component={EventsScreen} />
+      <Tab.Screen name="Rejections" component={RejectionsScreen} />
       <Tab.Screen name="Settings">
         {() => <SettingsScreen officerId={officerId} onQueueChanged={refreshQueue} />}
       </Tab.Screen>
