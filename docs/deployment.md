@@ -39,7 +39,23 @@ A self-hosted alternative to the Vercel path exists in-repo as `docker-compose.y
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` — keeps Clerk's redirects on the self-hosted page | Public |
 | `GOVERNOR_EMAILS` | Comma-separated Governor allowlist, read at onboarding | Server only |
 
-The web module no longer holds Supabase Auth variables: identity is Clerk (ADR-0012), and Supabase is strictly the Postgres and Storage host. Connecting Supabase to Vercel via the native integration automatically provides `POSTGRES_URL` (transaction pooled, port 6543) and `POSTGRES_URL_NON_POOLING` (direct, port 5432).
+The web module no longer holds Supabase Auth variables: identity is Clerk (ADR-0012), and Supabase is strictly the Postgres host.
+
+Connecting Supabase to Vercel via the native integration injects a full set of variables into the project automatically. This app reads only two of them; the rest are dead weight it never touches — do not wire them into anything or treat their presence as required:
+
+| Injected variable | Used here? | Where |
+| --- | --- | --- |
+| `POSTGRES_URL` (pooled, port 6543) | **Yes** — runtime app queries | `apps/web/lib/db.ts` falls back to it when `DATABASE_URL` is unset |
+| `POSTGRES_URL_NON_POOLING` (direct, port 5432) | **Yes** — migrations only | `packages/db/drizzle.config.ts`; `db:migrate`/`db:generate` need a direct connection, not the pooler |
+| `POSTGRES_PRISMA_URL` | No | Prisma-specific, this repo uses Drizzle |
+| `POSTGRES_URL_NO_SSL` | No | unused |
+| `POSTGRES_USER` / `POSTGRES_HOST` / `POSTGRES_PASSWORD` / `POSTGRES_DATABASE` | No | connection pieces, nothing reads them individually |
+| `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL` | No | no code calls the Supabase client/REST API |
+| `SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | No | same — auth is Clerk, not Supabase Auth |
+| `SUPABASE_SERVICE_ROLE_KEY` | No | unused; leaving it set is a needless standing credential |
+| `SUPABASE_JWT_SECRET` | No | unused |
+
+`DATABASE_URL` is checked first in both places above, so either variable name works; if you set both, `DATABASE_URL` wins at runtime and `POSTGRES_URL_NON_POOLING` wins for migrations.
 
 Never place `DATABASE_URL`, `POSTGRES_URL`, or a Supabase service-role key in an `EXPO_PUBLIC_*` or `NEXT_PUBLIC_*` variable.
 
