@@ -8,7 +8,9 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "release:check": "pnpm test && pnpm test:integration && pnpm typecheck && pnpm lint && pnpm build",
-    "test:integration": "pnpm --filter @attendance/db test:integration"
+    "test:integration": "pnpm --filter @attendance/db test:integration",
+    "sync:obsidian": "./scripts/sync-obsidian.sh",
+    "watch:obsidian": "./scripts/watch-obsidian.sh"
   },
   "devDependencies": {
     "turbo": "^2.3.0",
