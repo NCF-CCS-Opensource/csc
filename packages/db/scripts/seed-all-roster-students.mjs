@@ -1,14 +1,21 @@
 // Seeds all students from enrollment_roster into the students table for local testing
 import postgres from "postgres";
 
-const { DATABASE_URL, GOVERNOR_EMAILS = "governor@gbox.ncf.edu.ph" } = process.env;
-if (!DATABASE_URL) {
-  console.error("Missing DATABASE_URL. Run with: DATABASE_URL=... node scripts/seed-all-roster-students.mjs");
+const dbUrl =
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL;
+
+const { GOVERNOR_EMAILS = "governor@gbox.ncf.edu.ph" } = process.env;
+if (!dbUrl) {
+  console.error(
+    "Missing DATABASE_URL/POSTGRES_URL. Run with: DATABASE_URL=... node scripts/seed-all-roster-students.mjs"
+  );
   process.exit(1);
 }
 
 const governorList = GOVERNOR_EMAILS.split(",").map((e) => e.trim().toLowerCase());
-const sql = postgres(DATABASE_URL);
+const sql = postgres(dbUrl);
 
 const roster = await sql`select * from enrollment_roster order by student_id`;
 if (roster.length === 0) {

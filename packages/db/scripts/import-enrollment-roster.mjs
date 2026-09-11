@@ -5,8 +5,15 @@ import { resolve } from "node:path";
 import postgres from "postgres";
 
 const [source] = process.argv.slice(2);
-if (!source || !process.env.DATABASE_URL) {
-  console.error("Usage: DATABASE_URL=... node scripts/import-enrollment-roster.mjs <Enrollment List.xlsx>");
+const dbUrl =
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL;
+
+if (!source || !dbUrl) {
+  console.error(
+    "Usage: DATABASE_URL=... node scripts/import-enrollment-roster.mjs <Enrollment List.xlsx>"
+  );
   process.exit(1);
 }
 
@@ -73,7 +80,7 @@ if (new Set(gboxEmails).size !== gboxEmails.length) {
   throw new Error("The workbook contains duplicate GBox emails");
 }
 
-const sql = postgres(process.env.DATABASE_URL);
+const sql = postgres(dbUrl);
 try {
   await sql.begin(async (tx) => {
     for (const row of roster) {

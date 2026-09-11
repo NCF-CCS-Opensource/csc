@@ -27,3 +27,5 @@ supabase/.branches/
 # Agent receipts
 receipts/
 review-receipts/
+.vercel
+.env*
