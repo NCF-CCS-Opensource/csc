@@ -25,6 +25,10 @@ import {
   type RecentScan,
 } from "../lib/scanQueue";
 import { flushQueue } from "../lib/syncScans";
+import {
+  isAlreadyScanned,
+  recentScanOutcomeLabel,
+} from "../lib/recentScanStatus";
 import { useMyEvents } from "../lib/events";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
@@ -514,7 +518,7 @@ function RecentScanRow({
   styles: Styles;
   onPress: () => void;
 }) {
-  const decision = scan.decision === "accepted" ? "✓ Accepted" : "✕ Rejected";
+  const outcome = recentScanOutcomeLabel(scan);
   const status = scan.discarded
     ? "! Needs Review · Discarded"
     : {
@@ -549,9 +553,15 @@ function RecentScanRow({
       </View>
       <View style={styles.recentState}>
         <Text
-          style={scan.decision === "accepted" ? styles.acceptedLabel : styles.rejectedLabel}
+          style={
+            isAlreadyScanned(scan)
+              ? styles.alreadyScannedLabel
+              : scan.decision === "accepted"
+                ? styles.acceptedLabel
+                : styles.rejectedLabel
+          }
         >
-          {decision}
+          {outcome}
         </Text>
         <Text
           style={
@@ -698,6 +708,7 @@ function makeStyles(c: ThemeColors) {
     recentState: { alignItems: "flex-end", gap: 2 },
     acceptedLabel: { fontSize: 11, color: c.success, fontWeight: "600" },
     rejectedLabel: { fontSize: 11, color: c.danger, fontWeight: "600" },
+    alreadyScannedLabel: { fontSize: 11, color: c.warning, fontWeight: "600" },
     pendingLabel: { fontSize: 11, color: c.warning, fontWeight: "600" },
     syncedLabel: { fontSize: 11, color: c.success, fontWeight: "600" },
     failedLabel: { fontSize: 11, color: c.danger, fontWeight: "600" },

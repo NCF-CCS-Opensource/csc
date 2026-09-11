@@ -71,10 +71,17 @@ async function deliverQueue(
     if (scan.deliveryState === "needs_review") continue;
     const [path, options] = requestFor(scan);
     try {
-      await apiFetch(path, options, officerId);
+      const response = await apiFetch<{ alreadyScanned?: boolean }>(
+        path,
+        options,
+        officerId,
+      );
       const remaining = await dequeue(scan.id, officerId);
       await updateRecentScan(officerId, scan.id, {
         deliveryState: "delivered",
+        ...(scan.type === "approve" && response.alreadyScanned
+          ? { alreadyScanned: true }
+          : {}),
       });
       onCountChange?.(remaining);
     } catch (error) {

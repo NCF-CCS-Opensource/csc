@@ -34,6 +34,7 @@ export type RecentScan = {
   deliveryState: DeliveryState;
   error?: string;
   discarded?: boolean;
+  alreadyScanned?: boolean;
 };
 
 function parseArray<T>(raw: string | null): T[] {
@@ -232,6 +233,7 @@ export async function updateRecentScan(
   patch: Pick<RecentScan, "deliveryState"> & {
     error?: string;
     discarded?: boolean;
+    alreadyScanned?: boolean;
   },
 ): Promise<void> {
   await mutate(async () => {

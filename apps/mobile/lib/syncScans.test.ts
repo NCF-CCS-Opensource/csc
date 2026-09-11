@@ -171,6 +171,32 @@ describe("flushQueue", () => {
     vi.useRealTimers();
   });
 
+  it("records an already-scanned delivery on the Recent scan when the approve response says so", async () => {
+    await enqueue(queued("1"));
+    await addRecentScan(recent("1"));
+    send.mockResolvedValue({ ok: true, alreadyScanned: true });
+
+    await flushQueue("officer-a");
+
+    expect((await loadRecentScans("officer-a"))[0]).toMatchObject({
+      deliveryState: "delivered",
+      alreadyScanned: true,
+    });
+    expect(await loadQueue("officer-a")).toEqual([]);
+  });
+
+  it("does not flag a delivered approve as already scanned when the response omits it", async () => {
+    await enqueue(queued("1"));
+    await addRecentScan(recent("1"));
+    send.mockResolvedValue({ ok: true });
+
+    await flushQueue("officer-a");
+
+    const [scan] = await loadRecentScans("officer-a");
+    expect(scan.deliveryState).toBe("delivered");
+    expect(scan.alreadyScanned).not.toBe(true);
+  });
+
   it("moves permanent failures to Needs Review and continues with later decisions", async () => {
     await enqueue(queued("1"));
     await enqueue(queued("2"));
