@@ -14,20 +14,28 @@ const isAppRoute = createRouteMatcher([
   "/analytics(.*)",
 ]);
 
-export const proxy = clerkMiddleware(async (auth, request) => {
-  if (!isAppRoute(request)) return;
+export const proxy = clerkMiddleware(
+  async (auth, request) => {
+    if (!isAppRoute(request)) return;
 
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.redirect(new URL("/sign-in", request.url));
-  }
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.redirect(new URL("/sign-in", request.url));
+    }
 
-  // ponytail: one indexed lookup per app navigation. Move to a Clerk session
-  // claim set at onboarding if this ever shows up in navigation latency.
-  if (!(await hasStudentRecord(userId))) {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
+    // ponytail: one indexed lookup per app navigation. Move to a Clerk session
+    // claim set at onboarding if this ever shows up in navigation latency.
+    if (!(await hasStudentRecord(userId))) {
+      return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
+  },
+  {
+    publishableKey:
+      process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
+      process.env.CLERK_PUBLISHABLE_KEY,
+    secretKey: process.env.CLERK_SECRET_KEY,
   }
-});
+);
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],

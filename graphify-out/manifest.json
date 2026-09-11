@@ -504,9 +504,9 @@
     "semantic_hash": ""
   },
   "apps/web/app/layout.tsx": {
-    "mtime": 1789090219.6591012,
-    "seen": 1789092298.1529994,
-    "ast_hash": "aaf6caf9c0616f52d7c5a0d8638c347a",
+    "mtime": 1789101623.7177277,
+    "seen": 1789101714.7289298,
+    "ast_hash": "484e133d20d257f0a54aedb6cbd4dca3",
     "semantic_hash": ""
   },
   "apps/web/app/qr/card/route.ts": {
@@ -720,8 +720,8 @@
     "semantic_hash": ""
   },
   "apps/web/lib/db.ts": {
-    "mtime": 1789099667.0054464,
-    "seen": 1789099684.656515,
+    "mtime": 1789099857.320583,
+    "seen": 1789101714.7296104,
     "ast_hash": "1abad4482a1605766f2e58c85471806e",
     "semantic_hash": ""
   },
@@ -888,9 +888,9 @@
     "semantic_hash": ""
   },
   "apps/web/next.config.ts": {
-    "mtime": 1789097925.890334,
-    "seen": 1789099153.6009462,
-    "ast_hash": "5ad208eb3a837c6e69237626294316d0",
+    "mtime": 1789101608.635764,
+    "seen": 1789101714.730098,
+    "ast_hash": "fd773e8c152668191b1fe1a9547e8214",
     "semantic_hash": ""
   },
   "apps/web/package.json": {
@@ -906,9 +906,9 @@
     "semantic_hash": ""
   },
   "apps/web/proxy.ts": {
-    "mtime": 1789090219.6607552,
-    "seen": 1789092298.1530993,
-    "ast_hash": "b8e5c4189615bcbc0679344f4a196690",
+    "mtime": 1789101615.8507466,
+    "seen": 1789101714.7301338,
+    "ast_hash": "68f35525bc02aedadb0d767c495a10ce",
     "semantic_hash": ""
   },
   "apps/web/tsconfig.json": {
@@ -924,15 +924,15 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1789099104.7568264,
-    "seen": 1789099153.6010299,
+    "mtime": 1789099857.3242521,
+    "seen": 1789101714.7301676,
     "ast_hash": "a8e9da838adf8a25990d558b0ca517e5",
     "semantic_hash": ""
   },
   "packages/db/drizzle.config.ts": {
-    "mtime": 1789099602.4426036,
-    "seen": 1789099684.657123,
-    "ast_hash": "79750daf253dce27606b76fcad3acd40",
+    "mtime": 1789101577.9538379,
+    "seen": 1789101714.7301688,
+    "ast_hash": "cc213d42476c680cdff41fbdc02d2884",
     "semantic_hash": ""
   },
   "packages/db/migrations/meta/0000_snapshot.json": {
@@ -984,15 +984,15 @@
     "semantic_hash": ""
   },
   "packages/db/package.json": {
-    "mtime": 1789099095.1038504,
-    "seen": 1789099153.6011827,
+    "mtime": 1789099857.3244529,
+    "seen": 1789101714.7303462,
     "ast_hash": "3fe8ea3ed97ab43d96f2434d2142ee80",
     "semantic_hash": ""
   },
   "packages/db/scripts/seed-students.mjs": {
-    "mtime": 1789090219.6630805,
-    "seen": 1789092298.1531205,
-    "ast_hash": "ed600c882d0a36a5f6814d4fa590ae31",
+    "mtime": 1789101602.814778,
+    "seen": 1789101714.7303495,
+    "ast_hash": "e65ba53f102eac12301a342eafae2fc9",
     "semantic_hash": ""
   },
   "packages/db/scripts/test-integration.sh": {
@@ -1254,8 +1254,8 @@
     "semantic_hash": ""
   },
   "docs/deployment.md": {
-    "mtime": 1789099643.430871,
-    "seen": 1789099684.6581619,
+    "mtime": 1789099857.3207405,
+    "seen": 1789101714.731224,
     "ast_hash": "fd9def00b62894e5b661986d64ac9051",
     "semantic_hash": ""
   },
@@ -1278,14 +1278,14 @@
     "semantic_hash": ""
   },
   "docs/setup/README.md": {
-    "mtime": 1789099618.795564,
-    "seen": 1789099684.6582112,
+    "mtime": 1789099857.320877,
+    "seen": 1789101714.7312746,
     "ast_hash": "c27329f40d5c49e07535b688a45f01fb",
     "semantic_hash": ""
   },
   "docs/setup/provisioning.md": {
-    "mtime": 1789099631.446533,
-    "seen": 1789099684.658228,
+    "mtime": 1789099857.3211462,
+    "seen": 1789101714.7312765,
     "ast_hash": "64c9aba39da05140b08c13ba80141f8a",
     "semantic_hash": ""
   },
@@ -1446,9 +1446,9 @@
     "semantic_hash": ""
   },
   "packages/db/scripts/import-enrollment-roster.mjs": {
-    "mtime": 1789097925.8997185,
-    "seen": 1789099153.6011837,
-    "ast_hash": "2e186b51cc11c4df08e2a5d9e7e2ee1b",
+    "mtime": 1789101585.9928184,
+    "seen": 1789101714.7303476,
+    "ast_hash": "74d4d6eb0e91aed1197bc5a663ac9e04",
     "semantic_hash": ""
   },
   "docs/adr/0016-enrollment-roster-precedes-student-identity.md": {
@@ -1464,15 +1464,15 @@
     "semantic_hash": ""
   },
   "docs/setup/docker.md": {
-    "mtime": 1789099128.8777666,
-    "seen": 1789099153.6020403,
+    "mtime": 1789099857.3210003,
+    "seen": 1789101714.7312758,
     "ast_hash": "bfbbbd1e09c08916f02d558ef186773f",
     "semantic_hash": ""
   },
   "packages/db/scripts/seed-all-roster-students.mjs": {
-    "mtime": 1789098827.7095227,
-    "seen": 1789099153.6011856,
-    "ast_hash": "aee970360e13690209b88752ce5ae8ee",
+    "mtime": 1789101589.909809,
+    "seen": 1789101714.7303486,
+    "ast_hash": "135c79d346056367999d9cdbba7e8738",
     "semantic_hash": ""
   }
 }

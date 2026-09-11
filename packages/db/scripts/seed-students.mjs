@@ -7,9 +7,13 @@
 // /sign-in and complete onboarding; to promote a seeded row, use the Admin page.
 import postgres from "postgres";
 
-const { DATABASE_URL } = process.env;
-if (!DATABASE_URL) {
-  console.error("Missing env. Run via the db:seed script so --env-file=../../.env is applied.");
+const dbUrl =
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL;
+
+if (!dbUrl) {
+  console.error("Missing database URL. Run via the db:seed script so --env-file=../../.env is applied.");
   process.exit(1);
 }
 
@@ -20,7 +24,7 @@ const TEST_STUDENTS = [
   { email: "teststudent3@gbox.ncf.edu.ph", name: "Test Student Three", studentId: "24-00003" },
 ];
 
-const sql = postgres(DATABASE_URL);
+const sql = postgres(dbUrl);
 
 for (const s of TEST_STUDENTS) {
   // Namespaced so a seeded row can never collide with a real Clerk user id.

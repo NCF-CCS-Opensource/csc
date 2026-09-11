@@ -2112,7 +2112,7 @@
       "file_type": "code",
       "norm_label": "decodexml()",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L15"
+      "source_location": "L22"
     },
     {
       "id": "packages_db_scripts_import_enrollment_roster_isgbox",
@@ -2124,7 +2124,7 @@
       "file_type": "code",
       "norm_label": "isgbox()",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L48"
+      "source_location": "L55"
     },
     {
       "id": "packages_db_scripts_import_enrollment_roster_readzipentry",
@@ -2136,7 +2136,7 @@
       "file_type": "code",
       "norm_label": "readzipentry()",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L14"
+      "source_location": "L21"
     },
     {
       "id": "packages_db_scripts_import_enrollment_roster_trim",
@@ -2148,7 +2148,7 @@
       "file_type": "code",
       "norm_label": "trim()",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L47"
+      "source_location": "L54"
     },
     {
       "id": "apps_web_app_app_events_eventid_attendance_actions_markpaid",
@@ -6684,7 +6684,7 @@
       "file_type": "code",
       "norm_label": "gboxemails",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L71"
+      "source_location": "L78"
     },
     {
       "id": "packages_db_scripts_import_enrollment_roster_programs",
@@ -6695,7 +6695,7 @@
       "file_type": "code",
       "norm_label": "programs",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L41"
+      "source_location": "L48"
     },
     {
       "id": "packages_db_scripts_import_enrollment_roster_roster",
@@ -6706,7 +6706,7 @@
       "file_type": "code",
       "norm_label": "roster",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L49"
+      "source_location": "L56"
     },
     {
       "id": "packages_db_scripts_import_enrollment_roster_rows",
@@ -6717,7 +6717,7 @@
       "file_type": "code",
       "norm_label": "rows",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L28"
+      "source_location": "L35"
     },
     {
       "id": "packages_db_scripts_import_enrollment_roster_sharedstrings",
@@ -6728,7 +6728,7 @@
       "file_type": "code",
       "norm_label": "sharedstrings",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L23"
+      "source_location": "L30"
     },
     {
       "id": "packages_db_scripts_import_enrollment_roster_source",
@@ -6750,7 +6750,7 @@
       "file_type": "code",
       "norm_label": "sql",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L76"
+      "source_location": "L83"
     },
     {
       "id": "packages_db_scripts_import_enrollment_roster_workbook",
@@ -6761,7 +6761,7 @@
       "file_type": "code",
       "norm_label": "workbook",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L13"
+      "source_location": "L20"
     },
     {
       "id": "apps_web_app_app_events_eventid_attendance_actions",
@@ -8114,7 +8114,7 @@
       "file_type": "code",
       "norm_label": "config",
       "source_file": "apps/web/proxy.ts",
-      "source_location": "L32"
+      "source_location": "L40"
     },
     {
       "id": "apps_web_proxy_isapproute",
@@ -12399,7 +12399,7 @@
       "file_type": "code",
       "norm_label": "governorlist",
       "source_file": "packages/db/scripts/seed-all-roster-students.mjs",
-      "source_location": "L10"
+      "source_location": "L17"
     },
     {
       "id": "packages_db_scripts_seed_all_roster_students_sql",
@@ -12410,7 +12410,7 @@
       "file_type": "code",
       "norm_label": "sql",
       "source_file": "packages/db/scripts/seed-all-roster-students.mjs",
-      "source_location": "L11"
+      "source_location": "L18"
     },
     {
       "id": "packages_db_scripts_seed_students",
@@ -12432,7 +12432,7 @@
       "file_type": "code",
       "norm_label": "sql",
       "source_file": "packages/db/scripts/seed-students.mjs",
-      "source_location": "L23"
+      "source_location": "L27"
     },
     {
       "id": "packages_db_scripts_seed_students_test_students",
@@ -12443,7 +12443,7 @@
       "file_type": "code",
       "norm_label": "test_students",
       "source_file": "packages/db/scripts/seed-students.mjs",
-      "source_location": "L17"
+      "source_location": "L21"
     },
     {
       "id": "packages_db_scripts_seed_students_mjs_docref_adr_0012",
@@ -19766,7 +19766,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/web/proxy.ts",
-      "source_location": "L18",
+      "source_location": "L19",
       "weight": 1.0
     },
     {
@@ -19778,7 +19778,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/web/proxy.ts",
-      "source_location": "L27",
+      "source_location": "L28",
       "weight": 1.0
     },
     {
@@ -19790,7 +19790,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L50",
+      "source_location": "L57",
       "weight": 1.0
     },
     {
@@ -19802,7 +19802,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L58",
+      "source_location": "L65",
       "weight": 1.0
     },
     {
@@ -19814,7 +19814,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L36",
+      "source_location": "L43",
       "weight": 1.0
     },
     {
@@ -19826,7 +19826,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L25",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -43384,7 +43384,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/web/proxy.ts",
-      "source_location": "L32",
+      "source_location": "L40",
       "weight": 1.0
     },
     {
@@ -44385,7 +44385,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L13",
+      "source_location": "L20",
       "weight": 1.0
     },
     {
@@ -44396,7 +44396,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L14",
+      "source_location": "L21",
       "weight": 1.0
     },
     {
@@ -44407,7 +44407,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L15",
+      "source_location": "L22",
       "weight": 1.0
     },
     {
@@ -44418,7 +44418,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L23",
+      "source_location": "L30",
       "weight": 1.0
     },
     {
@@ -44429,7 +44429,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L28",
+      "source_location": "L35",
       "weight": 1.0
     },
     {
@@ -44440,7 +44440,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L41",
+      "source_location": "L48",
       "weight": 1.0
     },
     {
@@ -44451,7 +44451,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L47",
+      "source_location": "L54",
       "weight": 1.0
     },
     {
@@ -44462,7 +44462,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L48",
+      "source_location": "L55",
       "weight": 1.0
     },
     {
@@ -44473,7 +44473,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L49",
+      "source_location": "L56",
       "weight": 1.0
     },
     {
@@ -44495,7 +44495,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L71",
+      "source_location": "L78",
       "weight": 1.0
     },
     {
@@ -44506,7 +44506,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/import-enrollment-roster.mjs",
-      "source_location": "L76",
+      "source_location": "L83",
       "weight": 1.0
     },
     {
@@ -44517,7 +44517,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/seed-all-roster-students.mjs",
-      "source_location": "L10",
+      "source_location": "L17",
       "weight": 1.0
     },
     {
@@ -44528,7 +44528,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/seed-all-roster-students.mjs",
-      "source_location": "L11",
+      "source_location": "L18",
       "weight": 1.0
     },
     {
@@ -44539,7 +44539,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/seed-students.mjs",
-      "source_location": "L17",
+      "source_location": "L21",
       "weight": 1.0
     },
     {
@@ -44550,7 +44550,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "packages/db/scripts/seed-students.mjs",
-      "source_location": "L23",
+      "source_location": "L27",
       "weight": 1.0
     },
     {
@@ -46653,5 +46653,5 @@
       "source_file": "apps/mobile/assets/android-icon-foreground.png"
     }
   ],
-  "built_at_commit": "1f483c894f607f52e9392985b7d8da52a621f2d8"
+  "built_at_commit": "0a5273ed9182e489aeca10bb0c2d016b09dd7f1a"
 }
