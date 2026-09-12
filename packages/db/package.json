@@ -13,6 +13,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:seed": "node --env-file=../../.env scripts/seed-students.mjs",
+    "db:seed-test-emails": "node --env-file=../../.env scripts/seed-test-emails.mjs",
     "db:import-enrollment": "node --env-file=../../.env scripts/import-enrollment-roster.mjs \"../../Enrollment List.xlsx\"",
     "db:seed-all-roster": "node --env-file=../../.env scripts/seed-all-roster-students.mjs"
   },
