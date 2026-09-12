@@ -1,3 +1,4 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Crypto from "expo-crypto";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -68,7 +69,17 @@ export function BoothScreen({
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
-  const { data: events = [], isError: eventsFailed } = useMyEvents();
+  const { data: events = [], isError: eventsFailed, refetch: refetchEvents } = useMyEvents();
+  // Tab screens stay mounted (React Navigation doesn't unmount on blur), so
+  // useQuery's mount-time fetch only ever runs once — an Event created on the
+  // web or on this device's own Events tab would otherwise never appear here
+  // until the app is force-restarted. Refetch every time the Scanner tab is
+  // actually brought into view instead.
+  useFocusEffect(
+    useCallback(() => {
+      void refetchEvents();
+    }, [refetchEvents]),
+  );
   const [eventId, setEventId] = useState<string | null>(null);
   const [mode, setMode] = useState<BoothMode | null>(null);
   const [scanned, setScanned] = useState<ScannedResult | null>(null);
