@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import {
   AlertDialog,
@@ -68,7 +68,11 @@ type StudentRow = StudentsSnapshot["students"][number];
 // role never appear in the edit form — there is nothing here to make them
 // editable. Selection and QR Card download (spec #119) are owned by the
 // parent — this row just renders the checkbox/button it's handed.
-function StudentTableRow({
+// Memoized so toggling one Student's checkbox doesn't re-render every other
+// row in a roster that can run into the hundreds — onToggleSelected/onDownload
+// are stable (id-based, not per-row closures), so only the row whose selected/
+// isDownloading actually changed re-renders.
+const StudentTableRow = memo(function StudentTableRow({
   student,
   programs,
   selected,
@@ -79,9 +83,9 @@ function StudentTableRow({
   student: StudentRow;
   programs: string[];
   selected: boolean;
-  onToggleSelected: (checked: boolean) => void;
+  onToggleSelected: (id: string, checked: boolean) => void;
   isDownloading: boolean;
-  onDownload: () => void;
+  onDownload: (studentId: string, studentIdText: string) => void;
 }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -140,7 +144,7 @@ function StudentTableRow({
     <TableCell>
       <Checkbox
         checked={selected}
-        onCheckedChange={(checked) => onToggleSelected(checked === true)}
+        onCheckedChange={(checked) => onToggleSelected(student.id, checked === true)}
         aria-label={`Select ${student.name}`}
       />
     </TableCell>
@@ -174,7 +178,12 @@ function StudentTableRow({
             </Button>
           </TableCell>
           <TableCell className="text-right">
-            <Button variant="ghost" size="sm" disabled={isDownloading} onClick={onDownload}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={isDownloading}
+              onClick={() => onDownload(student.id, student.studentId)}
+            >
               <Download className="size-4" />
             </Button>
           </TableCell>
@@ -193,7 +202,11 @@ function StudentTableRow({
                   {student.name}&apos;s printed QR Card no longer matches their record and will be
                   rejected at the booth. Hand them a replacement.
                 </span>
-                <Button size="sm" disabled={isDownloading} onClick={onDownload}>
+                <Button
+                  size="sm"
+                  disabled={isDownloading}
+                  onClick={() => onDownload(student.id, student.studentId)}
+                >
                   <Download className="mr-2 size-4" />
                   Download replacement card
                 </Button>
@@ -282,7 +295,7 @@ function StudentTableRow({
       </AlertDialog>
   </>
 );
-}
+});
 
 // Single request path for a card download, one Student or many (spec #119):
 // a bare <a download> gives no feedback across a multi-second bulk render, so
@@ -339,14 +352,16 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((s) => selected.has(s.id));
 
-  function toggleOne(id: string, checked: boolean) {
+  // Stable identity (functional setState, no closed-over state) so passing it
+  // straight to every memoized row doesn't itself defeat the memo.
+  const toggleOne = useCallback((id: string, checked: boolean) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (checked) next.add(id);
       else next.delete(id);
       return next;
     });
-  }
+  }, []);
 
   function toggleAllFiltered(checked: boolean) {
     setSelected((prev) => {
@@ -364,6 +379,13 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
       downloadQrCards(studentIds, filename),
   });
   const isDownloading = download.isPending;
+  const { mutate: downloadMutate } = download;
+  // Stable identity, same reason as toggleOne above.
+  const downloadOne = useCallback(
+    (studentId: string, studentIdText: string) =>
+      downloadMutate({ studentIds: [studentId], filename: `${studentIdText}-qr-card.pdf` }),
+    [downloadMutate],
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-8">
@@ -458,14 +480,9 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
                     student={student}
                     programs={data.programs}
                     selected={selected.has(student.id)}
-                    onToggleSelected={(checked) => toggleOne(student.id, checked)}
+                    onToggleSelected={toggleOne}
                     isDownloading={isDownloading}
-                    onDownload={() =>
-                      download.mutate({
-                        studentIds: [student.id],
-                        filename: `${student.studentId}-qr-card.pdf`,
-                      })
-                    }
+                    onDownload={downloadOne}
                   />
                 ))}
               </TableBody>

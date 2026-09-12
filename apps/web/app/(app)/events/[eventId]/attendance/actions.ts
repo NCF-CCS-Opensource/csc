@@ -25,37 +25,39 @@ export async function eventGrid(eventId: string): Promise<EventGridRow[]> {
   // as a payable row. Scoped to this Event, idempotent — safe to repeat.
   await materializeEventNoShows(event.id);
 
-  const sessionRows = await db
-    .select({
-      id: attendanceSessions.id,
-      studentId: attendanceSessions.studentId,
-      half: attendanceSessions.half,
-      timeIn: attendanceSessions.timeIn,
-      timeOut: attendanceSessions.timeOut,
-      name: students.name,
-      studentIdText: students.studentId,
-    })
-    .from(attendanceSessions)
-    .innerJoin(students, eq(attendanceSessions.studentId, students.id))
-    .where(eq(attendanceSessions.eventId, event.id))
-    .orderBy(students.name);
-
-  const penaltyRows = await db
-    .select({
-      id: penalties.id,
-      attendanceSessionId: penalties.attendanceSessionId,
-      amount: penalties.amount,
-    })
-    .from(penalties)
-    .innerJoin(attendanceSessions, eq(penalties.attendanceSessionId, attendanceSessions.id))
-    .where(eq(attendanceSessions.eventId, event.id));
-
-  const paymentRows = await db
-    .select({ penaltyId: payments.penaltyId })
-    .from(payments)
-    .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
-    .innerJoin(attendanceSessions, eq(penalties.attendanceSessionId, attendanceSessions.id))
-    .where(eq(attendanceSessions.eventId, event.id));
+  // Independent reads, all scoped to this Event — fired together instead of
+  // three sequential round trips.
+  const [sessionRows, penaltyRows, paymentRows] = await Promise.all([
+    db
+      .select({
+        id: attendanceSessions.id,
+        studentId: attendanceSessions.studentId,
+        half: attendanceSessions.half,
+        timeIn: attendanceSessions.timeIn,
+        timeOut: attendanceSessions.timeOut,
+        name: students.name,
+        studentIdText: students.studentId,
+      })
+      .from(attendanceSessions)
+      .innerJoin(students, eq(attendanceSessions.studentId, students.id))
+      .where(eq(attendanceSessions.eventId, event.id))
+      .orderBy(students.name),
+    db
+      .select({
+        id: penalties.id,
+        attendanceSessionId: penalties.attendanceSessionId,
+        amount: penalties.amount,
+      })
+      .from(penalties)
+      .innerJoin(attendanceSessions, eq(penalties.attendanceSessionId, attendanceSessions.id))
+      .where(eq(attendanceSessions.eventId, event.id)),
+    db
+      .select({ penaltyId: payments.penaltyId })
+      .from(payments)
+      .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
+      .innerJoin(attendanceSessions, eq(penalties.attendanceSessionId, attendanceSessions.id))
+      .where(eq(attendanceSessions.eventId, event.id)),
+  ]);
 
   // Distinct liable Students, in name order (materialize ran first, so every
   // liable Student already has session rows).
