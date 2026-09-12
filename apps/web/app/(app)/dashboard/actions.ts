@@ -24,23 +24,30 @@ export type DashboardSnapshot = {
 // by the client cache's queryFn on every revisit (ADR 0013). No API route: this
 // authorizes the browser session, leaving the booth's Bearer path untouched.
 export async function dashboardSnapshot(): Promise<DashboardSnapshot> {
-  const student = await requireCapability("manage_operations");
-
   const campusDate = currentCampusDate();
-  const openSemester = await findOpenSemester();
-  const ledger = openSemester
-    ? await semesterLedger(openSemester.id, campusDate)
-    : { events: [], totals: { present: 0, absent: 0, rate: 0, collected: 0 } };
-  const governorCounts =
+
+  // requireCapability and findOpenSemester are independent reads — start both,
+  // then branch once each result actually lands.
+  const [student, openSemester] = await Promise.all([
+    requireCapability("manage_operations"),
+    findOpenSemester(),
+  ]);
+
+  const ledgerP = openSemester
+    ? semesterLedger(openSemester.id, campusDate)
+    : Promise.resolve({ events: [], totals: { present: 0, absent: 0, rate: 0, collected: 0 } });
+  const governorCountsP =
     student.role === "governor"
-      ? await Promise.all([
+      ? Promise.all([
           db
             .select({ value: count() })
             .from(students)
             .where(inArray(students.role, ["officer", "governor"])),
           db.select({ value: count() }).from(programs),
         ])
-      : null;
+      : Promise.resolve(null);
+
+  const [ledger, governorCounts] = await Promise.all([ledgerP, governorCountsP]);
 
   return {
     role: student.role,
