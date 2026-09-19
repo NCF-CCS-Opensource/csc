@@ -3,7 +3,6 @@ name: CD
 on:
   push:
     branches:
-      - develop
       - main
 
 concurrency:
@@ -11,22 +10,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-staging:
-    name: Deploy to Staging
-    if: github.ref == 'refs/heads/develop'
-    runs-on: ubuntu-latest
-    environment:
-      name: staging
-      url: https://attendance-staging.ncfccs.org
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Staging Deployment Notification
-        run: |
-          echo "🚀 Staging deployment triggered for commit ${{ github.sha }} on develop branch."
-          echo "Vercel automatically builds and deploys preview/staging for develop branch."
-
   deploy-production:
     name: Deploy to Production
     if: github.ref == 'refs/heads/main'
