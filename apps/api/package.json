@@ -8,7 +8,7 @@
     "dev": "node --import tsx --watch src/main.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude '**/*.integration.test.ts'",
-    "test:integration": "vitest run --no-file-parallelism test/semester-event-lifecycle.integration.test.ts"
+    "test:integration": "vitest run --no-file-parallelism test/*.integration.test.ts"
   },
   "dependencies": {
     "@attendance/contracts": "workspace:*",

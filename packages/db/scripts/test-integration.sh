@@ -35,5 +35,5 @@ database_url="postgresql://postgres:postgres@127.0.0.1:${port}/${database}"
 
 DATABASE_URL="$database_url" pnpm --filter @attendance/db db:migrate
 TEST_DATABASE_URL="$database_url" pnpm --filter @attendance/db test:integration:run
-TEST_DATABASE_URL="$database_url" pnpm --filter api test:integration
+DATABASE_URL="$database_url" TEST_DATABASE_URL="$database_url" pnpm --filter api test:integration
 DATABASE_URL="$database_url" pnpm --filter web test:integration
