@@ -46,10 +46,8 @@ export function decodeQrPayload(raw: string): QrPayload | null {
   return { name, studentId, program };
 }
 
-// Why a Scan Approval is treated as a rejection. Shared by the Scan Approval
-// flow (scan-approval.ts) and the persistent Rejected-scans views, so the
-// reason vocabulary lives in one place. `student` is the current Student
-// record the payload references (null/undefined when it doesn't resolve).
+// Legacy attendance-table helpers still use these QR rules. The API owns the
+// Scan Approval command and rejection view.
 export type RejectionReason =
   | "Unreadable QR"
   | "QR does not match current Student record"

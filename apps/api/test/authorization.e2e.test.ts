@@ -16,6 +16,7 @@ import { RequireCapability } from "../src/shared/presentation/capability.decorat
 import type { Actor } from "../src/shared/domain/actor";
 
 const STUDENT: Actor = {
+  id: "00000000-0000-0000-0000-000000000002",
   studentId: "S-002",
   authUserId: "user_student",
   email: "student@example.edu",
@@ -42,6 +43,7 @@ class AdminOnlyController {
 // an authenticated actor lacking the capability is forbidden.
 
 const GOVERNOR: Actor = {
+  id: "00000000-0000-0000-0000-000000000001",
   studentId: "S-001",
   authUserId: "user_governor",
   email: "governor@example.edu",

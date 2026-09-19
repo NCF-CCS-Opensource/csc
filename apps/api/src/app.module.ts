@@ -5,6 +5,7 @@ import { SemesterModule } from "./modules/semester/semester.module";
 import { EventModule } from "./modules/event/event.module";
 import { EnrollmentRosterModule } from "./modules/enrollment-roster/enrollment-roster.module";
 import { ProgramModule } from "./modules/program/program.module";
+import { ScanModule } from "./modules/scan/scan.module";
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ProgramModule } from "./modules/program/program.module";
     EventModule,
     EnrollmentRosterModule,
     ProgramModule,
+    ScanModule,
   ],
 })
 export class AppModule {}
