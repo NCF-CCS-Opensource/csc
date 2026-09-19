@@ -124,21 +124,40 @@ describe("Semester and Event lifecycle (e2e)", () => {
   const server = () => app.getHttpServer();
   const bearer = "Bearer token";
 
+  function createSemester(overrides: Record<string, unknown> = {}) {
+    return request(server())
+      .post("/semester/create")
+      .set("Authorization", bearer)
+      .send({ startDate: "2026-01-01", endDate: "2026-05-31", ...overrides });
+  }
+
+  function updateSemester(id: string, overrides: Record<string, unknown> = {}) {
+    return request(server())
+      .post("/semester/update")
+      .set("Authorization", bearer)
+      .send({ id, startDate: "2026-01-01", endDate: "2026-05-31", ...overrides });
+  }
+
+  function closeSemester(id: string) {
+    return request(server())
+      .post("/semester/close")
+      .set("Authorization", bearer)
+      .send({ id });
+  }
+
   describe("Semester lifecycle", () => {
     it("reports the one-open-Semester constraint to the Governor", async () => {
       const governor = await seedActor("governor");
       authAs(governor);
 
-      await request(server())
-        .post("/semester/create")
-        .set("Authorization", bearer)
-        .send({ startDate: "2026-01-01", endDate: "2026-05-31" })
-        .expect(201);
+      await createSemester({ startDate: "2026-01-01", endDate: "2026-05-31" }).expect(
+        201,
+      );
 
-      const response = await request(server())
-        .post("/semester/create")
-        .set("Authorization", bearer)
-        .send({ startDate: "2026-06-01", endDate: "2026-10-31" });
+      const response = await createSemester({
+        startDate: "2026-06-01",
+        endDate: "2026-10-31",
+      });
 
       expect(response.status).toBe(409);
       expect(response.body.message).toBe(
@@ -161,19 +180,19 @@ describe("Semester and Event lifecycle (e2e)", () => {
         halfDayPenaltyAmount: "50.00",
       });
 
-      const rejected = await request(server())
-        .post("/semester/update")
-        .set("Authorization", bearer)
-        .send({ id: semester.id, startDate: "2026-08-01", endDate: "2026-10-31" });
+      const rejected = await updateSemester(semester.id, {
+        startDate: "2026-08-01",
+        endDate: "2026-10-31",
+      });
       expect(rejected.status).toBe(409);
       expect(rejected.body.message).toBe(
         "Semester dates must include every existing Event",
       );
 
-      const accepted = await request(server())
-        .post("/semester/update")
-        .set("Authorization", bearer)
-        .send({ id: semester.id, startDate: "2026-05-01", endDate: "2026-11-30" });
+      const accepted = await updateSemester(semester.id, {
+        startDate: "2026-05-01",
+        endDate: "2026-11-30",
+      });
       expect(accepted.status).toBe(201);
       expect(accepted.body).toMatchObject({
         startDate: "2026-05-01",
@@ -202,6 +221,27 @@ describe("Semester and Event lifecycle (e2e)", () => {
           halfDayPenaltyAmount: "50.00",
           ...overrides,
         });
+    }
+
+    function updateEvent(id: string, overrides: Record<string, unknown> = {}) {
+      return request(server())
+        .post("/event/update")
+        .set("Authorization", bearer)
+        .send({
+          id,
+          name: "Foundation Day",
+          date: "2026-07-15",
+          type: "half_day",
+          halfDayPenaltyAmount: "50.00",
+          ...overrides,
+        });
+    }
+
+    function deleteEvent(id: string) {
+      return request(server())
+        .post("/event/delete")
+        .set("Authorization", bearer)
+        .send({ id });
     }
 
     it("creates a validated Event in the open Semester", async () => {
@@ -240,17 +280,13 @@ describe("Semester and Event lifecycle (e2e)", () => {
       await openSemester();
       const created = await createEvent();
 
-      const updated = await request(server())
-        .post("/event/update")
-        .set("Authorization", bearer)
-        .send({
-          id: created.body.id,
-          name: "CCS Foundation Day",
-          date: "2026-07-16",
-          venue: "ST Quad",
-          type: "whole_day",
-          halfDayPenaltyAmount: "75.00",
-        });
+      const updated = await updateEvent(created.body.id, {
+        name: "CCS Foundation Day",
+        date: "2026-07-16",
+        venue: "ST Quad",
+        type: "whole_day",
+        halfDayPenaltyAmount: "75.00",
+      });
 
       expect(updated.status).toBe(201);
       expect(updated.body).toMatchObject({
@@ -282,30 +318,17 @@ describe("Semester and Event lifecycle (e2e)", () => {
       // A different Officer than the creator edits it — no ownership check
       // anywhere in the path (ADR-0007) — and only name/venue may change.
       authAs(editor);
-      const allowed = await request(server())
-        .post("/event/update")
-        .set("Authorization", bearer)
-        .send({
-          id: created.body.id,
-          name: "CCS Foundation Day",
-          venue: "ST Quad",
-          date: "2026-07-15",
-          type: "half_day",
-          halfDayPenaltyAmount: "50.00",
-        });
+      const allowed = await updateEvent(created.body.id, {
+        name: "CCS Foundation Day",
+        venue: "ST Quad",
+      });
       expect(allowed.status).toBe(201);
 
-      const rejected = await request(server())
-        .post("/event/update")
-        .set("Authorization", bearer)
-        .send({
-          id: created.body.id,
-          name: "CCS Foundation Day",
-          venue: "ST Quad",
-          date: "2026-07-16",
-          type: "half_day",
-          halfDayPenaltyAmount: "50.00",
-        });
+      const rejected = await updateEvent(created.body.id, {
+        name: "CCS Foundation Day",
+        venue: "ST Quad",
+        date: "2026-07-16",
+      });
       expect(rejected.status).toBe(409);
       expect(rejected.body.message).toBe(
         "Only name and venue may change after attendance begins",
@@ -317,21 +340,11 @@ describe("Semester and Event lifecycle (e2e)", () => {
       authAs(governor);
       const semester = await openSemester();
       const created = await createEvent();
-      await request(server())
-        .post("/semester/close")
-        .set("Authorization", bearer)
-        .send({ id: semester.id });
+      await closeSemester(semester.id);
 
-      const response = await request(server())
-        .post("/event/update")
-        .set("Authorization", bearer)
-        .send({
-          id: created.body.id,
-          name: "Renamed Foundation Day",
-          date: "2026-07-15",
-          type: "half_day",
-          halfDayPenaltyAmount: "50.00",
-        });
+      const response = await updateEvent(created.body.id, {
+        name: "Renamed Foundation Day",
+      });
       expect(response.status).toBe(409);
       expect(response.body.message).toBe("Closed Semester Events cannot be changed");
     });
@@ -342,10 +355,7 @@ describe("Semester and Event lifecycle (e2e)", () => {
       await openSemester();
       const created = await createEvent({ name: "Setup mistake" });
 
-      const response = await request(server())
-        .post("/event/delete")
-        .set("Authorization", bearer)
-        .send({ id: created.body.id });
+      const response = await deleteEvent(created.body.id);
       expect(response.status).toBe(201);
       expect(
         await db.query.events.findFirst({ where: eq(events.id, created.body.id) }),
@@ -367,10 +377,7 @@ describe("Semester and Event lifecycle (e2e)", () => {
         scannedAt: new Date("2026-07-15T08:00:00Z"),
       });
 
-      const response = await request(server())
-        .post("/event/delete")
-        .set("Authorization", bearer)
-        .send({ id: created.body.id });
+      const response = await deleteEvent(created.body.id);
       expect(response.status).toBe(409);
       expect(response.body.message).toBe(
         "Events with attendance history cannot be deleted",
@@ -388,15 +395,9 @@ describe("Semester and Event lifecycle (e2e)", () => {
       authAs(governor);
       const semester = await openSemester();
       const created = await createEvent();
-      await request(server())
-        .post("/semester/close")
-        .set("Authorization", bearer)
-        .send({ id: semester.id });
+      await closeSemester(semester.id);
 
-      const response = await request(server())
-        .post("/event/delete")
-        .set("Authorization", bearer)
-        .send({ id: created.body.id });
+      const response = await deleteEvent(created.body.id);
       expect(response.status).toBe(409);
       expect(response.body.message).toBe("Closed Semester Events cannot be deleted");
     });
