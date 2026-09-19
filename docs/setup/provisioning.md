@@ -1,22 +1,24 @@
 # Provisioning (manual, one-time)
 
-Everything code-side is scaffolded. These steps need your own Supabase and Vercel accounts — an agent can't run them without your credentials.
+Everything code-side is scaffolded. These steps need your own Heroku and Vercel accounts — an agent can't run them without your credentials.
 
 The current public test-production web/API domain is `https://attendance.ncfccs.org`. For repeat deployments to that environment, use the [test-production deployment runbook](./README.md).
 
-## 1. Supabase project & Vercel Integration
+## 1. Heroku Postgres provisioning
 
-1. Create a project at https://supabase.com/dashboard.
-2. No Supabase Auth variables are needed. Identity is Clerk for both `apps/web` and `apps/mobile` (step 5); Supabase is a Postgres and Storage host only (ADR-0012).
-3. **Connect Supabase to Vercel**:
-   - In Vercel Project Settings > **Integrations** (or via Supabase dashboard > Integrations > Vercel), connect your Supabase project.
-   - Vercel automatically creates:
-     - `POSTGRES_URL` (Supavisor Transaction Pooler on port 6543)
-     - `POSTGRES_URL_NON_POOLING` (Direct connection on port 5432)
-     - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`
-   - `apps/web/lib/db.ts` automatically resolves `process.env.DATABASE_URL || process.env.POSTGRES_URL`, so the web app connects immediately.
-4. For local developer machines or CI running migrations:
-   - Supabase Dashboard > Settings > Database > Connection string ("Transaction" pooler, port 6543): copy into your local `.env` as `DATABASE_URL`.
+The provider is a configuration value, not a commitment (ADR-0018) — any managed Postgres reachable by a connection string works. Heroku Postgres Essential-0 is the host chosen now because it never pauses on inactivity.
+
+1. Create a Heroku app (or reuse one) and add the addon:
+   ```bash
+   heroku addons:create heroku-postgresql:essential-0 --app <your-app>
+   ```
+2. Read the connection string:
+   ```bash
+   heroku config:get DATABASE_URL --app <your-app>
+   ```
+   Heroku Postgres uses a self-signed certificate, so append `?sslmode=no-verify` if it is not already present.
+3. Set that value as `DATABASE_URL` in Vercel Project Settings > Environment Variables (Production), and in your local `.env` for migrations. No separate pooled/direct pair exists — one URL serves both runtime queries and migrations. `apps/web/lib/db.ts` reads `process.env.DATABASE_URL` directly.
+4. No Auth variables are needed from the database host. Identity is Clerk for both `apps/web` and `apps/mobile` (step 5); Postgres is strictly a data store (ADR-0012, ADR-0018).
 
 ## 2. Run the Drizzle migrations
 
@@ -33,17 +35,17 @@ pnpm --filter @attendance/db db:generate   # writes packages/db/migrations from 
 pnpm --filter @attendance/db db:migrate    # applies migrations against DATABASE_URL (or POSTGRES_URL)
 ```
 
-`students`, `programs` (seeded with the 4 defaults: `Computer Science`, `Information Technology`, `Information System`, `ACT`), `enrollment_roster`, `semesters`, `events`, `attendance_sessions`, `scans`, `penalties`, and `payments` exist. Verify in Supabase dashboard > Table Editor.
+`students`, `programs` (seeded with the 4 defaults: `Computer Science`, `Information Technology`, `Information System`, `ACT`), `enrollment_roster`, `semesters`, `events`, `attendance_sessions`, `scans`, `penalties`, and `payments` exist. Verify with `heroku pg:psql --app <your-app> -c '\dt'`.
 
 ## 2b. Import the official enrollment roster (513 students)
 
 The official CCS enrollment list (`Enrollment List.xlsx`) must be loaded into the `enrollment_roster` table. This allows students to immediately claim their student records when logging in via `@gbox.ncf.edu.ph` Google SSO:
 
 ```bash
-DATABASE_URL="<your-supabase-connection-string>" node packages/db/scripts/import-enrollment-roster.mjs "Enrollment List.xlsx"
+DATABASE_URL="<your-heroku-connection-string>" node packages/db/scripts/import-enrollment-roster.mjs "Enrollment List.xlsx"
 ```
 
-Verify in Supabase Table Editor that `enrollment_roster` has **513 rows** across BSCS, BSIT, BSIS, and ACT programs.
+Verify with `heroku pg:psql --app <your-app> -c 'select count(*) from enrollment_roster;'` that **513 rows** are present across BSCS, BSIT, BSIS, and ACT programs.
 
 > [!IMPORTANT]
 > Do **not** run `seed-all-roster-students.mjs` on production. Production student records must be created organically through Clerk Google SSO onboarding so each student's record is tied to their real Clerk user ID. `seed-all-roster-students.mjs` is strictly for local Docker and staging test environments.
@@ -64,7 +66,7 @@ Set the variable *and redeploy* before the first sign-in to avoid this.
 
 1. https://vercel.com/new, import this repo, set **Root Directory** to `apps/web`.
 2. Framework preset: Next.js (auto-detected).
-3. With the Supabase Vercel integration connected, database variables (`POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`) are automatically set. Add the remaining variables in Vercel project settings:
+3. With `DATABASE_URL` set from step 1, add the remaining variables in Vercel project settings:
    - `CLERK_SECRET_KEY`
    - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
    - `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
@@ -72,7 +74,7 @@ Set the variable *and redeploy* before the first sign-in to avoid this.
    - `GEMINI_API_KEY` (optional, for report narrative generation)
    *(Note: `EXPO_PUBLIC_*` variables are mobile-only and belong in `apps/mobile/.env`, not Vercel).*
 4. Deploy. Then add the deployed origin (`https://attendance.ncfccs.org` or your Vercel URL) to Clerk's allowed domains for this instance and redeploy if you changed any variable.
-5. **If `/onboarding` (or any DB-backed page) fails to load after deploy**: it's almost always step 2's migration never having actually run against this Supabase project (check Table Editor for the 9 tables), or a missing/stale env var in this Vercel project (not your local `.env`).
+5. **If `/onboarding` (or any DB-backed page) fails to load after deploy**: it's almost always step 2's migration never having actually run against this Heroku database (check `heroku pg:psql` for the 9 tables), or a missing/stale env var in this Vercel project (not your local `.env`).
 6. **If web sign-in fails or bounces back to `/sign-in`**: check, in order — (a) the Clerk keys are set in *this* Vercel project (not just local `.env`), redeployed after setting them; (b) the deployed origin is allowed on the Clerk instance; (c) Clerk's Google connection is enabled and its sign-up restriction still allows `@gbox.ncf.edu.ph`.
 
 ### Custom domain via Cloudflare DNS
