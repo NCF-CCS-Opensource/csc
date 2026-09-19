@@ -1,7 +1,6 @@
 import "reflect-metadata";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { Test } from "@nestjs/testing";
 import { Reflector } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
@@ -35,6 +34,7 @@ import { DeleteEventUseCase } from "../src/modules/event/application/delete-even
 import { EventController } from "../src/modules/event/presentation/event.controller";
 import { AuthGuard } from "../src/shared/presentation/auth.guard";
 import { CapabilityGuard } from "../src/shared/presentation/capability.guard";
+import { createTestApp } from "./create-test-app";
 
 // Ported from apps/web/lib/architecture.integration.test.ts's "Semester
 // lifecycle" and "Event lifecycle" describe blocks (the ~38-test acceptance
@@ -62,9 +62,9 @@ describe("Semester and Event lifecycle (e2e)", () => {
   const verify = vi.fn();
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      controllers: [SemesterController, EventController],
-      providers: [
+    app = await createTestApp(
+      [SemesterController, EventController],
+      [
         { provide: DB, useValue: db },
         { provide: TOKEN_VERIFIER, useValue: { verify } },
         { provide: STUDENT_REPOSITORY, useClass: DrizzleStudentRepository },
@@ -82,10 +82,7 @@ describe("Semester and Event lifecycle (e2e)", () => {
         CapabilityGuard,
         Reflector,
       ],
-    }).compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
+    );
   });
 
   afterAll(async () => {

@@ -1,7 +1,6 @@
 import "reflect-metadata";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { Test } from "@nestjs/testing";
 import { Reflector } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
@@ -15,6 +14,7 @@ import { AuthGuard } from "../src/shared/presentation/auth.guard";
 import { CapabilityGuard } from "../src/shared/presentation/capability.guard";
 import { ScanApprovalUseCase } from "../src/modules/scan/application/scan-approval.use-case";
 import { ScanController } from "../src/modules/scan/presentation/scan.controller";
+import { createTestApp } from "./create-test-app";
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) throw new Error("TEST_DATABASE_URL is required");
@@ -29,9 +29,9 @@ describe("Scan Approval (e2e)", () => {
   const bearer = "Bearer token";
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      controllers: [ScanController],
-      providers: [
+    app = await createTestApp(
+      [ScanController],
+      [
         { provide: DB, useValue: db },
         { provide: TOKEN_VERIFIER, useValue: { verify } },
         { provide: STUDENT_REPOSITORY, useClass: DrizzleStudentRepository },
@@ -40,9 +40,7 @@ describe("Scan Approval (e2e)", () => {
         CapabilityGuard,
         Reflector,
       ],
-    }).compile();
-    app = moduleRef.createNestApplication();
-    await app.init();
+    );
   });
 
   afterAll(async () => app.close());

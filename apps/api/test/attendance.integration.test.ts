@@ -1,6 +1,5 @@
 import "reflect-metadata";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { Test } from "@nestjs/testing";
 import { Reflector } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
@@ -14,6 +13,7 @@ import { AuthGuard } from "../src/shared/presentation/auth.guard";
 import { CapabilityGuard } from "../src/shared/presentation/capability.guard";
 import { AttendanceUseCase } from "../src/modules/attendance/application/attendance.use-case";
 import { AttendanceController } from "../src/modules/attendance/presentation/attendance.controller";
+import { createTestApp } from "./create-test-app";
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) throw new Error("TEST_DATABASE_URL is required");
@@ -28,9 +28,9 @@ describe("Attendance, Penalty and Payment (e2e)", () => {
   const bearer = "Bearer token";
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      controllers: [AttendanceController],
-      providers: [
+    app = await createTestApp(
+      [AttendanceController],
+      [
         { provide: DB, useValue: db },
         { provide: TOKEN_VERIFIER, useValue: { verify } },
         { provide: STUDENT_REPOSITORY, useClass: DrizzleStudentRepository },
@@ -39,9 +39,7 @@ describe("Attendance, Penalty and Payment (e2e)", () => {
         CapabilityGuard,
         Reflector,
       ],
-    }).compile();
-    app = moduleRef.createNestApplication();
-    await app.init();
+    );
   });
 
   afterAll(async () => app.close());
