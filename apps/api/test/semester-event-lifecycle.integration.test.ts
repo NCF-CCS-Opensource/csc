@@ -191,21 +191,25 @@ describe("Semester and Event lifecycle (e2e)", () => {
       return semester;
     }
 
-    it("creates a validated Event in the open Semester", async () => {
-      const officer = await seedActor("officer");
-      authAs(officer);
-      const semester = await openSemester();
-
-      const response = await request(server())
+    function createEvent(overrides: Record<string, unknown> = {}) {
+      return request(server())
         .post("/event/create")
         .set("Authorization", bearer)
         .send({
           name: "Foundation Day",
           date: "2026-07-15",
-          venue: "ST Quad",
           type: "half_day",
           halfDayPenaltyAmount: "50.00",
+          ...overrides,
         });
+    }
+
+    it("creates a validated Event in the open Semester", async () => {
+      const officer = await seedActor("officer");
+      authAs(officer);
+      const semester = await openSemester();
+
+      const response = await createEvent({ venue: "ST Quad" });
 
       expect(response.status).toBe(201);
       expect(response.body).toMatchObject({
@@ -222,15 +226,7 @@ describe("Semester and Event lifecycle (e2e)", () => {
       const officer = await seedActor("officer");
       authAs(officer);
 
-      const response = await request(server())
-        .post("/event/create")
-        .set("Authorization", bearer)
-        .send({
-          name: "Foundation Day",
-          date: "2026-07-15",
-          type: "half_day",
-          halfDayPenaltyAmount: "50.00",
-        });
+      const response = await createEvent();
 
       expect(response.status).toBe(409);
       expect(response.body.message).toBe(
@@ -242,15 +238,7 @@ describe("Semester and Event lifecycle (e2e)", () => {
       const officer = await seedActor("officer");
       authAs(officer);
       await openSemester();
-      const created = await request(server())
-        .post("/event/create")
-        .set("Authorization", bearer)
-        .send({
-          name: "Foundation Day",
-          date: "2026-07-15",
-          type: "half_day",
-          halfDayPenaltyAmount: "50.00",
-        });
+      const created = await createEvent();
 
       const updated = await request(server())
         .post("/event/update")
@@ -279,15 +267,7 @@ describe("Semester and Event lifecycle (e2e)", () => {
       const editor = await seedActor("officer");
       authAs(creator);
       await openSemester();
-      const created = await request(server())
-        .post("/event/create")
-        .set("Authorization", bearer)
-        .send({
-          name: "Foundation Day",
-          date: "2026-07-15",
-          type: "half_day",
-          halfDayPenaltyAmount: "50.00",
-        });
+      const created = await createEvent();
 
       await db.insert(scans).values({
         id: randomUUID(),
@@ -336,15 +316,7 @@ describe("Semester and Event lifecycle (e2e)", () => {
       const governor = await seedActor("governor");
       authAs(governor);
       const semester = await openSemester();
-      const created = await request(server())
-        .post("/event/create")
-        .set("Authorization", bearer)
-        .send({
-          name: "Foundation Day",
-          date: "2026-07-15",
-          type: "half_day",
-          halfDayPenaltyAmount: "50.00",
-        });
+      const created = await createEvent();
       await request(server())
         .post("/semester/close")
         .set("Authorization", bearer)
@@ -368,15 +340,7 @@ describe("Semester and Event lifecycle (e2e)", () => {
       const officer = await seedActor("officer");
       authAs(officer);
       await openSemester();
-      const created = await request(server())
-        .post("/event/create")
-        .set("Authorization", bearer)
-        .send({
-          name: "Setup mistake",
-          date: "2026-07-15",
-          type: "half_day",
-          halfDayPenaltyAmount: "50.00",
-        });
+      const created = await createEvent({ name: "Setup mistake" });
 
       const response = await request(server())
         .post("/event/delete")
@@ -392,15 +356,7 @@ describe("Semester and Event lifecycle (e2e)", () => {
       const officer = await seedActor("officer");
       authAs(officer);
       await openSemester();
-      const created = await request(server())
-        .post("/event/create")
-        .set("Authorization", bearer)
-        .send({
-          name: "Foundation Day",
-          date: "2026-07-15",
-          type: "half_day",
-          halfDayPenaltyAmount: "50.00",
-        });
+      const created = await createEvent();
       await db.insert(scans).values({
         id: randomUUID(),
         eventId: created.body.id,
@@ -431,15 +387,7 @@ describe("Semester and Event lifecycle (e2e)", () => {
       const governor = await seedActor("governor");
       authAs(governor);
       const semester = await openSemester();
-      const created = await request(server())
-        .post("/event/create")
-        .set("Authorization", bearer)
-        .send({
-          name: "Foundation Day",
-          date: "2026-07-15",
-          type: "half_day",
-          halfDayPenaltyAmount: "50.00",
-        });
+      const created = await createEvent();
       await request(server())
         .post("/semester/close")
         .set("Authorization", bearer)
@@ -458,15 +406,7 @@ describe("Semester and Event lifecycle (e2e)", () => {
       const reader = await seedActor("officer");
       authAs(creator);
       await openSemester();
-      await request(server())
-        .post("/event/create")
-        .set("Authorization", bearer)
-        .send({
-          name: "Foundation Day",
-          date: "2026-07-15",
-          type: "half_day",
-          halfDayPenaltyAmount: "50.00",
-        });
+      await createEvent();
 
       authAs(reader);
       const response = await request(server())

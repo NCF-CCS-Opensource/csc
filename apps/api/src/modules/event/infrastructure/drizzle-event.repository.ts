@@ -33,6 +33,28 @@ export class DrizzleEventRepository implements EventRepository {
     );
   }
 
+  // Locks the Event row and its Semester row (ADR-0017 row-lock discipline) —
+  // shared by update() and remove(), which both need the Event's own
+  // Semester to decide whether it's still open.
+  private async lockEventAndSemester(transaction: Transaction, id: string) {
+    const [existing] = await transaction
+      .select()
+      .from(events)
+      .where(eq(events.id, id))
+      .limit(1)
+      .for("update");
+    if (!existing) throw new EventLifecycleError("Event not found", 404);
+
+    const [semester] = await transaction
+      .select()
+      .from(semesters)
+      .where(eq(semesters.id, existing.semesterId))
+      .limit(1)
+      .for("update");
+
+    return { existing, semester };
+  }
+
   async create(input: EventInput): Promise<Event> {
     return this.db.transaction(async (transaction) => {
       const [openSemester] = await transaction
@@ -61,19 +83,7 @@ export class DrizzleEventRepository implements EventRepository {
 
   async update(id: string, input: EventInput): Promise<Event> {
     return this.db.transaction(async (transaction) => {
-      const [existing] = await transaction
-        .select()
-        .from(events)
-        .where(eq(events.id, id))
-        .limit(1)
-        .for("update");
-      if (!existing) throw new EventLifecycleError("Event not found", 404);
-      const [semester] = await transaction
-        .select()
-        .from(semesters)
-        .where(eq(semesters.id, existing.semesterId))
-        .limit(1)
-        .for("update");
+      const { existing, semester } = await this.lockEventAndSemester(transaction, id);
       if (!semester) throw new EventLifecycleError("Semester not found", 404);
       if (semester.closedAt) {
         throw new EventLifecycleError("Closed Semester Events cannot be changed", 409);
@@ -105,19 +115,7 @@ export class DrizzleEventRepository implements EventRepository {
 
   async remove(id: string): Promise<void> {
     await this.db.transaction(async (transaction) => {
-      const [existing] = await transaction
-        .select()
-        .from(events)
-        .where(eq(events.id, id))
-        .limit(1)
-        .for("update");
-      if (!existing) throw new EventLifecycleError("Event not found", 404);
-      const [semester] = await transaction
-        .select()
-        .from(semesters)
-        .where(eq(semesters.id, existing.semesterId))
-        .limit(1)
-        .for("update");
+      const { semester } = await this.lockEventAndSemester(transaction, id);
       if (semester?.closedAt) {
         throw new EventLifecycleError("Closed Semester Events cannot be deleted", 409);
       }

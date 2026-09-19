@@ -82,14 +82,12 @@ export async function createEvent(formData: FormData) {
 // the dialog stays open and shows the message inline (e.g. Semester-closure
 // rejections). No ownership check: any Officer may edit or delete any Event
 // (ADR 0007), enforced by the API, not here.
-export async function updateEvent(
-  id: string,
-  formData: FormData,
+async function runOrReportError(
+  path: string,
+  body: unknown,
 ): Promise<{ error: string | null }> {
-  await requireOfficerOrGovernor();
-
   try {
-    await apiFetch("/v1/api/event/update", { id, ...parseEventForm(formData) });
+    await apiFetch(path, body);
   } catch (error) {
     if (error instanceof ApiError) return { error: error.message };
     throw error;
@@ -98,15 +96,15 @@ export async function updateEvent(
   return { error: null };
 }
 
+export async function updateEvent(
+  id: string,
+  formData: FormData,
+): Promise<{ error: string | null }> {
+  await requireOfficerOrGovernor();
+  return runOrReportError("/v1/api/event/update", { id, ...parseEventForm(formData) });
+}
+
 export async function deleteEvent(id: string): Promise<{ error: string | null }> {
   await requireOfficerOrGovernor();
-
-  try {
-    await apiFetch("/v1/api/event/delete", { id });
-  } catch (error) {
-    if (error instanceof ApiError) return { error: error.message };
-    throw error;
-  }
-  revalidatePath("/events");
-  return { error: null };
+  return runOrReportError("/v1/api/event/delete", { id });
 }
