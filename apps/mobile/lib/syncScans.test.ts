@@ -95,7 +95,7 @@ describe("flushQueue", () => {
     await flushQueue("officer-a");
 
     expect(send).toHaveBeenCalledWith(
-      "/api/scan/approve",
+      "/v1/api/scan/approve",
       expect.objectContaining({
         body: expect.stringContaining(
           '"scanId":"00000000-0000-4000-8000-000000000001"',

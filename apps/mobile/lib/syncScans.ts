@@ -22,7 +22,7 @@ function isPermanent(error: unknown): error is ApiError {
 
 function requestFor(scan: QueuedScan): [string, RequestInit] {
   return [
-    `/api/scan/${scan.type}`,
+    `/v1/api/scan/${scan.type}`,
     {
       method: "POST",
       body: JSON.stringify({

@@ -86,8 +86,8 @@ export function SettingsScreen({
   const endSession = () => endOfficerSession(signOut);
 
   useEffect(() => {
-    apiFetch<{ student: Me }>("/api/me")
-      .then((data) => setMe(data.student))
+    apiFetch<Me>("/v1/api/student/identity", { method: "POST" })
+      .then(setMe)
       .catch(() => {});
   }, []);
 

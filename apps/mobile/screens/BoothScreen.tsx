@@ -151,7 +151,7 @@ export function BoothScreen({
     setValidating(true);
     try {
       const { student } = await apiFetch<{ student: ScannedStudent }>(
-        "/api/scan/identify",
+        "/v1/api/scan/identify",
         {
           method: "POST",
           body: JSON.stringify({ qrPayload: result.data }),
