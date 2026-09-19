@@ -1,27 +1,17 @@
 "use server";
 
-import { events } from "@attendance/db";
-import { desc } from "drizzle-orm";
+import type { EventResponse, EventType, SemesterResponse } from "@attendance/contracts";
+import { EVENT_TYPES } from "@attendance/contracts";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireOfficerOrGovernor } from "@/lib/auth";
-import { db } from "@/lib/db";
-import {
-  createEvent as createEventCommand,
-  deleteEvent as deleteEventCommand,
-  deriveWholeDayPenalty,
-  EVENT_TYPES,
-  EventLifecycleError,
-  findOpenSemester,
-  parseEventInput,
-  updateEvent as updateEventCommand,
-  type EventType,
-} from "@/lib/events";
+import { apiFetch, ApiError } from "@/lib/api-client";
 
-// The Event module reaches the database, so the client view must not import it
-// — that would pull the db into the browser bundle. Everything the view needs
-// from it (the derived whole-day Penalty, the Event types) is resolved here and
-// travels as data, leaving the module itself untouched (ADR 0013).
+// The Event module now lives in apps/api (issue #163, ADR-0019) — these
+// actions are thin proxies: requireOfficerOrGovernor() still gates page
+// navigation (ADR-0005's redirect model), then every read/write forwards the
+// caller's Clerk token to the API, which is the only place lifecycle rules
+// and authorization are enforced.
 export type EventsSnapshot = {
   openSemester: { startDate: string; endDate: string } | null;
   eventTypes: readonly EventType[];
@@ -36,23 +26,13 @@ export type EventsSnapshot = {
 };
 
 // The Events page's one read, called by the server shell for the first paint and
-// by the client cache's queryFn on every revisit (ADR 0013). No API route: this
-// authorizes the browser session, leaving the booth's Bearer path untouched.
+// by the client cache's queryFn on every revisit (ADR 0013).
 export async function eventsSnapshot(): Promise<EventsSnapshot> {
   await requireOfficerOrGovernor();
 
   const [openSemester, allEvents] = await Promise.all([
-    findOpenSemester(),
-    db
-      .select({
-        id: events.id,
-        name: events.name,
-        date: events.date,
-        type: events.type,
-        halfDayPenaltyAmount: events.halfDayPenaltyAmount,
-      })
-      .from(events)
-      .orderBy(desc(events.createdAt)),
+    apiFetch<SemesterResponse | null>("/v1/api/semester/current"),
+    apiFetch<EventResponse[]>("/v1/api/event/list"),
   ]);
 
   return {
@@ -61,8 +41,12 @@ export async function eventsSnapshot(): Promise<EventsSnapshot> {
       : null,
     eventTypes: EVENT_TYPES,
     events: allEvents.map((event) => ({
-      ...event,
-      wholeDayPenalty: deriveWholeDayPenalty(event.halfDayPenaltyAmount),
+      id: event.id,
+      name: event.name,
+      date: event.date,
+      type: event.type,
+      halfDayPenaltyAmount: event.halfDayPenaltyAmount,
+      wholeDayPenalty: event.wholeDayPenalty,
     })),
   };
 }
@@ -71,20 +55,23 @@ function fail(message: string): never {
   redirect(`/events?error=${encodeURIComponent(message)}`);
 }
 
-export async function createEvent(formData: FormData) {
-  const actor = await requireOfficerOrGovernor();
-  const input = parseEventInput({
+function parseEventForm(formData: FormData) {
+  return {
     name: String(formData.get("name") ?? "").trim(),
-    type: String(formData.get("type") ?? ""),
+    type: String(formData.get("type") ?? "") as EventType,
     halfDayPenaltyAmount: String(formData.get("halfDayPenaltyAmount") ?? ""),
     date: String(formData.get("date") ?? ""),
     venue: String(formData.get("venue") ?? "").trim() || undefined,
-  });
+  };
+}
+
+export async function createEvent(formData: FormData) {
+  await requireOfficerOrGovernor();
 
   try {
-    await createEventCommand(actor, input);
+    await apiFetch("/v1/api/event/create", parseEventForm(formData));
   } catch (error) {
-    if (error instanceof EventLifecycleError) fail(error.message);
+    if (error instanceof ApiError) fail(error.message);
     throw error;
   }
   redirect("/events");
@@ -94,24 +81,17 @@ export async function createEvent(formData: FormData) {
 // form, so both report failure as a return value instead of a redirect —
 // the dialog stays open and shows the message inline (e.g. Semester-closure
 // rejections). No ownership check: any Officer may edit or delete any Event
-// (ADR 0007).
+// (ADR 0007), enforced by the API, not here.
 export async function updateEvent(
   id: string,
   formData: FormData,
 ): Promise<{ error: string | null }> {
-  const actor = await requireOfficerOrGovernor();
-  const input = parseEventInput({
-    name: String(formData.get("name") ?? "").trim(),
-    type: String(formData.get("type") ?? ""),
-    halfDayPenaltyAmount: String(formData.get("halfDayPenaltyAmount") ?? ""),
-    date: String(formData.get("date") ?? ""),
-    venue: String(formData.get("venue") ?? "").trim() || undefined,
-  });
+  await requireOfficerOrGovernor();
 
   try {
-    await updateEventCommand(actor, id, input);
+    await apiFetch("/v1/api/event/update", { id, ...parseEventForm(formData) });
   } catch (error) {
-    if (error instanceof EventLifecycleError) return { error: error.message };
+    if (error instanceof ApiError) return { error: error.message };
     throw error;
   }
   revalidatePath("/events");
@@ -119,11 +99,12 @@ export async function updateEvent(
 }
 
 export async function deleteEvent(id: string): Promise<{ error: string | null }> {
-  const actor = await requireOfficerOrGovernor();
+  await requireOfficerOrGovernor();
+
   try {
-    await deleteEventCommand(actor, id);
+    await apiFetch("/v1/api/event/delete", { id });
   } catch (error) {
-    if (error instanceof EventLifecycleError) return { error: error.message };
+    if (error instanceof ApiError) return { error: error.message };
     throw error;
   }
   revalidatePath("/events");

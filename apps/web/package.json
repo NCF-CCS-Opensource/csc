@@ -9,9 +9,10 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude '**/*.integration.test.ts'",
-    "test:integration": "vitest run --no-file-parallelism lib/architecture.integration.test.ts app/\\(app\\)/events/actions.integration.test.ts"
+    "test:integration": "vitest run --no-file-parallelism lib/architecture.integration.test.ts"
   },
   "dependencies": {
+    "@attendance/contracts": "workspace:*",
     "@attendance/db": "workspace:*",
     "@clerk/nextjs": "^7.7.0",
     "@google/generative-ai": "^0.24.1",
