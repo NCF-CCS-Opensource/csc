@@ -14,3 +14,5 @@ export function createDb(connectionString: string, options: CreateDbOptions = {}
   const client = postgres(connectionString, { prepare, max: MAX_CONNECTIONS });
   return drizzle(client, { schema });
 }
+
+export type Database = ReturnType<typeof createDb>;

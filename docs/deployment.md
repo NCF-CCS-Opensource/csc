@@ -10,6 +10,7 @@ This is the DevOps entry point for CCS Attendance. It summarizes the repeatable 
 | Workload | Platform | Repository path |
 | --- | --- | --- |
 | Web pages and `/api/*` | Vercel | `apps/web` |
+| Backend API (identity, capability guard) | Heroku | `apps/api` (ADR-0017) |
 | Auth | Clerk | External managed project |
 | Postgres | Heroku Postgres Essential-0 | External managed database (ADR-0018) |
 | DNS/custom domain | Cloudflare | External managed zone |
@@ -43,6 +44,14 @@ A self-hosted alternative to the Vercel path exists in-repo as `docker-compose.y
 Heroku Postgres has no separate pooled/direct connection pair — `DATABASE_URL` is the one connection string, used for both runtime queries (`apps/web/lib/db.ts`) and migrations (`packages/db/drizzle.config.ts`). `createDb` caps the pool at 10 connections, below Essential-0's 20-connection limit, leaving headroom for `db:migrate`, `heroku pg:psql`, and an ad-hoc session (ADR-0018). `POSTGRES_URL` / `POSTGRES_URL_NON_POOLING` remain as fallbacks in code and docs only for the legacy Supabase-Vercel-integration path; Heroku sets neither.
 
 Never place `DATABASE_URL` in an `EXPO_PUBLIC_*` or `NEXT_PUBLIC_*` variable.
+
+### Heroku apps/api
+
+| Variable | Purpose | Exposure |
+| --- | --- | --- |
+| `DATABASE_URL` | Same Heroku Postgres connection string as web (ADR-0018) | Server only |
+| `CLERK_SECRET_KEY` | Verifies caller identity tokens against Clerk's JWKS (ADR-0019) | Server only |
+| `PORT` | Set by Heroku; `apps/api/src/main.ts` falls back to `3001` when unset | Server only |
 
 ### Mobile build
 
@@ -131,6 +140,26 @@ sdk.dir=/absolute/path/to/Android/Sdk
 ```
 
 The repository has no `eas.json` or checked-in mobile release pipeline. Signing, store distribution, and staged rollout remain external operational steps.
+
+### 6. Deploy the API (Heroku)
+
+The repository-root `Procfile` (`web: node apps/api/dist/main.js`) and `heroku-postbuild` script (`turbo run build --filter=api...`) are what Heroku's Node buildpack reads — no other configuration is needed for a first deploy:
+
+```bash
+heroku create <app-name>
+heroku config:set --app <app-name> \
+  DATABASE_URL=<the Heroku Postgres connection string, ADR-0018> \
+  CLERK_SECRET_KEY=<Clerk server key>
+git push heroku main
+```
+
+`turbo run build --filter=api...` builds only `apps/api` and its workspace dependencies (`@attendance/contracts`, `@attendance/db`), so a dyno dedicated to the API never needs `apps/web`'s Clerk publishable key or Next.js build environment. Verify the identity route is reachable and refuses without a token:
+
+```bash
+curl -i https://<app-name>.herokuapp.com/v1/api/student/identity
+```
+
+Expected result: HTTP `401`.
 
 ## Smoke test
 
