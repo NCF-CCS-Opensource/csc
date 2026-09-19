@@ -10,6 +10,10 @@ export class AttendanceUseCase {
     return this.attendance.grid(eventId);
   }
 
+  materializeNoShows(eventId: string): Promise<void> {
+    return this.attendance.materializeNoShows(eventId);
+  }
+
   correct(input: CorrectAttendanceRequest): Promise<{ eventId: string }> {
     return this.attendance.correct(input);
   }

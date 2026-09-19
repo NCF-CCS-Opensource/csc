@@ -5,12 +5,13 @@ import { desc, eq } from "drizzle-orm";
 import { requireCapability } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { findOpenSemester } from "@/lib/events";
-import { studentLedger, type StudentStanding } from "@/lib/ledger";
+import type { StudentLedgerResponse } from "@attendance/contracts";
+import { apiFetch } from "@/lib/api-client";
 
 export type MyAttendanceSnapshot = {
   student: { name: string; email: string; program: string; studentId: string };
   hasOpenSemester: boolean;
-  ledger: StudentStanding;
+  ledger: StudentLedgerResponse;
   // paidOn is formatted here, not in the view: the date used to render on the
   // server, and formatting it in a client component would resolve it against
   // the viewer's locale and timezone instead — a different date either side of
@@ -31,7 +32,7 @@ export async function myAttendanceSnapshot(): Promise<MyAttendanceSnapshot> {
   // no write on load. Attendance history is the Ledger's session breakdown.
   const [ledger, paymentHistory] = await Promise.all([
     openSemester
-      ? studentLedger(openSemester.id, student.id)
+      ? apiFetch<StudentLedgerResponse>("/v1/api/ledger/mine", { semesterId: openSemester.id })
       : Promise.resolve({ total: 0, outstanding: 0, sessions: [] }),
     db
       .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })

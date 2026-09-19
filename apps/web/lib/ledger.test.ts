@@ -7,7 +7,7 @@ import {
   missingHalves,
   owedHalves,
   type LedgerInput,
-} from "./ledger";
+} from "../../api/src/modules/ledger/domain/ledger";
 
 it("derives the Asia/Manila calendar date across the UTC boundary", () => {
   expect(currentCampusDate(new Date("2024-03-09T16:00:00Z"))).toBe("2024-03-10");

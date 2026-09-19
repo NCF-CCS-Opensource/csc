@@ -19,6 +19,14 @@ export class AttendanceController {
     return this.attendance.grid(body.eventId);
   }
 
+  @Post("materialize-no-shows")
+  @RequireCapability("manage_operations")
+  async materializeNoShows(@Body() body: { eventId?: string }) {
+    if (!body.eventId) throw new HttpException("Invalid request", 400);
+    await this.attendance.materializeNoShows(body.eventId);
+    return { ok: true };
+  }
+
   @Post("correct")
   @RequireCapability("manage_operations")
   async correct(@Body() body: CorrectAttendanceRequest) {

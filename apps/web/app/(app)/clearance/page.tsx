@@ -15,7 +15,8 @@ import {
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { findOpenSemester } from "@/lib/events";
-import { studentLedger } from "@/lib/ledger";
+import type { StudentLedgerResponse } from "@attendance/contracts";
+import { apiFetch } from "@/lib/api-client";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ export default async function ClearancePage({
     matches.map(async (student) => ({
       student,
       outstanding: openSemester
-        ? (await studentLedger(openSemester.id, student.id)).outstanding
+        ? (await apiFetch<StudentLedgerResponse>("/v1/api/ledger/student", { semesterId: openSemester.id, studentId: student.id })).outstanding
         : 0,
     })),
   );

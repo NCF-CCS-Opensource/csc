@@ -17,6 +17,7 @@ export default async function AttendancePage({
 
   let snapshot: AttendanceGridResponse;
   try {
+    await apiFetch("/v1/api/attendance/materialize-no-shows", { eventId });
     snapshot = await apiFetch("/v1/api/attendance/grid", { eventId });
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) notFound();

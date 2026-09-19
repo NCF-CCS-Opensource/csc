@@ -5,18 +5,14 @@ import { count, inArray } from "drizzle-orm";
 import { requireCapability } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { findOpenSemester } from "@/lib/events";
-import {
-  currentCampusDate,
-  semesterLedger,
-  type Ledger,
-  type SemesterLedgerEvent,
-} from "@/lib/ledger";
+import type { SemesterLedgerResponse } from "@attendance/contracts";
+import { apiFetch } from "@/lib/api-client";
 
 export type DashboardSnapshot = {
   role: string;
   campusDate: string;
   openSemester: { id: string; startDate: string; endDate: string } | null;
-  ledger: { events: SemesterLedgerEvent[]; totals: Ledger["totals"] };
+  ledger: SemesterLedgerResponse;
   governorCounts: { officers: number; programs: number } | null;
 };
 
@@ -24,7 +20,7 @@ export type DashboardSnapshot = {
 // by the client cache's queryFn on every revisit (ADR 0013). No API route: this
 // authorizes the browser session, leaving the booth's Bearer path untouched.
 export async function dashboardSnapshot(): Promise<DashboardSnapshot> {
-  const campusDate = currentCampusDate();
+  const campusDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
 
   // requireCapability and findOpenSemester are independent reads — start both,
   // then branch once each result actually lands.
@@ -34,7 +30,7 @@ export async function dashboardSnapshot(): Promise<DashboardSnapshot> {
   ]);
 
   const ledgerP = openSemester
-    ? semesterLedger(openSemester.id, campusDate)
+    ? apiFetch<SemesterLedgerResponse>("/v1/api/ledger/semester", { semesterId: openSemester.id })
     : Promise.resolve({ events: [], totals: { present: 0, absent: 0, rate: 0, collected: 0 } });
   const governorCountsP =
     student.role === "governor"

@@ -30,7 +30,7 @@ export class DrizzleAttendanceRepository {
     }
   }
 
-  private async materializeNoShows(eventId: string): Promise<void> {
+  async materializeNoShows(eventId: string): Promise<void> {
     const event = await this.db.query.events.findFirst({ where: eq(events.id, eventId) });
     if (!event || event.date > currentCampusDate()) return;
     const semester = await this.db.query.semesters.findFirst({ where: eq(semesters.id, event.semesterId) });

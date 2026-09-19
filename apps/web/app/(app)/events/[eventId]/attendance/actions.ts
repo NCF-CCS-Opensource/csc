@@ -12,6 +12,7 @@ export type { EventGridRow };
 // session's identity token; the API remains the authorization and data owner.
 export async function eventGrid(eventId: string): Promise<EventGridRow[]> {
   await requireOfficerOrGovernor();
+  await apiFetch("/v1/api/attendance/materialize-no-shows", { eventId });
   return (await apiFetch<AttendanceGridResponse>("/v1/api/attendance/grid", { eventId })).rows;
 }
 

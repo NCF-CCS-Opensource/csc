@@ -7,6 +7,7 @@ import { EnrollmentRosterModule } from "./modules/enrollment-roster/enrollment-r
 import { ProgramModule } from "./modules/program/program.module";
 import { ScanModule } from "./modules/scan/scan.module";
 import { AttendanceModule } from "./modules/attendance/attendance.module";
+import { LedgerModule } from "./modules/ledger/ledger.module";
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AttendanceModule } from "./modules/attendance/attendance.module";
     ProgramModule,
     ScanModule,
     AttendanceModule,
+    LedgerModule,
   ],
 })
 export class AppModule {}
