@@ -10,19 +10,20 @@ This is the DevOps entry point for CCS Attendance. It summarizes the repeatable 
 | Workload | Platform | Repository path |
 | --- | --- | --- |
 | Web pages and `/api/*` | Vercel | `apps/web` |
-| Auth and Postgres | Supabase | External managed project |
+| Auth | Clerk | External managed project |
+| Postgres | Heroku Postgres Essential-0 | External managed database (ADR-0018) |
 | DNS/custom domain | Cloudflare | External managed zone |
 | Native booth app | Expo/Android or iOS native build | `apps/mobile` |
 
 The documented test-production endpoint is `https://attendance.ncfccs.org`. Confirm the live target in Vercel before deploying; the repository does not verify external state.
 
-A self-hosted alternative to the Vercel path exists in-repo as `docker-compose.yml` / `Dockerfile` (web) plus the `db`/`meta`/`studio` services (Supabase Postgres + Studio, no managed Auth/Storage/backups). See [Self-hosted Docker deployment](#self-hosted-docker-deployment) below; day-to-day local use of the same stack is [docs/setup/docker.md](./setup/docker.md).
+A self-hosted alternative to the Vercel path exists in-repo as `docker-compose.yml` / `Dockerfile` (web) plus the `db`/`meta`/`studio` services (self-hosted Postgres + Studio, no managed Auth/Storage/backups). See [Self-hosted Docker deployment](#self-hosted-docker-deployment) below; day-to-day local use of the same stack is [docs/setup/docker.md](./setup/docker.md).
 
 ## Prerequisites
 
 - Node.js 20 or newer
 - pnpm 11.12.0
-- Access to the target Supabase, Vercel, and Cloudflare projects
+- Access to the target Heroku, Vercel, and Cloudflare projects
 - JDK 17 and an Android SDK for Android builds
 - A reviewed release commit on `main`
 - A database backup before any destructive migration
@@ -33,31 +34,15 @@ A self-hosted alternative to the Vercel path exists in-repo as `docker-compose.y
 
 | Variable | Purpose | Exposure |
 | --- | --- | --- |
-| `DATABASE_URL` / `POSTGRES_URL` | Supabase Postgres transaction-pooler connection (injected automatically when connected via Vercel Supabase integration) | Server only |
+| `DATABASE_URL` | Heroku Postgres connection string, `?sslmode=no-verify` appended for Heroku's self-signed certificate (ADR-0018) | Server only |
 | `CLERK_SECRET_KEY` | Clerk server key — the web module's only identity provider | Server only |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk client key | Public |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` — keeps Clerk's redirects on the self-hosted page | Public |
 | `GOVERNOR_EMAILS` | Comma-separated Governor allowlist, read at onboarding | Server only |
 
-The web module no longer holds Supabase Auth variables: identity is Clerk (ADR-0012), and Supabase is strictly the Postgres host.
+Heroku Postgres has no separate pooled/direct connection pair — `DATABASE_URL` is the one connection string, used for both runtime queries (`apps/web/lib/db.ts`) and migrations (`packages/db/drizzle.config.ts`). `createDb` caps the pool at 10 connections, below Essential-0's 20-connection limit, leaving headroom for `db:migrate`, `heroku pg:psql`, and an ad-hoc session (ADR-0018). `POSTGRES_URL` / `POSTGRES_URL_NON_POOLING` remain as fallbacks in code and docs only for the legacy Supabase-Vercel-integration path; Heroku sets neither.
 
-Connecting Supabase to Vercel via the native integration injects a full set of variables into the project automatically. This app reads only two of them; the rest are dead weight it never touches — do not wire them into anything or treat their presence as required:
-
-| Injected variable | Used here? | Where |
-| --- | --- | --- |
-| `POSTGRES_URL` (pooled, port 6543) | **Yes** — runtime app queries | `apps/web/lib/db.ts` falls back to it when `DATABASE_URL` is unset |
-| `POSTGRES_URL_NON_POOLING` (direct, port 5432) | **Yes** — migrations only | `packages/db/drizzle.config.ts`; `db:migrate`/`db:generate` need a direct connection, not the pooler |
-| `POSTGRES_PRISMA_URL` | No | Prisma-specific, this repo uses Drizzle |
-| `POSTGRES_URL_NO_SSL` | No | unused |
-| `POSTGRES_USER` / `POSTGRES_HOST` / `POSTGRES_PASSWORD` / `POSTGRES_DATABASE` | No | connection pieces, nothing reads them individually |
-| `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL` | No | no code calls the Supabase client/REST API |
-| `SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | No | same — auth is Clerk, not Supabase Auth |
-| `SUPABASE_SERVICE_ROLE_KEY` | No | unused; leaving it set is a needless standing credential |
-| `SUPABASE_JWT_SECRET` | No | unused |
-
-`DATABASE_URL` is checked first in both places above, so either variable name works; if you set both, `DATABASE_URL` wins at runtime and `POSTGRES_URL_NON_POOLING` wins for migrations.
-
-Never place `DATABASE_URL`, `POSTGRES_URL`, or a Supabase service-role key in an `EXPO_PUBLIC_*` or `NEXT_PUBLIC_*` variable.
+Never place `DATABASE_URL` in an `EXPO_PUBLIC_*` or `NEXT_PUBLIC_*` variable.
 
 ### Mobile build
 
@@ -68,7 +53,7 @@ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
 EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org
 ```
 
-`EXPO_PUBLIC_API_BASE_URL` points to the deployed Next.js module, not Supabase. `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` is the same Clerk publishable key as web (ADR-0012); mobile has no Supabase variable, identity and data both go through the Next.js module. Expo embeds these values at build time, so any change requires a rebuild.
+`EXPO_PUBLIC_API_BASE_URL` points to the deployed Next.js module, not the database host. `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` is the same Clerk publishable key as web (ADR-0012); mobile has no database variable, identity and data both go through the Next.js module. Expo embeds these values at build time, so any change requires a rebuild.
 
 ## Release
 
@@ -185,7 +170,7 @@ When deploying the approved architecture refactor:
 
 ## Self-hosted Docker deployment
 
-Use this path instead of Vercel when running the stack on your own host (VM, bare metal, etc.). It builds `apps/web` into the standalone `csc-web` image and runs it alongside a self-managed Postgres (the `public.ecr.aws/supabase/postgres` image, not Supabase's managed cloud — no automatic backups, PITR, or Auth/Storage APIs).
+Use this path instead of Vercel when running the stack on your own host (VM, bare metal, etc.). It builds `apps/web` into the standalone `csc-web` image and runs it alongside a self-managed Postgres (the `public.ecr.aws/supabase/postgres` image, run locally — not a managed cloud host, no automatic backups, PITR, or Auth/Storage APIs).
 
 ### Environment
 
@@ -254,10 +239,10 @@ If code depends on a newly applied schema, do not roll back only the web deploym
 
 | Symptom | Check |
 | --- | --- |
-| DB-backed page fails after deploy | Confirm migrations reached the target Supabase project and Vercel has the current `DATABASE_URL` |
+| DB-backed page fails after deploy | Confirm migrations reached the target Heroku Postgres database and Vercel has the current `DATABASE_URL` |
 | Web sign-in fails or loops | Check the Clerk keys in this Vercel project, Clerk's Google connection, and the `@gbox.ncf.edu.ph` sign-up restriction |
 | Mobile route returns redirect/HTML | Disable Vercel Deployment Protection for the public route |
-| Mobile route returns `401` | Confirm both clients use the same Supabase project and the access token is current |
+| Mobile route returns `401` | Confirm both clients use the same Heroku Postgres database and the access token is current |
 | Mobile cannot reach routes | Confirm `EXPO_PUBLIC_API_BASE_URL` is the public web origin and rebuild |
 | Drizzle reports missing URL | Confirm `packages/db/.env` points to the root `.env` |
 | Android build cannot locate SDK | Fix `android/local.properties` and verify JDK 17 |

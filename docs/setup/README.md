@@ -1,11 +1,11 @@
 # Test-production deployment
 
-This is the repeatable deployment runbook for the public test-production environment. For provisioning a new Supabase/Vercel stack, see [provisioning.md](./provisioning.md). For local development and testing with Docker & Supabase, see [docker.md](./docker.md).
+This is the repeatable deployment runbook for the public test-production environment. For provisioning a new Heroku/Vercel stack, see [provisioning.md](./provisioning.md). For local development and testing with Docker, see [docker.md](./docker.md).
 
 ## Current environment
 
 - Web and API: `https://attendance.ncfccs.org` (Vercel, custom domain through Cloudflare)
-- Data: Supabase Postgres (identity for both clients is Clerk)
+- Data: Heroku Postgres Essential-0, always-on (ADR-0018; identity for both clients is Clerk)
 - Mobile: Expo native app; Clerk signs Officers in, while `https://attendance.ncfccs.org/api/*` handles application API requests
 
 Test production is public and uses real credentials. Treat its secrets and data with production care even though it is not the final production environment.
@@ -33,7 +33,7 @@ Commit the migration with the code that needs it.
 
 ## 2. Apply database migrations
 
-The root `.env` must contain the production `DATABASE_URL` (or `POSTGRES_URL` from the Supabase connection string). Drizzle runs from `packages/db`, so create its ignored environment symlink once:
+The root `.env` must contain the production `DATABASE_URL` (Heroku Postgres connection string, `?sslmode=no-verify`). Drizzle runs from `packages/db`, so create its ignored environment symlink once:
 
 ```bash
 cd packages/db
@@ -47,7 +47,7 @@ Apply every committed migration before deploying code that requires the new sche
 pnpm --filter @attendance/db db:migrate
 ```
 
-Confirm the command reports `migrations applied successfully`; otherwise the deployed app and Supabase schema can drift.
+Confirm the command reports `migrations applied successfully`; otherwise the deployed app and Heroku Postgres schema can drift.
 
 ## 2b. Import the official enrollment roster (513 students)
 
@@ -55,10 +55,10 @@ The CCS enrollment roster (`Enrollment List.xlsx`) contains the 513 official stu
 
 ```bash
 # Against production database:
-DATABASE_URL="<production-supabase-url>" node packages/db/scripts/import-enrollment-roster.mjs "Enrollment List.xlsx"
+DATABASE_URL="<production-heroku-url>" node packages/db/scripts/import-enrollment-roster.mjs "Enrollment List.xlsx"
 ```
 
-Verify in Supabase Dashboard > Table Editor > `enrollment_roster` that **513 rows** are present.
+Verify with `heroku pg:psql --app <your-app> -c 'select count(*) from enrollment_roster;'` that **513 rows** are present.
 
 > [!NOTE]
 > Do **not** run `seed-all-roster-students.mjs` on production. That script is reserved for local testing and staging environments; in production, `students` rows are created with verified Clerk account IDs when each student signs in with their `@gbox.ncf.edu.ph` email for the first time.
@@ -67,13 +67,9 @@ Verify in Supabase Dashboard > Table Editor > `enrollment_roster` that **513 row
 
 Merging or pushing the release commit to `main` triggers the Vercel production deployment for `apps/web` (or `develop` for staging).
 
-### Vercel + Supabase Integration
-Because Supabase is connected to Vercel via the native Supabase Integration, Vercel automatically receives:
-- `POSTGRES_URL` (Supavisor transaction pooler on port 6543)
-- `POSTGRES_URL_NON_POOLING` (direct connection on port 5432)
-- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`
+### Vercel environment
 
-`apps/web/lib/db.ts` automatically resolves `DATABASE_URL || POSTGRES_URL`, connecting seamlessly to the pooled Postgres instance without manual configuration.
+Set `DATABASE_URL` in Vercel Project Settings to the Heroku Postgres connection string (see [provisioning.md](./provisioning.md#1-heroku-postgres-provisioning)). `apps/web/lib/db.ts` reads it directly — no integration or automatic injection.
 
 The remaining required variables in Vercel Project Settings are:
 
