@@ -151,6 +151,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@attendance/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@attendance/db':
         specifier: workspace:*
         version: link:../../packages/db

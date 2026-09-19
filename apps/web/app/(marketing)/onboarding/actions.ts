@@ -2,8 +2,9 @@
 
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { hasStudentRecord } from "@/lib/auth";
+import { alreadyStudent } from "@/lib/student-identity";
 import { claimRosterByStudentId } from "@/lib/enrollment-roster";
+import { ApiError } from "@/lib/api-client";
 import { isSchoolEmail, verifiedPrimaryEmail, type ValidationError } from "@/lib/onboarding";
 
 const ONBOARDING_TEST_EMAILS = (process.env.ONBOARDING_TEST_EMAILS ?? "")
@@ -20,7 +21,7 @@ export async function claimEnrollmentRoster(
   const user = await currentUser();
   if (!user) redirect("/sign-in");
   // Already a Student — a resubmitted form must not look like a taken id.
-  if (await hasStudentRecord(user.id)) redirect("/dashboard");
+  if (await alreadyStudent()) redirect("/dashboard");
 
   const email = verifiedPrimaryEmail(user);
   if (!email) {
@@ -39,14 +40,13 @@ export async function claimEnrollmentRoster(
   const studentId = String(formData.get("studentId") ?? "").trim();
   if (!studentId) return { errors: [{ field: "studentId", message: "Student ID is required" }] };
 
-  const created = await claimRosterByStudentId({ authUserId: user.id, email, name }, studentId);
-  if (!created) {
-    return {
-      errors: [{
-        field: "studentId",
-        message: "That Student ID could not be matched to your Google profile. Contact an Officer.",
-      }],
-    };
+  try {
+    await claimRosterByStudentId(studentId);
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return { errors: [{ field: error.field ?? "studentId", message: error.message }] };
+    }
+    throw error;
   }
 
   // Nothing is mailed: the new Student lands where their live QR and their QR

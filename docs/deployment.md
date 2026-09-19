@@ -36,6 +36,7 @@ A self-hosted alternative to the Vercel path exists in-repo as `docker-compose.y
 | Variable | Purpose | Exposure |
 | --- | --- | --- |
 | `DATABASE_URL` | Heroku Postgres connection string, `?sslmode=no-verify` appended for Heroku's self-signed certificate (ADR-0018) | Server only |
+| `API_URL` | Base URL of the deployed apps/api service that the web module's server actions proxy identity/roster/program calls to (ADR-0019) | Server only |
 | `CLERK_SECRET_KEY` | Clerk server key — the web module's only identity provider | Server only |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk client key | Public |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` — keeps Clerk's redirects on the self-hosted page | Public |

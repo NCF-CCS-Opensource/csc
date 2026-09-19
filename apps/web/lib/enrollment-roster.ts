@@ -1,49 +1,21 @@
-import { enrollmentRoster, students } from "@attendance/db";
-import { eq } from "drizzle-orm";
-import { db } from "./db";
-import { rosterNameMatches } from "./onboarding";
-import { determineRole } from "./roles";
-
-type Identity = { authUserId: string; email: string; name: string };
-
-const GOVERNOR_EMAILS = (process.env.GOVERNOR_EMAILS ?? "")
-  .split(",")
-  .map((email) => email.trim())
-  .filter(Boolean);
-
-async function createStudentFromRoster(
-  identity: Identity,
-  roster: typeof enrollmentRoster.$inferSelect,
-) {
-  const [student] = await db
-    .insert(students)
-    .values({
-      authUserId: identity.authUserId,
-      email: identity.email.toLowerCase(),
-      name: [roster.firstName, roster.middleName, roster.lastName].filter(Boolean).join(" "),
-      program: roster.program,
-      section: roster.section,
-      studentId: roster.studentId,
-      role: determineRole(identity.email, GOVERNOR_EMAILS),
-    })
-    .onConflictDoNothing()
-    .returning({ id: students.id });
-  return student;
-}
+import type { IdentityResponse } from "@attendance/contracts";
+import { apiPost, ApiError } from "./api-client";
 
 // An exact verified GBox address is sufficient to claim its corresponding
-// roster row. This is used before rendering onboarding at all.
-export async function claimRosterByEmail(identity: Identity) {
-  const roster = await db.query.enrollmentRoster.findFirst({
-    where: eq(enrollmentRoster.email, identity.email.toLowerCase()),
-  });
-  return roster ? createStudentFromRoster(identity, roster) : undefined;
+// roster row. This is used before rendering onboarding at all — any refusal
+// (no verified email, not a school address, no roster match) just means the
+// caller stays Pending and sees the form, so it collapses to undefined.
+export async function claimRosterByEmail(): Promise<IdentityResponse | undefined> {
+  try {
+    return await apiPost<IdentityResponse>("enrollment-roster/claim");
+  } catch (error) {
+    if (error instanceof ApiError) return undefined;
+    throw error;
+  }
 }
 
-export async function claimRosterByStudentId(identity: Identity, studentId: string) {
-  const roster = await db.query.enrollmentRoster.findFirst({
-    where: eq(enrollmentRoster.studentId, studentId.trim()),
-  });
-  if (!roster || !rosterNameMatches(identity.name, roster)) return undefined;
-  return createStudentFromRoster(identity, roster);
+// Bubbles ApiError so the caller can report the specific field/message
+// (Student ID required, no match, etc.) on the onboarding form.
+export function claimRosterByStudentId(studentId: string): Promise<IdentityResponse> {
+  return apiPost<IdentityResponse>("enrollment-roster/claim", { studentId });
 }

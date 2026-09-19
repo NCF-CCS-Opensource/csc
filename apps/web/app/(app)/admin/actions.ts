@@ -1,10 +1,11 @@
 "use server";
 
-import { programs, semesters, students } from "@attendance/db";
+import { semesters, students } from "@attendance/db";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { requireGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { apiPost, ApiError } from "@/lib/api-client";
 import {
   createSemester as createSemesterCommand,
   SemesterLifecycleError,
@@ -74,13 +75,12 @@ export async function addProgram(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) fail("Program name is required");
 
-  let failed = false;
   try {
-    await db.insert(programs).values({ name });
-  } catch {
-    failed = true;
+    await apiPost("program/create", { name });
+  } catch (error) {
+    if (error instanceof ApiError) fail(error.message);
+    throw error;
   }
-  if (failed) fail("That Program already exists");
   redirect("/admin");
 }
 
@@ -88,13 +88,12 @@ export async function removeProgram(formData: FormData) {
   await requireGovernor();
 
   const id = String(formData.get("id") ?? "");
-  let failed = false;
   try {
-    await db.delete(programs).where(eq(programs.id, id));
-  } catch {
-    failed = true;
+    await apiPost("program/delete", { id });
+  } catch (error) {
+    if (error instanceof ApiError) fail(error.message);
+    throw error;
   }
-  if (failed) fail("Can't remove a Program students are already registered under");
   redirect("/admin");
 }
 
