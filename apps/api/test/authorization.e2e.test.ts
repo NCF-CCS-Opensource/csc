@@ -6,7 +6,9 @@ import { Controller, Get, INestApplication, UseGuards } from "@nestjs/common";
 import request from "supertest";
 import { TOKEN_VERIFIER } from "../src/shared/domain/token-verifier";
 import { STUDENT_REPOSITORY } from "../src/modules/student/domain/student-repository";
+import { PROGRAM_REPOSITORY } from "../src/modules/program/domain/program-repository";
 import { GetCallerIdentityUseCase } from "../src/modules/student/application/get-caller-identity.use-case";
+import { CorrectStudentUseCase } from "../src/modules/student/application/correct-student.use-case";
 import { StudentController } from "../src/modules/student/presentation/student.controller";
 import { AuthGuard } from "../src/shared/presentation/auth.guard";
 import { CapabilityGuard } from "../src/shared/presentation/capability.guard";
@@ -58,7 +60,9 @@ describe("authorization boundary", () => {
       providers: [
         { provide: TOKEN_VERIFIER, useValue: { verify } },
         { provide: STUDENT_REPOSITORY, useValue: { findByAuthUserId } },
+        { provide: PROGRAM_REPOSITORY, useValue: { listNames: vi.fn() } },
         GetCallerIdentityUseCase,
+        CorrectStudentUseCase,
         AuthGuard,
         CapabilityGuard,
         Reflector,
