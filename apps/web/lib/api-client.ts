@@ -72,3 +72,25 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
 
   return response.json() as Promise<T>;
 }
+
+// Mobile routes are a thin BFF relay: the API authenticates and authorizes
+// the original bearer token, so this app never needs database access for them.
+export async function proxyApiRequest(request: Request, path: string): Promise<Response> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(request.headers.get("authorization")
+        ? { Authorization: request.headers.get("authorization")! }
+        : {}),
+    },
+    body: request.method === "GET" ? undefined : await request.text(),
+    cache: "no-store",
+  });
+  const body = await response.text();
+  const parsed = JSON.parse(body || "{}");
+  return new Response(JSON.stringify(response.ok ? parsed : { error: parsed.message ?? "Request failed" }), {
+    status: response.status,
+    headers: { "Content-Type": response.headers.get("content-type") ?? "application/json" },
+  });
+}

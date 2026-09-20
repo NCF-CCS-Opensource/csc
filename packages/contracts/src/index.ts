@@ -4,3 +4,4 @@ export * from "./event";
 export * from "./enrollment-roster";
 export * from "./program";
 export * from "./student";
+export * from "./scan";
