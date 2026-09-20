@@ -6,7 +6,7 @@ import {
   buildPerStudentReportPrompt,
   generateReportNarrative,
 } from "./gemini";
-import type { FinancialReportData, PerEventReportData, PerSemesterReportData, PerStudentReportData } from "./reports";
+import type { FinancialReportData, PerEventReportData, PerSemesterReportData, PerStudentReportData } from "@attendance/contracts";
 
 
 

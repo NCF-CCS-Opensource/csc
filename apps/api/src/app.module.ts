@@ -8,6 +8,7 @@ import { ProgramModule } from "./modules/program/program.module";
 import { ScanModule } from "./modules/scan/scan.module";
 import { AttendanceModule } from "./modules/attendance/attendance.module";
 import { LedgerModule } from "./modules/ledger/ledger.module";
+import { ReportModule } from "./modules/report/report.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { LedgerModule } from "./modules/ledger/ledger.module";
     ScanModule,
     AttendanceModule,
     LedgerModule,
+    ReportModule,
   ],
 })
 export class AppModule {}
