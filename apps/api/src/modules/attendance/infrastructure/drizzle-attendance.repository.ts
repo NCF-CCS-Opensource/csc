@@ -3,24 +3,9 @@ import type { AttendanceGridResponse, CorrectAttendanceRequest, EventGridCell, E
 import { attendanceSessions, events, payments, penalties, semesters, students, type Database } from "@attendance/db";
 import { eq, inArray } from "drizzle-orm";
 import { DB } from "../../../shared/infrastructure/db.module";
+import { currentCampusDate, isAbsent, owedHalves, type AttendanceHalf } from "../domain/attendance-rules";
 
-type Half = "am" | "pm";
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
-
-function absent(session: { timeIn: unknown; timeOut: unknown }) {
-  return !session.timeIn || !session.timeOut;
-}
-
-function campusDate(now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
-  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)!.value;
-  return `${get("year")}-${get("month")}-${get("day")}`;
-}
-
-function owedHalves(type: "half_day" | "whole_day", completed: { am: boolean; pm: boolean }, existing: Set<Half>): Half[] {
-  if (type === "half_day") return existing.size || completed.am || completed.pm ? [] : ["am"];
-  return (["am", "pm"] as Half[]).filter((half) => !completed[half] && !existing.has(half));
-}
 
 @Injectable()
 export class DrizzleAttendanceRepository {
@@ -32,7 +17,7 @@ export class DrizzleAttendanceRepository {
     const event = await database.query.events.findFirst({ where: eq(events.id, session.eventId) });
     if (!event) return;
     const existing = await database.query.penalties.findFirst({ where: eq(penalties.attendanceSessionId, sessionId) });
-    if (!absent(session)) {
+    if (!isAbsent(session)) {
       if (existing && !await database.query.payments.findFirst({ where: eq(payments.penaltyId, existing.id) })) {
         await database.delete(penalties).where(eq(penalties.id, existing.id));
       }
@@ -47,19 +32,19 @@ export class DrizzleAttendanceRepository {
 
   private async materializeNoShows(eventId: string): Promise<void> {
     const event = await this.db.query.events.findFirst({ where: eq(events.id, eventId) });
-    if (!event || event.date > campusDate()) return;
+    if (!event || event.date > currentCampusDate()) return;
     const semester = await this.db.query.semesters.findFirst({ where: eq(semesters.id, event.semesterId) });
     if (!semester) return;
     const [allStudents, existing] = await Promise.all([
       this.db.select({ id: students.id, createdAt: students.createdAt }).from(students),
       this.db.select({ studentId: attendanceSessions.studentId, half: attendanceSessions.half, timeIn: attendanceSessions.timeIn, timeOut: attendanceSessions.timeOut }).from(attendanceSessions).where(eq(attendanceSessions.eventId, eventId)),
     ]);
-    const halves = new Map<string, Set<Half>>();
+    const halves = new Map<string, Set<AttendanceHalf>>();
     const completed = new Map<string, { am: boolean; pm: boolean }>();
     for (const row of existing) {
       (halves.get(row.studentId) ?? halves.set(row.studentId, new Set()).get(row.studentId)!).add(row.half);
       const studentCompleted = completed.get(row.studentId) ?? { am: false, pm: false };
-      if (!absent(row)) studentCompleted[row.half] = true;
+      if (!isAbsent(row)) studentCompleted[row.half] = true;
       completed.set(row.studentId, studentCompleted);
     }
     const missing = allStudents.flatMap((student) => student.createdAt.toISOString().slice(0, 10) > semester.endDate ? [] : owedHalves(event.type, completed.get(student.id) ?? { am: false, pm: false }, halves.get(student.id) ?? new Set()).map((half) => ({ eventId, studentId: student.id, half })));
