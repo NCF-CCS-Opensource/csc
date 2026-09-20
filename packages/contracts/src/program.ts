@@ -11,3 +11,9 @@ export interface CreateProgramRequest {
 export interface DeleteProgramRequest {
   id: string;
 }
+
+// program/list returns names only (enough for a correction dropdown);
+// program/list-detailed carries the id the remove-Program form needs.
+export interface ProgramListDetailedResponse {
+  programs: Program[];
+}

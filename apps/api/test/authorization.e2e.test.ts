@@ -9,6 +9,8 @@ import { STUDENT_REPOSITORY } from "../src/modules/student/domain/student-reposi
 import { PROGRAM_REPOSITORY } from "../src/modules/program/domain/program-repository";
 import { GetCallerIdentityUseCase } from "../src/modules/student/application/get-caller-identity.use-case";
 import { CorrectStudentUseCase } from "../src/modules/student/application/correct-student.use-case";
+import { ListStudentsUseCase } from "../src/modules/student/application/list-students.use-case";
+import { PromoteStudentUseCase } from "../src/modules/student/application/promote-student.use-case";
 import { StudentController } from "../src/modules/student/presentation/student.controller";
 import { AuthGuard } from "../src/shared/presentation/auth.guard";
 import { CapabilityGuard } from "../src/shared/presentation/capability.guard";
@@ -22,6 +24,7 @@ const STUDENT: Actor = {
   email: "student@example.edu",
   name: "Sam Student",
   role: "student",
+  program: "BS Computer Science",
 };
 
 // A capability real students never hold, so the guard's forbidden branch is
@@ -49,6 +52,7 @@ const GOVERNOR: Actor = {
   email: "governor@example.edu",
   name: "Gigi Governor",
   role: "governor",
+  program: "BS Computer Science",
 };
 
 describe("authorization boundary", () => {
@@ -61,10 +65,15 @@ describe("authorization boundary", () => {
       controllers: [StudentController, AdminOnlyController],
       providers: [
         { provide: TOKEN_VERIFIER, useValue: { verify } },
-        { provide: STUDENT_REPOSITORY, useValue: { findByAuthUserId } },
+        {
+          provide: STUDENT_REPOSITORY,
+          useValue: { findByAuthUserId, listAll: vi.fn(), promoteToOfficer: vi.fn() },
+        },
         { provide: PROGRAM_REPOSITORY, useValue: { listNames: vi.fn() } },
         GetCallerIdentityUseCase,
         CorrectStudentUseCase,
+        ListStudentsUseCase,
+        PromoteStudentUseCase,
         AuthGuard,
         CapabilityGuard,
         Reflector,
@@ -94,6 +103,7 @@ describe("authorization boundary", () => {
       email: GOVERNOR.email,
       name: GOVERNOR.name,
       role: GOVERNOR.role,
+      program: GOVERNOR.program,
     });
   });
 

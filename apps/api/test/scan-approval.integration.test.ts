@@ -142,4 +142,40 @@ describe("Scan Approval (e2e)", () => {
     expect(response.body.rejections.every((row: { eventName: string }) => row.eventName === "Foundation Day")).toBe(true);
     expect(officer.role).toBe("officer");
   });
+
+  // Known Gap #6 (PR #184): Governor-wide, unlike scan/rejections above.
+  it("filters and sorts the Governor-wide rejected-scan log", async () => {
+    const { event, student, officer } = await fixture();
+    await request(server()).post("/scan/reject").set("Authorization", bearer)
+      .send({ scanId: randomUUID(), eventId: event.id, qrPayload: qr(student), scannedAt: "2026-07-15T09:00:00.000Z" }).expect(201);
+    await request(server()).post("/scan/reject").set("Authorization", bearer)
+      .send({ scanId: randomUUID(), eventId: event.id, qrPayload: "not-json", scannedAt: "2026-07-15T08:00:00.000Z" }).expect(201);
+
+    const [governor] = await db.insert(students).values(
+      { email: "governor@example.com", authUserId: "user_governor", name: "Gigi Governor", program: "Computer Science", studentId: "24-003", role: "governor" },
+    ).returning();
+    verify.mockResolvedValue({ authUserId: governor.authUserId });
+
+    const all = await request(server()).post("/scan/rejections-log").set("Authorization", bearer).send({ sort: "time" }).expect(201);
+    expect(all.body.rejections.map((r: { qrPayload: string }) => r.qrPayload)).toEqual([
+      qr(student),
+      "not-json",
+    ]);
+
+    const filtered = await request(server()).post("/scan/rejections-log").set("Authorization", bearer)
+      .send({ q: student.studentId }).expect(201);
+    expect(filtered.body.rejections).toHaveLength(1);
+    expect(filtered.body.rejections[0]).toMatchObject({
+      studentName: student.name,
+      studentIdText: student.studentId,
+      officerName: officer.name,
+    });
+  });
+
+  it("refuses scan/rejections-log to an Officer", async () => {
+    const { officer } = await fixture();
+    verify.mockResolvedValue({ authUserId: officer.authUserId });
+
+    await request(server()).post("/scan/rejections-log").set("Authorization", bearer).send({}).expect(403);
+  });
 });

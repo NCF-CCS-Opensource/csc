@@ -1,3 +1,4 @@
+import type { StudentSummary } from "@attendance/contracts";
 import type { Actor } from "../../../shared/domain/actor";
 import type { Role } from "../../../shared/domain/role";
 
@@ -25,6 +26,11 @@ export interface StudentRepository {
   create(input: NewStudent): Promise<Actor>;
   // Throws DuplicateStudentIdError / StudentNotFoundError (student-errors.ts).
   updateIdAndProgram(id: string, input: StudentCorrection): Promise<Actor>;
+  // The whole roster, name-ascending. No pagination (spec #117).
+  listAll(): Promise<StudentSummary[]>;
+  // No-op (returns null) unless the row exists and is still role "student"
+  // — mirrors the ported apps/web command exactly.
+  promoteToOfficer(id: string): Promise<Actor | null>;
 }
 
 export const STUDENT_REPOSITORY = Symbol("StudentRepository");

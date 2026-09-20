@@ -9,4 +9,5 @@ export interface Actor {
   email: string;
   name: string;
   role: Role;
+  program: string;
 }

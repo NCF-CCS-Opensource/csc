@@ -8,5 +8,6 @@ export function presentIdentity(actor: Actor): IdentityResponse {
     email: actor.email,
     name: actor.name,
     role: actor.role,
+    program: actor.program,
   };
 }

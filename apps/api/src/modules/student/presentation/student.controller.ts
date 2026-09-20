@@ -9,7 +9,11 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import type { CorrectStudentRequest, IdentityResponse } from "@attendance/contracts";
+import type {
+  CorrectStudentRequest,
+  IdentityResponse,
+  StudentListResponse,
+} from "@attendance/contracts";
 import { AuthGuard } from "../../../shared/presentation/auth.guard";
 import { CapabilityGuard } from "../../../shared/presentation/capability.guard";
 import { RequireCapability } from "../../../shared/presentation/capability.decorator";
@@ -17,6 +21,8 @@ import { CallerActor } from "../../../shared/presentation/actor.decorator";
 import type { Actor } from "../../../shared/domain/actor";
 import { GetCallerIdentityUseCase } from "../application/get-caller-identity.use-case";
 import { CorrectStudentUseCase } from "../application/correct-student.use-case";
+import { ListStudentsUseCase } from "../application/list-students.use-case";
+import { PromoteStudentUseCase } from "../application/promote-student.use-case";
 import {
   DuplicateStudentIdError,
   InvalidProgramError,
@@ -34,7 +40,29 @@ export class StudentController {
     private readonly getCallerIdentity: GetCallerIdentityUseCase,
     @Inject(CorrectStudentUseCase)
     private readonly correctStudent: CorrectStudentUseCase,
+    @Inject(ListStudentsUseCase)
+    private readonly listStudents: ListStudentsUseCase,
+    @Inject(PromoteStudentUseCase)
+    private readonly promoteStudent: PromoteStudentUseCase,
   ) {}
+
+  // Known Gap #1 (PR #184): the whole roster, same audience as the Students
+  // page's original direct-DB read (Officer or Governor).
+  @Post("list")
+  @RequireCapability("manage_operations")
+  async list(): Promise<StudentListResponse> {
+    return { students: await this.listStudents.execute() };
+  }
+
+  // Known Gap #3 (PR #184): Governor-only, matches admin/actions.ts's
+  // requireGovernor. A missing row or one that's not currently a plain
+  // Student is a silent no-op, same as the ported command.
+  @Post("promote/:id")
+  @RequireCapability("administer")
+  async promote(@Param("id") id: string): Promise<{ ok: true }> {
+    await this.promoteStudent.execute(id);
+    return { ok: true };
+  }
 
   // Every role holding view_own_attendance — student, officer, governor —
   // can reach it; the guard proves the mechanism, not a role split.

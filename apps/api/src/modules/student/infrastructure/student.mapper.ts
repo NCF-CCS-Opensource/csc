@@ -11,5 +11,6 @@ export function toActor(row: StudentRow): Actor {
     email: row.email,
     name: row.name,
     role: row.role,
+    program: row.program,
   };
 }

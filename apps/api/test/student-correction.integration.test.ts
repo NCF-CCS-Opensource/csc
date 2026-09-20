@@ -3,6 +3,8 @@ import { createDb, students, type Database } from "@attendance/db";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { CorrectStudentUseCase } from "../src/modules/student/application/correct-student.use-case";
+import { ListStudentsUseCase } from "../src/modules/student/application/list-students.use-case";
+import { PromoteStudentUseCase } from "../src/modules/student/application/promote-student.use-case";
 import { DrizzleStudentRepository } from "../src/modules/student/infrastructure/drizzle-student.repository";
 import {
   DuplicateStudentIdError,
@@ -21,6 +23,8 @@ const db: Database = createDb(process.env.DATABASE_URL!);
 const studentRepository = new DrizzleStudentRepository(db);
 const programRepository = new DrizzleProgramRepository(db);
 const correctStudent = new CorrectStudentUseCase(studentRepository, programRepository);
+const listStudents = new ListStudentsUseCase(studentRepository);
+const promoteStudent = new PromoteStudentUseCase(studentRepository);
 
 async function seedTwoStudents() {
   const [student, other] = await db
@@ -102,5 +106,39 @@ describe("Student correction", () => {
         program: "Underwater Basketry",
       }),
     ).rejects.toEqual(new InvalidProgramError());
+  });
+});
+
+// Known Gap #1 (PR #184).
+describe("Student list", () => {
+  it("lists every Student, name-ascending", async () => {
+    await seedTwoStudents();
+
+    const roster = await listStudents.execute();
+
+    expect(roster.map((row) => row.name)).toEqual(["Grace Hopper", "Katherine Johnson"]);
+  });
+});
+
+// Known Gap #3 (PR #184).
+describe("Student promotion", () => {
+  it("promotes a Student to Officer", async () => {
+    const { student } = await seedTwoStudents();
+
+    const promoted = await promoteStudent.execute(student.id);
+
+    expect(promoted).toMatchObject({ id: student.id, role: "officer" });
+    expect(
+      await db.query.students.findFirst({ where: eq(students.id, student.id) }),
+    ).toMatchObject({ role: "officer" });
+  });
+
+  it("is a no-op on a Student who is already an Officer", async () => {
+    const { student } = await seedTwoStudents();
+    await promoteStudent.execute(student.id);
+
+    const result = await promoteStudent.execute(student.id);
+
+    expect(result).toBeNull();
   });
 });

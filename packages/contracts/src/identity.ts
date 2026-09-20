@@ -9,4 +9,5 @@ export interface IdentityResponse {
   email: string;
   name: string;
   role: Role;
+  program: string;
 }

@@ -9,6 +9,8 @@ import { CreateSemesterUseCase } from "./application/create-semester.use-case";
 import { UpdateSemesterDatesUseCase } from "./application/update-semester-dates.use-case";
 import { CloseSemesterUseCase } from "./application/close-semester.use-case";
 import { GetOpenSemesterUseCase } from "./application/get-open-semester.use-case";
+import { ListSemestersUseCase } from "./application/list-semesters.use-case";
+import { DeleteSemesterUseCase } from "./application/delete-semester.use-case";
 import { SemesterController } from "./presentation/semester.controller";
 import { AuthGuard } from "../../shared/presentation/auth.guard";
 import { CapabilityGuard } from "../../shared/presentation/capability.guard";
@@ -23,6 +25,8 @@ import { CapabilityGuard } from "../../shared/presentation/capability.guard";
     UpdateSemesterDatesUseCase,
     CloseSemesterUseCase,
     GetOpenSemesterUseCase,
+    ListSemestersUseCase,
+    DeleteSemesterUseCase,
     AuthGuard,
     CapabilityGuard,
   ],

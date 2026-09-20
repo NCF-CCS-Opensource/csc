@@ -8,9 +8,13 @@ import type { DateRange } from "./semester-lifecycle";
 export interface SemesterRepository {
   findOpen(): Promise<Semester | null>;
   findById(id: string): Promise<Semester | null>;
+  findAll(): Promise<Semester[]>;
   create(dates: DateRange): Promise<Semester>;
   updateDates(id: string, dates: DateRange): Promise<Semester>;
   close(id: string): Promise<Semester>;
+  // Throws SemesterLifecycleError(409) when an Event still references it,
+  // 404 when the id doesn't exist.
+  delete(id: string): Promise<void>;
 }
 
 export const SEMESTER_REPOSITORY = Symbol("SemesterRepository");

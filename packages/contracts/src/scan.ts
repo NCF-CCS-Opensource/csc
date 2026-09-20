@@ -24,3 +24,23 @@ export interface ScannedStudent {
   studentId: string;
   program: string;
 }
+
+// Governor-wide, searchable/sortable rejected-scan log (unlike scan/rejections,
+// which is Actor-scoped to the calling Officer's own Needs Review queue).
+export interface RejectedScanLogRequest {
+  q?: string;
+  sort?: "student" | "time";
+}
+
+export interface RejectedScanLogEntry {
+  scanId: string;
+  qrPayload: string;
+  scannedAt: string;
+  studentName: string | null;
+  studentIdText: string | null;
+  officerName: string;
+}
+
+export interface RejectedScanLogResponse {
+  rejections: RejectedScanLogEntry[];
+}
