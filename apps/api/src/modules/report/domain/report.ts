@@ -1,14 +1,21 @@
 import type {
+  FinancialEventBreakdown,
+  FinancialOutstandingBalance,
+  FinancialPaymentLogSummary,
+  FinancialProgramBreakdown,
   FinancialReportData,
   Half,
   PerEventReportData,
   PerSemesterReportData,
   PerStudentReportData,
   SessionStatus,
+  StudentEventBreakdown,
   StudentReportDetail,
 } from "@attendance/contracts";
 
 type EventType = "half_day" | "whole_day";
+type SessionLike = { id: string; timeIn: Date | null; timeOut: Date | null };
+type HalfCounts = { present: number; incomplete: number; absent: number };
 
 function currentCampusDate(now = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -30,6 +37,43 @@ export function isEventPastInManila(eventDate: string, now?: Date | string): boo
 const isSessionAbsent = (session: { timeIn: Date | null; timeOut: Date | null }) =>
   !session.timeIn || !session.timeOut;
 
+function deriveHalfStatus(sess: SessionLike | undefined): SessionStatus {
+  if (!sess) return "absent";
+  if (!isSessionAbsent(sess)) return "present";
+  return "incomplete";
+}
+
+function tallyHalf(status: SessionStatus, counts: HalfCounts): void {
+  if (status === "present") counts.present++;
+  else if (status === "incomplete") counts.incomplete++;
+  else counts.absent++;
+}
+
+// half_day events reduce AM/PM to a single half (whichever session exists);
+// whole_day events resolve each half independently.
+function resolveEventHalfStatuses(
+  eventType: EventType,
+  amSess: SessionLike | undefined,
+  pmSess: SessionLike | undefined,
+): { amStatus: SessionStatus; pmStatus: SessionStatus } {
+  if (eventType === "half_day") {
+    return { amStatus: deriveHalfStatus(amSess ?? pmSess), pmStatus: "absent" };
+  }
+  return { amStatus: deriveHalfStatus(amSess), pmStatus: deriveHalfStatus(pmSess) };
+}
+
+// A recorded Penalty for the session wins; otherwise an absent half owes the
+// event's flat per-half rate.
+function eventHalfPenalty(
+  sess: SessionLike | undefined,
+  status: SessionStatus,
+  penaltyRate: number,
+  penaltyBySession: Map<string, number>,
+): number {
+  if (sess && penaltyBySession.has(sess.id)) return penaltyBySession.get(sess.id)!;
+  return status === "absent" ? penaltyRate : 0;
+}
+
 export type PerEventReportInput = {
   event: PerEventReportData["event"];
   students: { id: string; name: string; studentId: string; program: string }[];
@@ -42,7 +86,7 @@ export function computePerEventReport(input: PerEventReportInput): PerEventRepor
   const { event, students, sessions, penalties, programs } = input;
   const penaltyRate = Number(event.halfDayPenaltyAmount);
 
-  const sessionByStudentHalf = new Map<string, (typeof sessions)[number]>();
+  const sessionByStudentHalf = new Map<string, SessionLike>();
   for (const s of sessions) {
     sessionByStudentHalf.set(`${s.studentId}:${s.half}`, s);
   }
@@ -53,99 +97,36 @@ export function computePerEventReport(input: PerEventReportInput): PerEventRepor
   }
 
   const studentDetails: StudentReportDetail[] = [];
-  const programMap = new Map<
-    string,
-    { totalStudents: number; presentHalves: number; incompleteHalves: number; absentHalves: number }
-  >();
-
+  const programMap = new Map<string, { totalStudents: number } & HalfCounts>();
   for (const prog of programs) {
-    programMap.set(prog, { totalStudents: 0, presentHalves: 0, incompleteHalves: 0, absentHalves: 0 });
+    programMap.set(prog, { totalStudents: 0, present: 0, incomplete: 0, absent: 0 });
   }
 
-  let totalPresentHalves = 0;
-  let totalIncompleteHalves = 0;
-  let totalAbsentHalves = 0;
+  const totals: HalfCounts = { present: 0, incomplete: 0, absent: 0 };
+  const amBreakdown: HalfCounts = { present: 0, incomplete: 0, absent: 0 };
+  const pmBreakdown: HalfCounts = { present: 0, incomplete: 0, absent: 0 };
   let totalPenalties = 0;
 
-  const amBreakdown = { present: 0, incomplete: 0, absent: 0 };
-  const pmBreakdown = { present: 0, incomplete: 0, absent: 0 };
-
   for (const student of students) {
-    const progData = programMap.get(student.program) ?? {
-      totalStudents: 0,
-      presentHalves: 0,
-      incompleteHalves: 0,
-      absentHalves: 0,
-    };
+    const progData = programMap.get(student.program) ?? { totalStudents: 0, present: 0, incomplete: 0, absent: 0 };
     progData.totalStudents++;
 
     const amSess = sessionByStudentHalf.get(`${student.id}:am`);
     const pmSess = sessionByStudentHalf.get(`${student.id}:pm`);
+    const { amStatus, pmStatus } = resolveEventHalfStatuses(event.type, amSess, pmSess);
 
-    const deriveStatus = (sess: (typeof sessions)[number] | undefined): SessionStatus => {
-      if (!sess) return "absent";
-      if (!isSessionAbsent(sess)) return "present";
-      return "incomplete";
-    };
-
-    let amStatus: SessionStatus = "absent";
-    let pmStatus: SessionStatus = "absent";
-
-    if (event.type === "half_day") {
-      const halfSess = amSess ?? pmSess;
-      const status = deriveStatus(halfSess);
-      amStatus = status;
-      pmStatus = "absent"; // N/A for half day
-
-      if (status === "present") {
-        totalPresentHalves++;
-        progData.presentHalves++;
-      } else if (status === "incomplete") {
-        totalIncompleteHalves++;
-        progData.incompleteHalves++;
-      } else {
-        totalAbsentHalves++;
-        progData.absentHalves++;
-      }
-    } else {
-      amStatus = deriveStatus(amSess);
-      pmStatus = deriveStatus(pmSess);
-
-      const trackHalf = (status: SessionStatus, breakdown: typeof amBreakdown) => {
-        if (status === "present") {
-          totalPresentHalves++;
-          progData.presentHalves++;
-          breakdown.present++;
-        } else if (status === "incomplete") {
-          totalIncompleteHalves++;
-          progData.incompleteHalves++;
-          breakdown.incomplete++;
-        } else {
-          totalAbsentHalves++;
-          progData.absentHalves++;
-          breakdown.absent++;
-        }
-      };
-
-      trackHalf(amStatus, amBreakdown);
-      trackHalf(pmStatus, pmBreakdown);
-    }
-
-    let studentPenalty = 0;
-    if (amSess && penaltyBySession.has(amSess.id)) {
-      studentPenalty += penaltyBySession.get(amSess.id)!;
-    } else if (amStatus === "absent" && (event.type === "whole_day" || (event.type === "half_day" && !pmSess))) {
-      studentPenalty += penaltyRate;
-    }
-
+    tallyHalf(amStatus, totals);
+    tallyHalf(amStatus, progData);
     if (event.type === "whole_day") {
-      if (pmSess && penaltyBySession.has(pmSess.id)) {
-        studentPenalty += penaltyBySession.get(pmSess.id)!;
-      } else if (pmStatus === "absent") {
-        studentPenalty += penaltyRate;
-      }
+      tallyHalf(amStatus, amBreakdown);
+      tallyHalf(pmStatus, totals);
+      tallyHalf(pmStatus, progData);
+      tallyHalf(pmStatus, pmBreakdown);
     }
 
+    const studentPenalty =
+      eventHalfPenalty(amSess, amStatus, penaltyRate, penaltyBySession) +
+      (event.type === "whole_day" ? eventHalfPenalty(pmSess, pmStatus, penaltyRate, penaltyBySession) : 0);
     totalPenalties += studentPenalty;
 
     studentDetails.push({
@@ -162,18 +143,18 @@ export function computePerEventReport(input: PerEventReportInput): PerEventRepor
 
   studentDetails.sort((a, b) => a.name.localeCompare(b.name));
 
-  const totalResolved = totalPresentHalves + totalAbsentHalves;
-  const attendanceRate = totalResolved > 0 ? (totalPresentHalves / totalResolved) * 100 : 0;
+  const totalResolved = totals.present + totals.absent;
+  const attendanceRate = totalResolved > 0 ? (totals.present / totalResolved) * 100 : 0;
 
   const programBreakdowns = Array.from(programMap.entries()).map(([prog, stats]) => {
-    const resolved = stats.presentHalves + stats.absentHalves;
+    const resolved = stats.present + stats.absent;
     return {
       program: prog,
       totalStudents: stats.totalStudents,
-      presentHalves: stats.presentHalves,
-      incompleteHalves: stats.incompleteHalves,
-      absentHalves: stats.absentHalves,
-      rate: resolved > 0 ? (stats.presentHalves / resolved) * 100 : 0,
+      presentHalves: stats.present,
+      incompleteHalves: stats.incomplete,
+      absentHalves: stats.absent,
+      rate: resolved > 0 ? (stats.present / resolved) * 100 : 0,
     };
   });
 
@@ -181,9 +162,9 @@ export function computePerEventReport(input: PerEventReportInput): PerEventRepor
     event,
     summary: {
       totalStudents: students.length,
-      presentHalves: totalPresentHalves,
-      incompleteHalves: totalIncompleteHalves,
-      absentHalves: totalAbsentHalves,
+      presentHalves: totals.present,
+      incompleteHalves: totals.incomplete,
+      absentHalves: totals.absent,
       attendanceRate,
       ...(event.type === "whole_day" ? { amBreakdown, pmBreakdown } : {}),
     },
@@ -203,10 +184,51 @@ export type PerStudentReportInput = {
   asOfTimestamp: string;
 };
 
+// eventHalfPenalty's "one flat rate per absent half" folds a whole_day event's
+// AM+PM penalty into a single sum here since neither half is charged twice.
+function studentEventBreakdown(
+  ev: PerStudentReportInput["events"][number],
+  sessionsByEventHalf: Map<string, SessionLike>,
+  penaltyBySession: Map<string, number>,
+  attendance: { attended: number; absent: number },
+): StudentEventBreakdown {
+  const penaltyRate = Number(ev.halfDayPenaltyAmount);
+  const amSess = sessionsByEventHalf.get(`${ev.id}:am`);
+  const pmSess = sessionsByEventHalf.get(`${ev.id}:pm`);
+  const { amStatus, pmStatus } = resolveEventHalfStatuses(ev.type, amSess, pmSess);
+
+  const tally = (status: SessionStatus) => {
+    if (status === "present") attendance.attended++;
+    else attendance.absent++;
+  };
+
+  let eventPenalty: number;
+  if (ev.type === "half_day") {
+    tally(amStatus);
+    eventPenalty = eventHalfPenalty(amSess ?? pmSess, amStatus, penaltyRate, penaltyBySession);
+  } else {
+    tally(amStatus);
+    tally(pmStatus);
+    eventPenalty =
+      eventHalfPenalty(amSess, amStatus, penaltyRate, penaltyBySession) +
+      eventHalfPenalty(pmSess, pmStatus, penaltyRate, penaltyBySession);
+  }
+
+  return {
+    eventId: ev.id,
+    eventName: ev.name,
+    date: ev.date,
+    amStatus,
+    pmStatus,
+    penaltyAmount: eventPenalty,
+    paymentStatus: eventPenalty === 0 ? "NONE" : "UNPAID",
+  };
+}
+
 export function computePerStudentReport(input: PerStudentReportInput): PerStudentReportData {
   const { student, semesterName, events, sessions, penalties, payments, asOfTimestamp } = input;
 
-  const sessionsByEventHalf = new Map<string, (typeof sessions)[number]>();
+  const sessionsByEventHalf = new Map<string, SessionLike>();
   for (const s of sessions) {
     sessionsByEventHalf.set(`${s.eventId}:${s.half}`, s);
   }
@@ -218,82 +240,10 @@ export function computePerStudentReport(input: PerStudentReportInput): PerStuden
     }
   }
 
-  const paymentsByPenalty = new Map<string, number>();
-  for (const pay of payments) {
-    const prev = paymentsByPenalty.get(pay.penaltyId) ?? 0;
-    paymentsByPenalty.set(pay.penaltyId, prev + Number(pay.amount));
-  }
-
-  let totalAttendedHalves = 0;
-  let totalAbsentHalves = 0;
-  let totalExpectedHalves = 0;
-
-  const eventsBreakdown = [];
-
-  for (const ev of events) {
-    const penaltyRate = Number(ev.halfDayPenaltyAmount);
-    const amSess = sessionsByEventHalf.get(`${ev.id}:am`);
-    const pmSess = sessionsByEventHalf.get(`${ev.id}:pm`);
-
-    const deriveStatus = (sess: (typeof sessions)[number] | undefined): SessionStatus => {
-      if (!sess) return "absent";
-      if (!isSessionAbsent(sess)) return "present";
-      return "incomplete";
-    };
-
-    let amStatus: SessionStatus = "absent";
-    let pmStatus: SessionStatus = "absent";
-    let eventPenalty = 0;
-
-    if (ev.type === "half_day") {
-      totalExpectedHalves += 1;
-      const halfSess = amSess ?? pmSess;
-      const status = deriveStatus(halfSess);
-      amStatus = status;
-      pmStatus = "absent";
-
-      if (status === "present") totalAttendedHalves++;
-      else totalAbsentHalves++;
-
-      if (halfSess && penaltyBySession.has(halfSess.id)) {
-        eventPenalty += penaltyBySession.get(halfSess.id)!;
-      } else if (status === "absent") {
-        eventPenalty += penaltyRate;
-      }
-    } else {
-      totalExpectedHalves += 2;
-      amStatus = deriveStatus(amSess);
-      pmStatus = deriveStatus(pmSess);
-
-      if (amStatus === "present") totalAttendedHalves++;
-      else totalAbsentHalves++;
-
-      if (pmStatus === "present") totalAttendedHalves++;
-      else totalAbsentHalves++;
-
-      if (amSess && penaltyBySession.has(amSess.id)) {
-        eventPenalty += penaltyBySession.get(amSess.id)!;
-      } else if (amStatus === "absent") {
-        eventPenalty += penaltyRate;
-      }
-
-      if (pmSess && penaltyBySession.has(pmSess.id)) {
-        eventPenalty += penaltyBySession.get(pmSess.id)!;
-      } else if (pmStatus === "absent") {
-        eventPenalty += penaltyRate;
-      }
-    }
-
-    eventsBreakdown.push({
-      eventId: ev.id,
-      eventName: ev.name,
-      date: ev.date,
-      amStatus,
-      pmStatus,
-      penaltyAmount: eventPenalty,
-      paymentStatus: (eventPenalty === 0 ? "NONE" : "UNPAID") as "NONE" | "UNPAID",
-    });
-  }
+  const attendance = { attended: 0, absent: 0 };
+  const eventsBreakdown = events.map((ev) =>
+    studentEventBreakdown(ev, sessionsByEventHalf, penaltyBySession, attendance),
+  );
 
   const totalPenaltiesCharged = penalties.reduce((sum, p) => sum + Number(p.amount), 0);
   const totalPaymentsMade = payments.reduce((sum, p) => sum + Number(p.amount), 0);
@@ -304,8 +254,8 @@ export function computePerStudentReport(input: PerStudentReportInput): PerStuden
       ? "CLEARED"
       : `NOT CLEARED — Outstanding balance: ₱${outstandingBalance.toFixed(2)}`;
 
-  const resolved = totalAttendedHalves + totalAbsentHalves;
-  const attendanceRate = resolved > 0 ? (totalAttendedHalves / resolved) * 100 : 0;
+  const resolved = attendance.attended + attendance.absent;
+  const attendanceRate = resolved > 0 ? (attendance.attended / resolved) * 100 : 0;
 
   return {
     student,
@@ -313,8 +263,8 @@ export function computePerStudentReport(input: PerStudentReportInput): PerStuden
     asOfTimestamp,
     standing: {
       totalEvents: events.length,
-      sessionsAttended: totalAttendedHalves,
-      sessionsAbsent: totalAbsentHalves,
+      sessionsAttended: attendance.attended,
+      sessionsAbsent: attendance.absent,
       attendanceRate,
       totalPenaltiesCharged,
       totalPaymentsMade,
@@ -336,6 +286,21 @@ export type PerSemesterReportInput = {
   asOfTimestamp: string;
 };
 
+// half_day counts a single attended half if either recorded session isn't
+// absent; whole_day counts each half independently (0, 1, or 2).
+function attendedHalvesForStudentEvent(
+  sessionSet: Set<string>,
+  studentId: string,
+  ev: { id: string; type: EventType },
+): number {
+  const amAttended = sessionSet.has(`${studentId}:${ev.id}:am`);
+  const pmAttended = sessionSet.has(`${studentId}:${ev.id}:pm`);
+  if (ev.type === "half_day") {
+    return amAttended || pmAttended ? 1 : 0;
+  }
+  return (amAttended ? 1 : 0) + (pmAttended ? 1 : 0);
+}
+
 export function computePerSemesterReport(input: PerSemesterReportInput): PerSemesterReportData {
   const { semester, students, events, sessions, penalties, payments, programs, asOfTimestamp } = input;
 
@@ -345,8 +310,7 @@ export function computePerSemesterReport(input: PerSemesterReportInput): PerSeme
 
   const studentPenaltiesMap = new Map<string, number>();
   for (const p of penalties) {
-    const prev = studentPenaltiesMap.get(p.studentId) ?? 0;
-    studentPenaltiesMap.set(p.studentId, prev + Number(p.amount));
+    studentPenaltiesMap.set(p.studentId, (studentPenaltiesMap.get(p.studentId) ?? 0) + Number(p.amount));
   }
 
   const penaltyToStudentMap = new Map<string, string>();
@@ -358,8 +322,7 @@ export function computePerSemesterReport(input: PerSemesterReportInput): PerSeme
   for (const pay of payments) {
     const studentId = penaltyToStudentMap.get(pay.penaltyId);
     if (studentId) {
-      const prev = studentPaymentsMap.get(studentId) ?? 0;
-      studentPaymentsMap.set(studentId, prev + Number(pay.amount));
+      studentPaymentsMap.set(studentId, (studentPaymentsMap.get(studentId) ?? 0) + Number(pay.amount));
     }
   }
 
@@ -395,9 +358,8 @@ export function computePerSemesterReport(input: PerSemesterReportInput): PerSeme
     progData.penalties += stPenalties;
     progData.paid += stPayments;
 
-    const stBalance = Math.max(0, stPenalties - stPayments);
     const cData = clearanceMap.get(st.program) ?? { cleared: 0, notCleared: 0 };
-    if (stBalance === 0) {
+    if (Math.max(0, stPenalties - stPayments) === 0) {
       cData.cleared++;
     } else {
       cData.notCleared++;
@@ -409,21 +371,9 @@ export function computePerSemesterReport(input: PerSemesterReportInput): PerSeme
       progData.resolvedHalves += halvesCount;
       totalResolvedHalves += halvesCount;
 
-      if (ev.type === "half_day") {
-        if (sessionByStudentEventHalf.has(`${st.id}:${ev.id}:am`) || sessionByStudentEventHalf.has(`${st.id}:${ev.id}:pm`)) {
-          progData.attendedHalves++;
-          totalAttended++;
-        }
-      } else {
-        if (sessionByStudentEventHalf.has(`${st.id}:${ev.id}:am`)) {
-          progData.attendedHalves++;
-          totalAttended++;
-        }
-        if (sessionByStudentEventHalf.has(`${st.id}:${ev.id}:pm`)) {
-          progData.attendedHalves++;
-          totalAttended++;
-        }
-      }
+      const attendedHalves = attendedHalvesForStudentEvent(sessionByStudentEventHalf, st.id, ev);
+      progData.attendedHalves += attendedHalves;
+      totalAttended += attendedHalves;
     }
 
     progMap.set(st.program, progData);
@@ -442,22 +392,12 @@ export function computePerSemesterReport(input: PerSemesterReportInput): PerSeme
 
   const eventSummary = events.map((ev) => {
     let evAttended = 0;
-    const evResolved = students.length * (ev.type === "whole_day" ? 2 : 1);
     for (const st of students) {
-      if (ev.type === "half_day") {
-        if (sessionByStudentEventHalf.has(`${st.id}:${ev.id}:am`) || sessionByStudentEventHalf.has(`${st.id}:${ev.id}:pm`)) {
-          evAttended++;
-        }
-      } else {
-        if (sessionByStudentEventHalf.has(`${st.id}:${ev.id}:am`)) evAttended++;
-        if (sessionByStudentEventHalf.has(`${st.id}:${ev.id}:pm`)) evAttended++;
-      }
+      evAttended += attendedHalvesForStudentEvent(sessionByStudentEventHalf, st.id, ev);
     }
+    const evResolved = students.length * (ev.type === "whole_day" ? 2 : 1);
     const evPenalties = penalties
-      .filter((p) => {
-        const sess = sessions.find((s) => s.id === p.attendanceSessionId);
-        return sess?.eventId === ev.id;
-      })
+      .filter((p) => sessions.find((s) => s.id === p.attendanceSessionId)?.eventId === ev.id)
       .reduce((sum, p) => sum + Number(p.amount), 0);
 
     return {
@@ -503,35 +443,34 @@ export type FinancialReportInput = {
   asOfTimestamp: string;
 };
 
-export function computeFinancialReport(input: FinancialReportInput): FinancialReportData {
-  const { semester, students, events, sessions, penalties, payments, programs, asOfTimestamp } = input;
-
-  const totalPenaltiesCharged = penalties.reduce((sum, p) => sum + Number(p.amount), 0);
-  const totalPaymentsCollected = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const totalOutstandingBalance = Math.max(0, totalPenaltiesCharged - totalPaymentsCollected);
-  const collectionRate = totalPenaltiesCharged > 0 ? (totalPaymentsCollected / totalPenaltiesCharged) * 100 : 0;
-
+function mapPenaltyLookups(
+  penalties: FinancialReportInput["penalties"],
+  sessions: FinancialReportInput["sessions"],
+): { penaltyToStudentMap: Map<string, string>; penaltyToEventMap: Map<string, string> } {
   const penaltyToStudentMap = new Map<string, string>();
   const penaltyToEventMap = new Map<string, string>();
   for (const p of penalties) {
     penaltyToStudentMap.set(p.id, p.studentId);
     if (p.attendanceSessionId) {
       const sess = sessions.find((s) => s.id === p.attendanceSessionId);
-      if (sess) {
-        penaltyToEventMap.set(p.id, sess.eventId);
-      }
+      if (sess) penaltyToEventMap.set(p.id, sess.eventId);
     }
   }
+  return { penaltyToStudentMap, penaltyToEventMap };
+}
 
+function financialProgramBreakdown(
+  students: FinancialReportInput["students"],
+  penalties: FinancialReportInput["penalties"],
+  payments: FinancialReportInput["payments"],
+  programs: string[],
+  penaltyToStudentMap: Map<string, string>,
+): FinancialProgramBreakdown[] {
   const progMap = new Map<string, { penalties: number; collected: number }>();
-  for (const pr of programs) {
-    progMap.set(pr, { penalties: 0, collected: 0 });
-  }
+  for (const pr of programs) progMap.set(pr, { penalties: 0, collected: 0 });
 
   const studentProgramMap = new Map<string, string>();
-  for (const st of students) {
-    studentProgramMap.set(st.id, st.program);
-  }
+  for (const st of students) studentProgramMap.set(st.id, st.program);
 
   for (const p of penalties) {
     const prog = studentProgramMap.get(p.studentId);
@@ -544,90 +483,80 @@ export function computeFinancialReport(input: FinancialReportInput): FinancialRe
 
   for (const pay of payments) {
     const studentId = penaltyToStudentMap.get(pay.penaltyId);
-    if (studentId) {
-      const prog = studentProgramMap.get(studentId);
-      if (prog) {
-        const prev = progMap.get(prog) ?? { penalties: 0, collected: 0 };
-        prev.collected += Number(pay.amount);
-        progMap.set(prog, prev);
-      }
+    const prog = studentId ? studentProgramMap.get(studentId) : undefined;
+    if (prog) {
+      const prev = progMap.get(prog) ?? { penalties: 0, collected: 0 };
+      prev.collected += Number(pay.amount);
+      progMap.set(prog, prev);
     }
   }
 
-  const programBreakdown = Array.from(progMap.entries()).map(([prog, stats]) => {
-    const out = Math.max(0, stats.penalties - stats.collected);
-    const rate = stats.penalties > 0 ? (stats.collected / stats.penalties) * 100 : 0;
-    return {
-      program: prog,
-      totalPenalties: stats.penalties,
-      totalCollected: stats.collected,
-      outstanding: out,
-      collectionRate: rate,
-    };
-  });
+  return Array.from(progMap.entries()).map(([prog, stats]) => ({
+    program: prog,
+    totalPenalties: stats.penalties,
+    totalCollected: stats.collected,
+    outstanding: Math.max(0, stats.penalties - stats.collected),
+    collectionRate: stats.penalties > 0 ? (stats.collected / stats.penalties) * 100 : 0,
+  }));
+}
 
+function financialEventBreakdown(
+  events: FinancialReportInput["events"],
+  penalties: FinancialReportInput["penalties"],
+  payments: FinancialReportInput["payments"],
+  penaltyToEventMap: Map<string, string>,
+): FinancialEventBreakdown[] {
   const eventPenaltiesMap = new Map<string, number>();
   const eventCollectedMap = new Map<string, number>();
 
   for (const p of penalties) {
     const eventId = penaltyToEventMap.get(p.id);
-    if (eventId) {
-      const prev = eventPenaltiesMap.get(eventId) ?? 0;
-      eventPenaltiesMap.set(eventId, prev + Number(p.amount));
-    }
+    if (eventId) eventPenaltiesMap.set(eventId, (eventPenaltiesMap.get(eventId) ?? 0) + Number(p.amount));
   }
-
   for (const pay of payments) {
     const eventId = penaltyToEventMap.get(pay.penaltyId);
-    if (eventId) {
-      const prev = eventCollectedMap.get(eventId) ?? 0;
-      eventCollectedMap.set(eventId, prev + Number(pay.amount));
-    }
+    if (eventId) eventCollectedMap.set(eventId, (eventCollectedMap.get(eventId) ?? 0) + Number(pay.amount));
   }
 
-  const eventBreakdown = events.map((ev) => {
+  return events.map((ev) => {
     const pen = eventPenaltiesMap.get(ev.id) ?? 0;
     const col = eventCollectedMap.get(ev.id) ?? 0;
-    return {
-      id: ev.id,
-      name: ev.name,
-      penaltiesGenerated: pen,
-      amountCollected: col,
-      outstanding: Math.max(0, pen - col),
-    };
+    return { id: ev.id, name: ev.name, penaltiesGenerated: pen, amountCollected: col, outstanding: Math.max(0, pen - col) };
   });
+}
 
+function financialOutstandingBalances(
+  students: FinancialReportInput["students"],
+  penalties: FinancialReportInput["penalties"],
+  payments: FinancialReportInput["payments"],
+  penaltyToStudentMap: Map<string, string>,
+): FinancialOutstandingBalance[] {
   const studentPenaltiesSum = new Map<string, number>();
   for (const p of penalties) {
-    const prev = studentPenaltiesSum.get(p.studentId) ?? 0;
-    studentPenaltiesSum.set(p.studentId, prev + Number(p.amount));
+    studentPenaltiesSum.set(p.studentId, (studentPenaltiesSum.get(p.studentId) ?? 0) + Number(p.amount));
   }
 
   const studentPaymentsSum = new Map<string, number>();
   for (const pay of payments) {
     const stId = penaltyToStudentMap.get(pay.penaltyId);
-    if (stId) {
-      const prev = studentPaymentsSum.get(stId) ?? 0;
-      studentPaymentsSum.set(stId, prev + Number(pay.amount));
-    }
+    if (stId) studentPaymentsSum.set(stId, (studentPaymentsSum.get(stId) ?? 0) + Number(pay.amount));
   }
 
-  const outstandingBalancesList = [];
+  const list: FinancialOutstandingBalance[] = [];
   for (const st of students) {
     const pen = studentPenaltiesSum.get(st.id) ?? 0;
     const pay = studentPaymentsSum.get(st.id) ?? 0;
     const owed = Math.max(0, pen - pay);
-    if (owed > 0) {
-      outstandingBalancesList.push({
-        studentId: st.studentId,
-        name: st.name,
-        program: st.program,
-        amountOwed: owed,
-      });
-    }
+    if (owed > 0) list.push({ studentId: st.studentId, name: st.name, program: st.program, amountOwed: owed });
   }
-  outstandingBalancesList.sort((a, b) => b.amountOwed - a.amountOwed);
+  list.sort((a, b) => b.amountOwed - a.amountOwed);
+  return list;
+}
 
+function financialPaymentLogSummary(
+  payments: FinancialReportInput["payments"],
+  semester: FinancialReportInput["semester"],
+): FinancialPaymentLogSummary {
   const officersSet = new Set<string>();
   let minDate: Date | null = null;
   let maxDate: Date | null = null;
@@ -645,6 +574,19 @@ export function computeFinancialReport(input: FinancialReportInput): FinancialRe
       ? `${minDate.toISOString().slice(0, 10)} to ${maxDate.toISOString().slice(0, 10)}`
       : `${semester.startDate} to ${semester.endDate}`;
 
+  return { totalTransactions: payments.length, dateRange, receivingOfficers: Array.from(officersSet) };
+}
+
+export function computeFinancialReport(input: FinancialReportInput): FinancialReportData {
+  const { semester, students, events, sessions, penalties, payments, programs, asOfTimestamp } = input;
+
+  const totalPenaltiesCharged = penalties.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalPaymentsCollected = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalOutstandingBalance = Math.max(0, totalPenaltiesCharged - totalPaymentsCollected);
+  const collectionRate = totalPenaltiesCharged > 0 ? (totalPaymentsCollected / totalPenaltiesCharged) * 100 : 0;
+
+  const { penaltyToStudentMap, penaltyToEventMap } = mapPenaltyLookups(penalties, sessions);
+
   return {
     semester,
     asOfTimestamp,
@@ -654,13 +596,9 @@ export function computeFinancialReport(input: FinancialReportInput): FinancialRe
       totalOutstandingBalance,
       collectionRate,
     },
-    programBreakdown,
-    eventBreakdown,
-    outstandingBalancesList,
-    paymentLogSummary: {
-      totalTransactions: payments.length,
-      dateRange,
-      receivingOfficers: Array.from(officersSet),
-    },
+    programBreakdown: financialProgramBreakdown(students, penalties, payments, programs, penaltyToStudentMap),
+    eventBreakdown: financialEventBreakdown(events, penalties, payments, penaltyToEventMap),
+    outstandingBalancesList: financialOutstandingBalances(students, penalties, payments, penaltyToStudentMap),
+    paymentLogSummary: financialPaymentLogSummary(payments, semester),
   };
 }

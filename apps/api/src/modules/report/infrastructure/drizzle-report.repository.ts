@@ -84,10 +84,10 @@ export class DrizzleReportRepository implements ReportRepository {
     if (!semester) return null;
 
     const semesterEvents = await this.db.select({ id: events.id, name: events.name, date: events.date, type: events.type, halfDayPenaltyAmount: events.halfDayPenaltyAmount }).from(events).where(eq(events.semesterId, semesterId));
-    const eventIds = semesterEvents.map((e) => e.id);
+    const eventIds = new Set(semesterEvents.map((e) => e.id));
 
     const studentSessions = await this.db.select({ id: attendanceSessions.id, eventId: attendanceSessions.eventId, half: attendanceSessions.half, timeIn: attendanceSessions.timeIn, timeOut: attendanceSessions.timeOut }).from(attendanceSessions).where(eq(attendanceSessions.studentId, studentId));
-    const filteredSessions = studentSessions.filter((s) => eventIds.includes(s.eventId));
+    const filteredSessions = studentSessions.filter((s) => eventIds.has(s.eventId));
 
     const studentPenalties = await this.db.select({ id: penalties.id, attendanceSessionId: penalties.attendanceSessionId, studentId: penalties.studentId, amount: penalties.amount }).from(penalties).where(eq(penalties.studentId, studentId));
     const penaltyIds = studentPenalties.map((p) => p.id);
