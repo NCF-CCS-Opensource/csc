@@ -58,33 +58,29 @@ describe("apiFetch", () => {
       json: () => Promise.resolve({ ok: true }),
     } as Response);
 
-    await apiFetch("/api/me");
+    await apiFetch("/v1/api/student/identity", { method: "POST" });
 
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/me"),
+      expect.stringContaining("/v1/api/student/identity"),
       expect.objectContaining({
         headers: expect.objectContaining({ Authorization: "Bearer token" }),
       }),
     );
   });
 
-  it("strips a trailing /api from EXPO_PUBLIC_API_BASE_URL so paths don't double up", async () => {
-    // Real repro: EXPO_PUBLIC_API_BASE_URL was set to ".../vercel.app/api"
-    // and every call site already passes "/api/...", producing
-    // ".../vercel.app/api/api/me" — a 404 the UI showed as "mobile access
-    // unavailable", for every role, not just Governor.
+  it("strips a trailing /v1/api from EXPO_PUBLIC_API_BASE_URL so paths don't double up", async () => {
     vi.resetModules();
-    vi.stubEnv("EXPO_PUBLIC_API_BASE_URL", "https://example.vercel.app/api");
+    vi.stubEnv("EXPO_PUBLIC_API_BASE_URL", "https://example.api.example/v1/api");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ ok: true }),
     } as Response));
 
     const { apiFetch: reimportedApiFetch } = await import("./api");
-    await reimportedApiFetch("/api/me");
+    await reimportedApiFetch("/v1/api/student/identity", { method: "POST" });
 
     expect(fetch).toHaveBeenCalledWith(
-      "https://example.vercel.app/api/me",
+      "https://example.api.example/v1/api/student/identity",
       expect.anything(),
     );
 
@@ -103,7 +99,7 @@ describe("apiFetch", () => {
       json: () => Promise.resolve({}),
     } as Response);
 
-    await apiFetch("/api/scan/approve", {}, "officer-a");
+    await apiFetch("/v1/api/scan/approve", {}, "officer-a");
 
     expect(hydrated).toBe(true);
     expect(fetch).toHaveBeenCalled();
@@ -112,7 +108,7 @@ describe("apiFetch", () => {
   it("does not deliver a queued decision under another Officer's session", async () => {
     signedInAs("officer-b");
 
-    await expect(apiFetch("/api/scan/approve", {}, "officer-a")).rejects.toEqual(
+    await expect(apiFetch("/v1/api/scan/approve", {}, "officer-a")).rejects.toEqual(
       new ApiError("Queued scan belongs to another Officer", 401),
     );
     expect(fetch).not.toHaveBeenCalled();
@@ -131,7 +127,7 @@ describe("apiFetch", () => {
         }),
     );
 
-    const request = apiFetch("/api/scan/approve", {}, "officer-a");
+    const request = apiFetch("/v1/api/scan/approve", {}, "officer-a");
     const expectation = expect(request).rejects.toEqual(
       new ApiError("Request timed out", 408),
     );

@@ -88,7 +88,7 @@ The current test-production domain is `attendance.ncfccs.org`. Vercel > Project 
 
 ## 4. apps/mobile (Officer booth app)
 
-1. Set `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (step 5) and `EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org` in `apps/mobile/.env`. The API base is the deployed `apps/web` URL; `/api/events/mine` and `/api/scan/*` resolve against it, authenticated with the Officer's Clerk session token as a Bearer credential.
+1. Set `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (step 5) and `EXPO_PUBLIC_API_BASE_URL=https://<api-heroku-app>.herokuapp.com` in `apps/mobile/.env`. The API base is the deployed `apps/api` URL; `/v1/api/event/list` and `/v1/api/scan/*` resolve against it, authenticated with the Officer's Clerk session token as a Bearer credential.
 2. Officers sign in with their school Google account. The flow opens in the system browser (Google blocks OAuth in an embedded WebView) and returns through the `attendkita://` scheme declared in `apps/mobile/app.json`, so add that redirect to Clerk's allowed redirect URLs in step 5.
 3. `npx expo run:ios` / `run:android` for a dev build (`expo-camera` needs a native build, not Expo Go), or `eas build` for a real device.
 4. Verify against the live test-production database and a physical device/camera; repository checks only cover typecheck and app-level logic (`pnpm --filter web test`).

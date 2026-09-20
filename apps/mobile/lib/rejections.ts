@@ -17,7 +17,8 @@ export type RejectedScanRow = {
 
 export async function fetchRejectedScans(): Promise<RejectedScanRow[]> {
   const { rejections } = await apiFetch<{ rejections: RejectedScanRow[] }>(
-    "/api/scan/rejections",
+    "/v1/api/scan/rejections",
+    { method: "POST" },
   );
   return rejections;
 }
