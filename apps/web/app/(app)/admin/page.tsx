@@ -27,6 +27,11 @@ import {
   removeProgram,
 } from "./actions";
 
+// ponytail-gap: none of this page's three reads have a usable API
+// equivalent yet — semester has no "list all" (only current), program/list
+// returns names only (no id, needed for the remove form), and there's no
+// student-search endpoint — so it stays on direct DB access. See the PR
+// description's Known Gaps section.
 export default async function AdminPage({
   searchParams,
 }: {

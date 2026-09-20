@@ -8,6 +8,11 @@ import { ReportsClient } from "./reports-client";
 
 export const dynamic = "force-dynamic";
 
+// ponytail-gap: this page's three list reads (all Semesters, all Events, all
+// Students, for the report-generation dropdowns) have no API-side "list all"
+// equivalent yet — event/list and semester/current are scoped to the open
+// Semester, not full history — so it stays on direct DB access. See the PR
+// description's Known Gaps section.
 export default async function AnalyticsPage() {
   await requireCapability("manage_operations");
 

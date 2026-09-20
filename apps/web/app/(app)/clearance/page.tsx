@@ -14,9 +14,15 @@ import {
 } from "@/components/ui/table";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { findOpenSemester } from "@/lib/events";
-import type { StudentLedgerResponse } from "@attendance/contracts";
+import type { SemesterResponse, StudentLedgerResponse } from "@attendance/contracts";
 import { apiFetch } from "@/lib/api-client";
+
+// ponytail-gap: no student-search endpoint exists on the API yet — the
+// search query below stays on direct DB access (see PR description's Known
+// Gaps). semester/current does exist, so that read is proxied.
+function findOpenSemester(): Promise<SemesterResponse | null> {
+  return apiFetch<SemesterResponse | null>("/v1/api/semester/current");
+}
 
 export const dynamic = "force-dynamic";
 
