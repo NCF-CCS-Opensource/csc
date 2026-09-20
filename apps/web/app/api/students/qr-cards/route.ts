@@ -15,6 +15,12 @@ export const maxDuration = 60;
 // not a query string, so a full-roster selection (~600 ids) can't exceed URL
 // limits. requireCapability redirects on a page; here that redirect throws
 // and is turned into a 403, same as the report routes (spec #119, #115).
+//
+// ponytail-gap: no "look up students by id" endpoint exists on the API yet
+// (student/identity only resolves the caller's own record) — the row lookup
+// below stays on direct DB access. See the PR description's Known Gaps
+// section. This route is otherwise the QR Card renderer the issue calls out
+// to retain.
 export async function POST(request: Request) {
   try {
     await requireCapability("manage_operations");

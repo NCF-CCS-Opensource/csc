@@ -18,6 +18,11 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+// ponytail-gap: scan/rejections on the API is the mobile Officer's own Needs
+// Review queue (Actor-scoped), not this Governor-wide searchable/sortable
+// log across every Officer and Student — no API equivalent for this page
+// exists yet, so it stays on direct DB access. See the PR description's
+// Known Gaps section.
 export default async function RejectionsPage({
   searchParams,
 }: {

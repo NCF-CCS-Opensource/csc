@@ -1,12 +1,15 @@
 "use server";
 
-import { payments, penalties } from "@attendance/db";
+import { payments, penalties, students } from "@attendance/db";
 import { desc, eq } from "drizzle-orm";
 import { requireCapability } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { findOpenSemester } from "@/lib/events";
-import type { StudentLedgerResponse } from "@attendance/contracts";
+import type { SemesterResponse, StudentLedgerResponse } from "@attendance/contracts";
 import { apiFetch } from "@/lib/api-client";
+
+function findOpenSemester(): Promise<SemesterResponse | null> {
+  return apiFetch<SemesterResponse | null>("/v1/api/semester/current");
+}
 
 export type MyAttendanceSnapshot = {
   student: { name: string; email: string; program: string; studentId: string };
@@ -23,14 +26,17 @@ export type MyAttendanceSnapshot = {
 // by the client cache's queryFn on every revisit (ADR 0013). No API route: this
 // authorizes the browser session, leaving the booth's Bearer path untouched.
 export async function myAttendanceSnapshot(): Promise<MyAttendanceSnapshot> {
-  const [student, openSemester] = await Promise.all([
+  const [identity, openSemester] = await Promise.all([
     requireCapability("view_own_attendance"),
     findOpenSemester(),
   ]);
 
-  // The Ledger folds full no-shows into the history and totals — no backfill,
-  // no write on load. Attendance history is the Ledger's session breakdown.
-  const [ledger, paymentHistory] = await Promise.all([
+  // ponytail-gap: IdentityResponse carries no `program`, and there's no
+  // API-side "payment history" read yet (ledger/mine only totals + sessions).
+  // Both stay on a direct DB lookup by authUserId until those land (see PR
+  // description's Known Gaps) — everything else here is proxied.
+  const [record, ledger, paymentHistory] = await Promise.all([
+    db.query.students.findFirst({ where: eq(students.authUserId, identity.authUserId) }),
     openSemester
       ? apiFetch<StudentLedgerResponse>("/v1/api/ledger/mine", { semesterId: openSemester.id })
       : Promise.resolve({ total: 0, outstanding: 0, sessions: [] }),
@@ -38,16 +44,17 @@ export async function myAttendanceSnapshot(): Promise<MyAttendanceSnapshot> {
       .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })
       .from(payments)
       .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
-      .where(eq(penalties.studentId, student.id))
+      .innerJoin(students, eq(penalties.studentId, students.id))
+      .where(eq(students.authUserId, identity.authUserId))
       .orderBy(desc(payments.paidAt)),
   ]);
 
   return {
     student: {
-      name: student.name,
-      email: student.email,
-      program: student.program,
-      studentId: student.studentId,
+      name: identity.name,
+      email: identity.email,
+      program: record!.program,
+      studentId: identity.studentId,
     },
     hasOpenSemester: openSemester !== null,
     ledger,

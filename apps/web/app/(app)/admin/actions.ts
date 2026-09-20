@@ -6,42 +6,37 @@ import { redirect } from "next/navigation";
 import { requireGovernor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiPost, ApiError } from "@/lib/api-client";
-import {
-  createSemester as createSemesterCommand,
-  SemesterLifecycleError,
-  updateSemesterDates,
-} from "@/lib/semesters";
 
 function fail(message: string): never {
   redirect(`/admin?error=${encodeURIComponent(message)}`);
 }
 
 export async function createSemester(formData: FormData) {
-  const governor = await requireGovernor();
+  await requireGovernor();
 
   const startDate = String(formData.get("startDate") ?? "");
   const endDate = String(formData.get("endDate") ?? "");
 
   try {
-    await createSemesterCommand(governor, { startDate, endDate });
+    await apiPost("semester/create", { startDate, endDate });
   } catch (error) {
-    if (error instanceof SemesterLifecycleError) fail(error.message);
+    if (error instanceof ApiError) fail(error.message);
     throw error;
   }
   redirect("/admin");
 }
 
 export async function editSemester(formData: FormData) {
-  const governor = await requireGovernor();
+  await requireGovernor();
 
   const id = String(formData.get("id") ?? "");
   const startDate = String(formData.get("startDate") ?? "");
   const endDate = String(formData.get("endDate") ?? "");
 
   try {
-    await updateSemesterDates(governor, id, { startDate, endDate });
+    await apiPost("semester/update", { id, startDate, endDate });
   } catch (error) {
-    if (error instanceof SemesterLifecycleError) fail(error.message);
+    if (error instanceof ApiError) fail(error.message);
     throw error;
   }
   redirect("/admin");
@@ -51,10 +46,19 @@ export async function closeSemester(formData: FormData) {
   await requireGovernor();
 
   const id = String(formData.get("id") ?? "");
-  await db.update(semesters).set({ closedAt: new Date() }).where(eq(semesters.id, id));
+  try {
+    await apiPost("semester/close", { id });
+  } catch (error) {
+    if (error instanceof ApiError) fail(error.message);
+    throw error;
+  }
   redirect("/admin");
 }
 
+// ponytail-gap: no semester/delete endpoint exists on the API yet (only
+// create/update/close/current) — issue #169 assumed every screen already had
+// an API-side equivalent, but this one doesn't. Left on direct DB access
+// until that endpoint is added; see the PR description's Known Gaps section.
 export async function deleteSemester(formData: FormData) {
   await requireGovernor();
 
@@ -97,6 +101,8 @@ export async function removeProgram(formData: FormData) {
   redirect("/admin");
 }
 
+// ponytail-gap: no student/promote endpoint exists on the API yet — same
+// situation as deleteSemester above.
 export async function promoteToOfficer(formData: FormData) {
   await requireGovernor();
 

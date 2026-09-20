@@ -1,9 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
-import { students } from "@attendance/db";
-import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { db } from "./db";
+import type { IdentityResponse } from "@attendance/contracts";
+import { apiFetch, ApiError } from "./api-client";
 import {
   capabilityFailure,
   dashboardDestination,
@@ -11,31 +10,38 @@ import {
 } from "./roles";
 
 // Clerk answers only *who* this is (ADR-0012). The role — and therefore every
-// authorization decision below — still comes from the students row.
-export const getCurrentStudent = cache(async () => {
+// authorization decision below — comes from the API's student/identity
+// endpoint (apps/web has no database access, ADR-0019).
+export const getCurrentStudent = cache(async (): Promise<IdentityResponse | null> => {
   const { userId } = await auth();
-
   if (!userId) return null;
 
-  return (await db.query.students.findFirst({
-    where: eq(students.authUserId, userId),
-  })) ?? null;
+  try {
+    return await apiFetch<IdentityResponse>("/v1/api/student/identity");
+  } catch (error) {
+    // AuthGuard collapses "no session" and "signed in, no Student row yet"
+    // (a Pending Student) to the same 401 — both mean null here.
+    if (error instanceof ApiError && error.status === 401) return null;
+    throw error;
+  }
 });
 
-// Signed in but not yet a Student (a Pending Student, ADR-0012). Takes the id
-// explicitly so the proxy, which has no request-scoped auth() context, can ask.
-export async function hasStudentRecord(authUserId: string) {
-  const student = await db.query.students.findFirst({
-    columns: { id: true },
-    where: eq(students.authUserId, authUserId),
+// Signed in but not yet a Student (a Pending Student, ADR-0012). Takes a
+// caller-minted token, not an authUserId: proxy.ts (Next middleware) has no
+// request-scoped auth() context, so it mints its own token and passes it.
+export async function hasStudentRecord(token: string | null): Promise<boolean> {
+  if (!token) return false;
+  const base = (process.env.API_BASE_URL ?? "http://127.0.0.1:3001").replace(/\/$/, "");
+  const response = await fetch(`${base}/v1/api/student/identity`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: "{}",
+    cache: "no-store",
   });
-  return student !== undefined;
+  return response.ok;
 }
 
-export type Identity = Pick<
-  NonNullable<Awaited<ReturnType<typeof getCurrentStudent>>>,
-  "name" | "email" | "role"
->;
+export type Identity = Pick<IdentityResponse, "name" | "email" | "role">;
 
 export async function requireCapability(capability: Capability) {
   const student = await getCurrentStudent();

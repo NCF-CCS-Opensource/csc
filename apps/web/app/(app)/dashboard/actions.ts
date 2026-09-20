@@ -4,9 +4,12 @@ import { programs, students } from "@attendance/db";
 import { count, inArray } from "drizzle-orm";
 import { requireCapability } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { findOpenSemester } from "@/lib/events";
-import type { SemesterLedgerResponse } from "@attendance/contracts";
+import type { SemesterLedgerResponse, SemesterResponse } from "@attendance/contracts";
 import { apiFetch } from "@/lib/api-client";
+
+function findOpenSemester(): Promise<SemesterResponse | null> {
+  return apiFetch<SemesterResponse | null>("/v1/api/semester/current");
+}
 
 export type DashboardSnapshot = {
   role: string;
@@ -32,6 +35,8 @@ export async function dashboardSnapshot(): Promise<DashboardSnapshot> {
   const ledgerP = openSemester
     ? apiFetch<SemesterLedgerResponse>("/v1/api/ledger/semester", { semesterId: openSemester.id })
     : Promise.resolve({ events: [], totals: { present: 0, absent: 0, rate: 0, collected: 0 } });
+  // ponytail-gap: no student-list/count endpoint exists on the API yet, so
+  // this stays on direct DB access (see PR description's Known Gaps).
   const governorCountsP =
     student.role === "governor"
       ? Promise.all([

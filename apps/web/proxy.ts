@@ -17,14 +17,14 @@ const isAppRoute = createRouteMatcher([
 export const proxy = clerkMiddleware(async (auth, request) => {
   if (!isAppRoute(request)) return;
 
-  const { userId } = await auth();
+  const { userId, getToken } = await auth();
   if (!userId) {
     return NextResponse.redirect(new URL("/sign-in", request.url));
   }
 
-  // ponytail: one indexed lookup per app navigation. Move to a Clerk session
+  // ponytail: one API round trip per app navigation. Move to a Clerk session
   // claim set at onboarding if this ever shows up in navigation latency.
-  if (!(await hasStudentRecord(userId))) {
+  if (!(await hasStudentRecord(await getToken()))) {
     return NextResponse.redirect(new URL("/onboarding", request.url));
   }
 });
