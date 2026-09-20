@@ -6,7 +6,6 @@ import { DB } from "../../../shared/infrastructure/db.module";
 
 type Half = "am" | "pm";
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
-type Db = Database | Transaction;
 
 function absent(session: { timeIn: unknown; timeOut: unknown }) {
   return !session.timeIn || !session.timeOut;
@@ -27,7 +26,7 @@ function owedHalves(type: "half_day" | "whole_day", completed: { am: boolean; pm
 export class AttendanceUseCase {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  private async syncPenalty(sessionId: string, database: Db): Promise<void> {
+  private async syncPenalty(sessionId: string, database: Transaction): Promise<void> {
     const session = await database.query.attendanceSessions.findFirst({ where: eq(attendanceSessions.id, sessionId) });
     if (!session) return;
     const event = await database.query.events.findFirst({ where: eq(events.id, session.eventId) });

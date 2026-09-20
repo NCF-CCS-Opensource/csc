@@ -108,6 +108,7 @@ describe("Attendance, Penalty and Payment (e2e)", () => {
 
   it("refuses a Student actor", async () => {
     const { event } = await fixture("student");
-    await post("/attendance/grid", { eventId: event.id }).expect(403);
+    const response = await post("/attendance/grid", { eventId: event.id });
+    expect(response.status).toBe(403);
   });
 });

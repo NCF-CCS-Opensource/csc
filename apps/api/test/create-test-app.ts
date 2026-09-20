@@ -1,5 +1,4 @@
-import type { Provider, Type } from "@nestjs/common";
-import type { INestApplication } from "@nestjs/common";
+import type { INestApplication, Provider, Type } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 
 export async function createTestApp(
