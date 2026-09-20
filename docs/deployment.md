@@ -60,10 +60,10 @@ Create `apps/mobile/.env`:
 
 ```dotenv
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
-EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org
+EXPO_PUBLIC_API_BASE_URL=https://<api-heroku-app>.herokuapp.com
 ```
 
-`EXPO_PUBLIC_API_BASE_URL` points to the deployed Next.js module, not the database host. `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` is the same Clerk publishable key as web (ADR-0012); mobile has no database variable, identity and data both go through the Next.js module. Expo embeds these values at build time, so any change requires a rebuild.
+`EXPO_PUBLIC_API_BASE_URL` points to the deployed `apps/api` origin, not the web module or database host. The booth calls its `/v1/api/*` contract directly. `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` is the same Clerk publishable key as web (ADR-0012); mobile has no database variable. Expo embeds these values at build time, so any change requires a rebuild.
 
 ## Release
 
@@ -120,10 +120,10 @@ Merge or push the release commit to `main`, then watch the Vercel deployment to 
 Verify the public route is reachable without Vercel Deployment Protection:
 
 ```bash
-curl -i https://attendance.ncfccs.org/api/events/mine
+curl -i -X POST https://<api-heroku-app>.herokuapp.com/v1/api/student/identity
 ```
 
-Expected result: JSON with HTTP `401`. A redirect to `vercel.com/sso-api` means the mobile app is blocked by Vercel SSO.
+Expected result: JSON with HTTP `401`.
 
 ### 5. Build mobile
 
@@ -273,7 +273,7 @@ If code depends on a newly applied schema, do not roll back only the web deploym
 | Web sign-in fails or loops | Check the Clerk keys in this Vercel project, Clerk's Google connection, and the `@gbox.ncf.edu.ph` sign-up restriction |
 | Mobile route returns redirect/HTML | Disable Vercel Deployment Protection for the public route |
 | Mobile route returns `401` | Confirm both clients use the same Heroku Postgres database and the access token is current |
-| Mobile cannot reach routes | Confirm `EXPO_PUBLIC_API_BASE_URL` is the public web origin and rebuild |
+| Mobile cannot reach routes | Confirm `EXPO_PUBLIC_API_BASE_URL` is the public API origin and rebuild |
 | Drizzle reports missing URL | Confirm `packages/db/.env` points to the root `.env` |
 | Android build cannot locate SDK | Fix `android/local.properties` and verify JDK 17 |
 

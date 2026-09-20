@@ -175,14 +175,19 @@ function BoothApp() {
       }
 
       try {
-        const { student } = await apiFetch<{
-          student: { id: string; authUserId: string };
-        }>("/api/me");
+        const student = await apiFetch<{
+          studentId: string;
+          authUserId: string;
+          role: "student" | "officer" | "governor";
+        }>("/v1/api/student/identity", { method: "POST" });
+        if (student.role === "student") {
+          throw new ApiError("Mobile booth access is limited to Officers and Governors", 403);
+        }
         // The server found this row by the Clerk user id on the Bearer token,
         // so `authUserId` is that id — one identity, not a second source.
         const fresh: OfficerIdentity = {
           authUserId: student.authUserId,
-          studentId: student.id,
+          studentId: student.studentId,
         };
         await rememberOfficerIdentity(fresh);
         await claimLegacyScans(fresh.authUserId);

@@ -29,7 +29,7 @@ describe("fetchRejectedScans", () => {
         reason: "Unreadable QR",
       },
     ]);
-    expect(apiFetch).toHaveBeenCalledWith("/api/scan/rejections");
+    expect(apiFetch).toHaveBeenCalledWith("/v1/api/scan/rejections", { method: "POST" });
   });
 
   it("propagates a failure instead of yielding an empty list", async () => {

@@ -82,21 +82,21 @@ The remaining required variables in Vercel Project Settings are:
 Redeploy after changing any Vercel environment variable. When deployment finishes, verify the public API is reachable without Vercel SSO:
 
 ```bash
-curl -i https://attendance.ncfccs.org/api/events/mine
+curl -i -X POST https://<api-heroku-app>.herokuapp.com/v1/api/student/identity
 ```
 
-An unauthenticated request must return JSON with HTTP `401`. A `302` to `vercel.com/sso-api` means Deployment Protection is blocking the mobile app.
+An unauthenticated request must return JSON with HTTP `401`.
 
 ## 4. Build the mobile app
 
-`apps/mobile/.env` must use the same Clerk instance as the web app and the public web API:
+`apps/mobile/.env` must use the same Clerk instance as the web app and the public API:
 
 ```dotenv
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_...
-EXPO_PUBLIC_API_BASE_URL=https://attendance.ncfccs.org
+EXPO_PUBLIC_API_BASE_URL=https://<api-heroku-app>.herokuapp.com
 ```
 
-`EXPO_PUBLIC_API_BASE_URL` must point at the deployed web app: routes such as `/api/events/mine` and `/api/scan/approve` live in `apps/web`, and they verify the Clerk session token the app sends as a Bearer credential.
+`EXPO_PUBLIC_API_BASE_URL` must point at the deployed `apps/api` origin. Routes such as `/v1/api/event/list` and `/v1/api/scan/approve` verify the Clerk session token the app sends as a Bearer credential.
 
 Expo embeds `EXPO_PUBLIC_*` values at build time, so rebuild after changing them:
 

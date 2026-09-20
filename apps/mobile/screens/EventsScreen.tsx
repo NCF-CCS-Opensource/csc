@@ -58,15 +58,15 @@ export function EventsScreen() {
 
   function load() {
     setLoading(true);
-    apiFetch<{ events: EventRow[] }>("/api/events/mine")
-      .then((data) => setEvents(data.events))
+    apiFetch<EventRow[]>("/v1/api/event/list", { method: "POST" })
+      .then(setEvents)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }
 
   useEffect(load, []);
 
-  function onUpdated(updated: Omit<EventRow, "attendeeCount">) {
+  function onUpdated(updated: EventRow) {
     setEvents((prev) => prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e)));
   }
 
@@ -119,13 +119,6 @@ export function EventsScreen() {
                 {formatDate(item.date)}
                 {item.venue ? ` | ${item.venue}` : ""}
               </Text>
-
-              <View style={styles.attendeeRow}>
-                <Text style={styles.attendeeIcon}>👤</Text>
-                <Text style={styles.attendeeText}>
-                  {item.attendeeCount} Attendee{item.attendeeCount === 1 ? "" : "s"}
-                </Text>
-              </View>
 
               <View style={styles.cardActions}>
                 <TouchableOpacity
@@ -197,7 +190,10 @@ function DeleteEventModal({
     setSubmitting(true);
     setError(null);
     try {
-      await apiFetch(`/api/events/${event.id}`, { method: "DELETE" });
+      await apiFetch("/v1/api/event/delete", {
+        method: "POST",
+        body: JSON.stringify({ id: event.id }),
+      });
       onDeleted();
       onClose();
     } catch (err) {
@@ -285,18 +281,21 @@ function EventFormModal({
     setSubmitting(true);
     setError(null);
     try {
-      const path = mode === "create" ? "/api/events" : `/api/events/${event!.id}`;
-      const result = await apiFetch<{ event: EventRow }>(path, {
-        method: mode === "create" ? "POST" : "PATCH",
-        body: JSON.stringify({
-          name,
-          venue,
-          date,
-          type,
-          halfDayPenaltyAmount: penalty,
-        }),
-      });
-      onSaved(result.event);
+      const result = await apiFetch<EventRow>(
+        mode === "create" ? "/v1/api/event/create" : "/v1/api/event/update",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            ...(mode === "edit" ? { id: event!.id } : {}),
+            name,
+            venue,
+            date,
+            type,
+            halfDayPenaltyAmount: penalty,
+          }),
+        },
+      );
+      onSaved(result);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save event");
@@ -447,9 +446,6 @@ function makeStyles(c: ThemeColors) {
     cardMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
     badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
     badgeText: { fontSize: 12, fontWeight: "600" },
-    attendeeRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
-    attendeeIcon: { fontSize: 13, color: c.textMuted },
-    attendeeText: { fontSize: 13, color: c.textMuted },
     cardActions: { flexDirection: "row", gap: 10, marginTop: 4 },
     cardActionButton: {
       flex: 1,

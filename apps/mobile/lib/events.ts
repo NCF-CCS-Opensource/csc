@@ -10,14 +10,12 @@ export type EventRow = {
   halfDayPenaltyAmount: string;
   date: string;
   venue: string | null;
-  attendeeCount: number;
 };
 
 export const myEventsKey = ["events", "mine"] as const;
 
 export async function fetchMyEvents(): Promise<EventRow[]> {
-  const { events } = await apiFetch<{ events: EventRow[] }>("/api/events/mine");
-  return events;
+  return apiFetch<EventRow[]>("/v1/api/event/list", { method: "POST" });
 }
 
 // One shared Event list. A booth relaunched with no signal serves it from the
