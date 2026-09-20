@@ -6,10 +6,7 @@ import {
   computePerStudentReport,
   isEventPastInManila,
   type PerEventReportInput,
-} from "./reports";
-
-
-
+} from "./report";
 
 describe("isEventPastInManila", () => {
   it("returns true when event date is before campus date", () => {
@@ -72,7 +69,7 @@ describe("computePerEventReport", () => {
   it("aggregates attendance summary for whole-day event", () => {
     const report = computePerEventReport(sampleInput);
     expect(report.event).toEqual(sampleInput.event);
-    
+
     // Sessions:
     // s1: AM present, PM present
     // s2: AM present, PM incomplete (so absent half)
@@ -140,7 +137,7 @@ describe("computePerEventReport", () => {
       penaltyAmount: 50,
     });
 
-    const totalPenalties = sampleInput.penalties.reduce((sum, p) => sum + Number(p.amount), 0) + 
+    const totalPenalties = sampleInput.penalties.reduce((sum, p) => sum + Number(p.amount), 0) +
       (2 * 2 * 50); // s4 & s5 full no-shows = 2 students * 2 halves * 50 = 200
     expect(report.totalPenalties).toBe(300);
   });
@@ -296,6 +293,3 @@ describe("computeFinancialReport", () => {
     expect(report.paymentLogSummary.receivingOfficers).toContain("Officer Jane");
   });
 });
-
-
-

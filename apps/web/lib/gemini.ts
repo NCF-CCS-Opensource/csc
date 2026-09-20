@@ -1,5 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { PerEventReportData } from "./reports";
+import type {
+  FinancialReportData,
+  PerEventReportData,
+  PerSemesterReportData,
+  PerStudentReportData,
+} from "@attendance/contracts";
 
 export function buildPerEventReportPrompt(data: PerEventReportData): string {
   const { event, summary, programBreakdowns, totalPenalties } = data;
@@ -37,7 +42,7 @@ ${programText}
 `.trim();
 }
 
-export function buildPerStudentReportPrompt(data: import("./reports").PerStudentReportData): string {
+export function buildPerStudentReportPrompt(data: PerStudentReportData): string {
   const { student, semesterName, standing, clearanceStatus } = data;
 
   return `
@@ -57,7 +62,7 @@ Aggregate Standing:
 `.trim();
 }
 
-export function buildPerSemesterReportPrompt(data: import("./reports").PerSemesterReportData): string {
+export function buildPerSemesterReportPrompt(data: PerSemesterReportData): string {
   const { semester, overall, programBreakdown, eventSummary, clearanceReadiness } = data;
 
   const progText = programBreakdown
@@ -99,7 +104,7 @@ ${clearanceText}
 `.trim();
 }
 
-export function buildFinancialReportPrompt(data: import("./reports").FinancialReportData): string {
+export function buildFinancialReportPrompt(data: FinancialReportData): string {
   const { semester, overview, programBreakdown, eventBreakdown, paymentLogSummary } = data;
 
   const progText = programBreakdown

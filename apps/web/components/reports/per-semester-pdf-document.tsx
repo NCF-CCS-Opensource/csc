@@ -1,6 +1,6 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
-import type { PerSemesterReportData } from "@/lib/reports";
+import type { PerSemesterReportData } from "@attendance/contracts";
 
 const styles = StyleSheet.create({
   page: {
