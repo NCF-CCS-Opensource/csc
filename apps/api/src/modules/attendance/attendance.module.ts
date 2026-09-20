@@ -6,6 +6,7 @@ import { CapabilityGuard } from "../../shared/presentation/capability.guard";
 import { STUDENT_REPOSITORY } from "../student/domain/student-repository";
 import { DrizzleStudentRepository } from "../student/infrastructure/drizzle-student.repository";
 import { AttendanceUseCase } from "./application/attendance.use-case";
+import { DrizzleAttendanceRepository } from "./infrastructure/drizzle-attendance.repository";
 import { AttendanceController } from "./presentation/attendance.controller";
 
 @Module({
@@ -14,6 +15,7 @@ import { AttendanceController } from "./presentation/attendance.controller";
     { provide: TOKEN_VERIFIER, useClass: ClerkTokenVerifier },
     { provide: STUDENT_REPOSITORY, useClass: DrizzleStudentRepository },
     AttendanceUseCase,
+    DrizzleAttendanceRepository,
     AuthGuard,
     CapabilityGuard,
   ],

@@ -12,6 +12,7 @@ import { DrizzleStudentRepository } from "../src/modules/student/infrastructure/
 import { AuthGuard } from "../src/shared/presentation/auth.guard";
 import { CapabilityGuard } from "../src/shared/presentation/capability.guard";
 import { AttendanceUseCase } from "../src/modules/attendance/application/attendance.use-case";
+import { DrizzleAttendanceRepository } from "../src/modules/attendance/infrastructure/drizzle-attendance.repository";
 import { AttendanceController } from "../src/modules/attendance/presentation/attendance.controller";
 import { createTestApp } from "./create-test-app";
 
@@ -35,6 +36,7 @@ describe("Attendance, Penalty and Payment (e2e)", () => {
         { provide: TOKEN_VERIFIER, useValue: { verify } },
         { provide: STUDENT_REPOSITORY, useClass: DrizzleStudentRepository },
         AttendanceUseCase,
+        DrizzleAttendanceRepository,
         AuthGuard,
         CapabilityGuard,
         Reflector,
