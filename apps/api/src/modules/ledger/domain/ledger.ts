@@ -23,24 +23,212 @@ export function currentCampusDate(now = new Date()): string {
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)!.value;
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
-export function missingHalves(type: EventType, completed: { am: boolean; pm: boolean }): Half[] { return type === "half_day" ? completed.am || completed.pm ? [] : ["am"] : (["am", "pm"] as Half[]).filter((half) => !completed[half]); }
+export function missingHalves(type: EventType, completed: { am: boolean; pm: boolean }): Half[] {
+  if (type === "half_day") {
+    return completed.am || completed.pm ? [] : ["am"];
+  }
+  return (["am", "pm"] as Half[]).filter((half) => !completed[half]);
+}
 export function owedHalves(type: EventType, completed: { am: boolean; pm: boolean }, existing: Set<Half>): Half[] { return type === "half_day" && existing.size ? [] : missingHalves(type, completed).filter((half) => !existing.has(half)); }
 const absent = (session: { timeIn: Date | null; timeOut: Date | null }) => !session.timeIn || !session.timeOut;
-const status = (eventStatus: EventStatus, present: boolean): SessionStatus => present ? "present" : eventStatus === "today" ? "incomplete" : "absent";
+const sessionStatus = (eventStatus: EventStatus, present: boolean): SessionStatus => {
+  if (present) return "present";
+  return eventStatus === "today" ? "incomplete" : "absent";
+};
+const eventStatusFor = (eventDate: string, campusDate: string): EventStatus => {
+  if (eventDate > campusDate) return "upcoming";
+  return eventDate === campusDate ? "today" : "past";
+};
+const isStudentLiable = (student: { createdAt: Date }, semesterEndDate: string) => student.createdAt.toISOString().slice(0, 10) <= semesterEndDate;
+
+type LedgerContext = {
+  eventById: Map<string, LedgerInput["events"][number]>;
+  state: Map<string, EventStatus>;
+  penaltyBySession: Map<string, LedgerInput["penalties"][number]>;
+  penaltyById: Map<string, LedgerInput["penalties"][number]>;
+  sessionById: Map<string, LedgerInput["sessions"][number]>;
+  paid: Set<string>;
+};
+
+function buildContext(input: LedgerInput): LedgerContext {
+  return {
+    eventById: new Map(input.events.map((event) => [event.id, event])),
+    state: new Map(input.events.map((event) => [event.id, eventStatusFor(event.date, input.campusDate)])),
+    penaltyBySession: new Map(input.penalties.map((penalty) => [penalty.attendanceSessionId, penalty])),
+    penaltyById: new Map(input.penalties.map((penalty) => [penalty.id, penalty])),
+    sessionById: new Map(input.sessions.map((session) => [session.id, session])),
+    paid: new Set(input.payments.map((payment) => payment.penaltyId)),
+  };
+}
+
+function standingFor(students: Map<string, StudentStanding>, id: string): StudentStanding {
+  const existing = students.get(id);
+  if (existing) return existing;
+  const created: StudentStanding = { total: 0, outstanding: 0, sessions: [] };
+  students.set(id, created);
+  return created;
+}
+
+function recordActualSessions(input: LedgerInput, context: LedgerContext, students: Map<string, StudentStanding>, halves: Map<string, Set<Half>>, completed: Map<string, { am: boolean; pm: boolean }>) {
+  for (const session of input.sessions) {
+    const event = context.eventById.get(session.eventId);
+    if (!event) continue;
+
+    const key = `${session.eventId}:${session.studentId}`;
+    const halfSet = halves.get(key) ?? new Set<Half>();
+    halfSet.add(session.half);
+    halves.set(key, halfSet);
+
+    const done = completed.get(key) ?? { am: false, pm: false };
+    if (!absent(session)) {
+      done[session.half] = true;
+    }
+    completed.set(key, done);
+
+    const eventStatus = context.state.get(session.eventId)!;
+    if (eventStatus === "upcoming") continue;
+
+    const penalty = context.penaltyBySession.get(session.id);
+    standingFor(students, session.studentId).sessions.push({
+      eventId: session.eventId,
+      eventName: event.name,
+      eventDate: event.date,
+      half: session.half,
+      timeIn: session.timeIn,
+      timeOut: session.timeOut,
+      status: sessionStatus(eventStatus, !absent(session)),
+      amount: penalty ? Number(penalty.amount) : 0,
+      paid: penalty ? context.paid.has(penalty.id) : false,
+    });
+  }
+}
+
+function recordMissingSessions(input: LedgerInput, context: LedgerContext, students: Map<string, StudentStanding>, halves: Map<string, Set<Half>>, completed: Map<string, { am: boolean; pm: boolean }>) {
+  for (const event of input.events) {
+    const eventStatus = context.state.get(event.id)!;
+    if (eventStatus === "upcoming") continue;
+
+    for (const student of input.students) {
+      if (!isStudentLiable(student, input.semesterEndDate)) continue;
+
+      const key = `${event.id}:${student.id}`;
+      const owed = owedHalves(event.type, completed.get(key) ?? { am: false, pm: false }, halves.get(key) ?? new Set());
+      for (const half of owed) {
+        standingFor(students, student.id).sessions.push({
+          eventId: event.id,
+          eventName: event.name,
+          eventDate: event.date,
+          half,
+          timeIn: null,
+          timeOut: null,
+          status: sessionStatus(eventStatus, false),
+          amount: Number(event.halfDayPenaltyAmount),
+          paid: false,
+        });
+      }
+    }
+  }
+}
+
+function finalizeStudentTotals(students: Map<string, StudentStanding>) {
+  for (const standing of students.values()) {
+    standing.sessions.sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+    standing.total = standing.sessions.reduce((sum, session) => sum + session.amount, 0);
+    standing.outstanding = standing.sessions.reduce((sum, session) => sum + (session.paid ? 0 : session.amount), 0);
+  }
+}
+
+function buildCollectedByEvent(input: LedgerInput, context: LedgerContext): Map<string, number> {
+  const collected = new Map<string, number>();
+  for (const payment of input.payments) {
+    const penalty = context.penaltyById.get(payment.penaltyId);
+    const session = penalty && context.sessionById.get(penalty.attendanceSessionId);
+    if (!session || context.state.get(session.eventId) === "upcoming") continue;
+    collected.set(session.eventId, (collected.get(session.eventId) ?? 0) + Number(payment.amount));
+  }
+  return collected;
+}
+
+function buildEventSessionCounts(event: LedgerInput["events"][number], eventStatus: EventStatus, input: LedgerInput, completed: Map<string, { am: boolean; pm: boolean }>) {
+  if (eventStatus === "upcoming") return [];
+
+  const sessions =
+    event.type === "whole_day"
+      ? [
+          { label: "AM" as const, present: 0, incomplete: 0, absent: 0 },
+          { label: "PM" as const, present: 0, incomplete: 0, absent: 0 },
+        ]
+      : [{ label: "Session" as const, present: 0, incomplete: 0, absent: 0 }];
+
+  for (const student of input.students) {
+    if (!isStudentLiable(student, input.semesterEndDate)) continue;
+    const done = completed.get(`${event.id}:${student.id}`) ?? { am: false, pm: false };
+    if (event.type === "half_day") {
+      sessions[0][sessionStatus(eventStatus, done.am || done.pm)]++;
+    } else {
+      sessions[0][sessionStatus(eventStatus, done.am)]++;
+      sessions[1][sessionStatus(eventStatus, done.pm)]++;
+    }
+  }
+  return sessions;
+}
+
+const EVENT_ORDER: Record<EventStatus, number> = { today: 0, upcoming: 1, past: 2 };
+
+function compareEvents(a: EventStats, b: EventStats): number {
+  const orderDiff = EVENT_ORDER[a.status] - EVENT_ORDER[b.status];
+  if (orderDiff !== 0) return orderDiff;
+  const dateDiff = a.status === "past" ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date);
+  return dateDiff !== 0 ? dateDiff : a.eventId.localeCompare(b.eventId);
+}
+
+function buildEventStats(input: LedgerInput, context: LedgerContext, completed: Map<string, { am: boolean; pm: boolean }>, collected: Map<string, number>): EventStats[] {
+  const events = input.events.map((event) => {
+    const eventStatus = context.state.get(event.id)!;
+    const sessions = buildEventSessionCounts(event, eventStatus, input, completed);
+    const present = sessions.reduce((sum, item) => sum + item.present, 0);
+    const incomplete = sessions.reduce((sum, item) => sum + item.incomplete, 0);
+    const absentCount = sessions.reduce((sum, item) => sum + item.absent, 0);
+    const resolved = present + absentCount;
+    return {
+      eventId: event.id,
+      date: event.date,
+      type: event.type,
+      status: eventStatus,
+      sessions,
+      present,
+      incomplete,
+      absent: absentCount,
+      rate: resolved ? (present / resolved) * 100 : 0,
+      collected: collected.get(event.id) ?? 0,
+    };
+  });
+  return events.sort(compareEvents);
+}
 
 export function computeLedger(input: LedgerInput): Ledger {
-  const eventById = new Map(input.events.map((event) => [event.id, event]));
-  const state = new Map(input.events.map((event) => [event.id, event.date > input.campusDate ? "upcoming" : event.date === input.campusDate ? "today" : "past"] as const));
-  const penaltyBySession = new Map(input.penalties.map((penalty) => [penalty.attendanceSessionId, penalty])); const penaltyById = new Map(input.penalties.map((penalty) => [penalty.id, penalty])); const sessionById = new Map(input.sessions.map((session) => [session.id, session])); const paid = new Set(input.payments.map((payment) => payment.penaltyId));
-  const students = new Map(input.students.map((student) => [student.id, { total: 0, outstanding: 0, sessions: [] as LedgerSession[] }])); const standing = (id: string) => students.get(id) ?? (students.set(id, { total: 0, outstanding: 0, sessions: [] }), students.get(id)!);
-  const halves = new Map<string, Set<Half>>(), completed = new Map<string, { am: boolean; pm: boolean }>();
-  for (const session of input.sessions) { const event = eventById.get(session.eventId); if (!event) continue; const key = `${session.eventId}:${session.studentId}`; (halves.get(key) ?? halves.set(key, new Set()).get(key)!).add(session.half); const done = completed.get(key) ?? { am: false, pm: false }; if (!absent(session)) done[session.half] = true; completed.set(key, done); const eventStatus = state.get(session.eventId)!; if (eventStatus === "upcoming") continue; const penalty = penaltyBySession.get(session.id); standing(session.studentId).sessions.push({ eventId: session.eventId, eventName: event.name, eventDate: event.date, half: session.half, timeIn: session.timeIn, timeOut: session.timeOut, status: status(eventStatus, !absent(session)), amount: penalty ? Number(penalty.amount) : 0, paid: penalty ? paid.has(penalty.id) : false }); }
-  for (const event of input.events) for (const student of input.students) { const eventStatus = state.get(event.id)!; if (eventStatus === "upcoming" || student.createdAt.toISOString().slice(0, 10) > input.semesterEndDate) continue; const key = `${event.id}:${student.id}`; for (const half of owedHalves(event.type, completed.get(key) ?? { am: false, pm: false }, halves.get(key) ?? new Set())) standing(student.id).sessions.push({ eventId: event.id, eventName: event.name, eventDate: event.date, half, timeIn: null, timeOut: null, status: status(eventStatus, false), amount: Number(event.halfDayPenaltyAmount), paid: false }); }
-  for (const value of students.values()) { value.sessions.sort((a, b) => a.eventDate.localeCompare(b.eventDate)); value.total = value.sessions.reduce((sum, session) => sum + session.amount, 0); value.outstanding = value.sessions.reduce((sum, session) => sum + (session.paid ? 0 : session.amount), 0); }
-  const collected = new Map<string, number>(); for (const payment of input.payments) { const penalty = penaltyById.get(payment.penaltyId), session = penalty && sessionById.get(penalty.attendanceSessionId); if (session && state.get(session.eventId) !== "upcoming") collected.set(session.eventId, (collected.get(session.eventId) ?? 0) + Number(payment.amount)); }
-  const events = input.events.map((event) => { const eventStatus = state.get(event.id)!; const sessions = eventStatus === "upcoming" ? [] : event.type === "whole_day" ? [{ label: "AM" as const, present: 0, incomplete: 0, absent: 0 }, { label: "PM" as const, present: 0, incomplete: 0, absent: 0 }] : [{ label: "Session" as const, present: 0, incomplete: 0, absent: 0 }]; if (eventStatus !== "upcoming") for (const student of input.students) { if (student.createdAt.toISOString().slice(0, 10) > input.semesterEndDate) continue; const done = completed.get(`${event.id}:${student.id}`) ?? { am: false, pm: false }; if (event.type === "half_day") sessions[0][status(eventStatus, done.am || done.pm)]++; else { sessions[0][status(eventStatus, done.am)]++; sessions[1][status(eventStatus, done.pm)]++; } } const present = sessions.reduce((sum, item) => sum + item.present, 0), incomplete = sessions.reduce((sum, item) => sum + item.incomplete, 0), absentCount = sessions.reduce((sum, item) => sum + item.absent, 0), resolved = present + absentCount; return { eventId: event.id, date: event.date, type: event.type, status: eventStatus, sessions, present, incomplete, absent: absentCount, rate: resolved ? present / resolved * 100 : 0, collected: collected.get(event.id) ?? 0 }; }).sort((a, b) => ({ today: 0, upcoming: 1, past: 2 }[a.status] - { today: 0, upcoming: 1, past: 2 }[b.status] || (a.status === "past" ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)) || a.eventId.localeCompare(b.eventId)));
-  const present = events.reduce((sum, event) => sum + event.present, 0), absentCount = events.reduce((sum, event) => sum + event.absent, 0), totalCollected = events.reduce((sum, event) => sum + event.collected, 0);
-  return { students, events, totals: { present, absent: absentCount, rate: present + absentCount ? present / (present + absentCount) * 100 : 0, collected: totalCollected } };
+  const context = buildContext(input);
+  const students = new Map<string, StudentStanding>(input.students.map((student) => [student.id, { total: 0, outstanding: 0, sessions: [] }]));
+  const halves = new Map<string, Set<Half>>();
+  const completed = new Map<string, { am: boolean; pm: boolean }>();
+
+  recordActualSessions(input, context, students, halves, completed);
+  recordMissingSessions(input, context, students, halves, completed);
+  finalizeStudentTotals(students);
+
+  const collected = buildCollectedByEvent(input, context);
+  const events = buildEventStats(input, context, completed, collected);
+
+  const present = events.reduce((sum, event) => sum + event.present, 0);
+  const absentCount = events.reduce((sum, event) => sum + event.absent, 0);
+  const totalCollected = events.reduce((sum, event) => sum + event.collected, 0);
+  const resolved = present + absentCount;
+
+  return {
+    students,
+    events,
+    totals: { present, absent: absentCount, rate: resolved ? (present / resolved) * 100 : 0, collected: totalCollected },
+  };
 }
 
 export function computeEventGrid(input: EventGridInput): EventGridRow[] {

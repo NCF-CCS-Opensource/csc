@@ -12,11 +12,26 @@ export class LedgerController {
   constructor(@Inject(LedgerUseCase) private readonly ledger: LedgerUseCase) {}
   @Post("mine")
   @RequireCapability("view_own_attendance")
-  mine(@CallerActor() actor: Actor, @Body() body: { semesterId?: string }) { if (!body.semesterId) throw new HttpException("Invalid request", 400); return this.ledger.student(body.semesterId, actor.id); }
+  mine(@CallerActor() actor: Actor, @Body() body: { semesterId?: string }) {
+    if (!body.semesterId) {
+      throw new HttpException("Invalid request", 400);
+    }
+    return this.ledger.student(body.semesterId, actor.id);
+  }
   @Post("student")
   @RequireCapability("manage_operations")
-  student(@Body() body: { semesterId?: string; studentId?: string }) { if (!body.semesterId || !body.studentId) throw new HttpException("Invalid request", 400); return this.ledger.student(body.semesterId, body.studentId); }
+  student(@Body() body: { semesterId?: string; studentId?: string }) {
+    if (!body.semesterId || !body.studentId) {
+      throw new HttpException("Invalid request", 400);
+    }
+    return this.ledger.student(body.semesterId, body.studentId);
+  }
   @Post("semester")
   @RequireCapability("manage_operations")
-  semester(@Body() body: { semesterId?: string }) { if (!body.semesterId) throw new HttpException("Invalid request", 400); return this.ledger.semester(body.semesterId); }
+  semester(@Body() body: { semesterId?: string }) {
+    if (!body.semesterId) {
+      throw new HttpException("Invalid request", 400);
+    }
+    return this.ledger.semester(body.semesterId);
+  }
 }
