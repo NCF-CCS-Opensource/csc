@@ -6,6 +6,8 @@ import { EventModule } from "./modules/event/event.module";
 import { EnrollmentRosterModule } from "./modules/enrollment-roster/enrollment-roster.module";
 import { ProgramModule } from "./modules/program/program.module";
 import { ScanModule } from "./modules/scan/scan.module";
+import { AttendanceModule } from "./modules/attendance/attendance.module";
+import { LedgerModule } from "./modules/ledger/ledger.module";
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { ScanModule } from "./modules/scan/scan.module";
     EnrollmentRosterModule,
     ProgramModule,
     ScanModule,
+    AttendanceModule,
+    LedgerModule,
   ],
 })
 export class AppModule {}
