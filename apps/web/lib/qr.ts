@@ -2,8 +2,8 @@ import QRCode from "qrcode";
 
 // Canonical QR payload generation lives in the API domain layer; rendering
 // (image/PDF) stays here on the edge, same split as Reports (spec #168).
-export { buildQrPayload, type QrSubject } from "../../api/src/modules/student/domain/qr-payload";
 import { buildQrPayload, type QrSubject } from "../../api/src/modules/student/domain/qr-payload";
+export { buildQrPayload, type QrSubject };
 
 export function generateQrPngBuffer(subject: QrSubject): Promise<Buffer> {
   return QRCode.toBuffer(buildQrPayload(subject), { type: "png" });
