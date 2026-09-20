@@ -6,6 +6,7 @@ import { CapabilityGuard } from "../../shared/presentation/capability.guard";
 import { STUDENT_REPOSITORY } from "../student/domain/student-repository";
 import { DrizzleStudentRepository } from "../student/infrastructure/drizzle-student.repository";
 import { ScanApprovalUseCase } from "./application/scan-approval.use-case";
+import { DrizzleScanRepository } from "./infrastructure/drizzle-scan.repository";
 import { ScanController } from "./presentation/scan.controller";
 
 @Module({
@@ -14,6 +15,7 @@ import { ScanController } from "./presentation/scan.controller";
     { provide: TOKEN_VERIFIER, useClass: ClerkTokenVerifier },
     { provide: STUDENT_REPOSITORY, useClass: DrizzleStudentRepository },
     ScanApprovalUseCase,
+    DrizzleScanRepository,
     AuthGuard,
     CapabilityGuard,
   ],

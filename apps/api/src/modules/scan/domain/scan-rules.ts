@@ -24,7 +24,7 @@ export function qrRejectionReason(
   student: { name: string; program: string } | null | undefined,
 ): RejectionReason | null {
   if (!decoded) return "Unreadable QR";
-  if (!student || student.name !== decoded.name || student.program !== decoded.program) {
+  if (student?.name !== decoded.name || student?.program !== decoded.program) {
     return "QR does not match current Student record";
   }
   return null;

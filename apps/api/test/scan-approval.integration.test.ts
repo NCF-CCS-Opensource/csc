@@ -13,6 +13,7 @@ import { DrizzleStudentRepository } from "../src/modules/student/infrastructure/
 import { AuthGuard } from "../src/shared/presentation/auth.guard";
 import { CapabilityGuard } from "../src/shared/presentation/capability.guard";
 import { ScanApprovalUseCase } from "../src/modules/scan/application/scan-approval.use-case";
+import { DrizzleScanRepository } from "../src/modules/scan/infrastructure/drizzle-scan.repository";
 import { ScanController } from "../src/modules/scan/presentation/scan.controller";
 import { createTestApp } from "./create-test-app";
 
@@ -36,6 +37,7 @@ describe("Scan Approval (e2e)", () => {
         { provide: TOKEN_VERIFIER, useValue: { verify } },
         { provide: STUDENT_REPOSITORY, useClass: DrizzleStudentRepository },
         ScanApprovalUseCase,
+        DrizzleScanRepository,
         AuthGuard,
         CapabilityGuard,
         Reflector,
