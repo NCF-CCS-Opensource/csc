@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
+// Radix Select scrolls the highlighted option into view on open; jsdom has no
+// scrollIntoView, so stub it or the Rows-per-page interaction throws.
+Element.prototype.scrollIntoView ??= () => {};
+
 import { ClearanceView, type ClearanceItem } from "./clearance-view";
 import type { SemesterResponse } from "@attendance/contracts";
 
@@ -42,15 +46,19 @@ afterEach(() => {
   cleanup();
 });
 
+function renderClearance(initialResults: ClearanceItem[] = mockResults) {
+  return render(
+    <ClearanceView
+      openSemester={mockSemester}
+      initialQuery=""
+      initialResults={initialResults}
+    />
+  );
+}
+
 describe("ClearanceView Ledger Verification (Issue #206)", () => {
   it("renders on warm cream canvas with Neobrutalist structure", () => {
-    const { container } = render(
-      <ClearanceView
-        openSemester={mockSemester}
-        initialQuery=""
-        initialResults={mockResults}
-      />
-    );
+    const { container } = renderClearance();
 
     const main = container.querySelector("main");
     expect(main).toBeInTheDocument();
@@ -59,13 +67,7 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
   });
 
   it("highlights clearance readiness with Lavender badge when balance is zero", () => {
-    render(
-      <ClearanceView
-        openSemester={mockSemester}
-        initialQuery=""
-        initialResults={mockResults}
-      />
-    );
+    renderClearance();
 
     const aliceBadge = screen.getByTestId("clearance-badge-s1");
     expect(aliceBadge).toBeInTheDocument();
@@ -76,13 +78,7 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
   });
 
   it("highlights pending clearance with Coral badge when balance is greater than zero", () => {
-    render(
-      <ClearanceView
-        openSemester={mockSemester}
-        initialQuery=""
-        initialResults={mockResults}
-      />
-    );
+    renderClearance();
 
     const bobBadge = screen.getByTestId("clearance-badge-s2");
     expect(bobBadge).toBeInTheDocument();
@@ -93,13 +89,7 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
   });
 
   it("filters students in real-time when typing in search input", () => {
-    render(
-      <ClearanceView
-        openSemester={mockSemester}
-        initialQuery=""
-        initialResults={mockResults}
-      />
-    );
+    renderClearance();
 
     expect(screen.getByText("Alice Reyes")).toBeInTheDocument();
     expect(screen.getByText("Bob Cruz")).toBeInTheDocument();
@@ -120,14 +110,8 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
     expect(screen.getByText("No results yet.")).toBeInTheDocument();
   });
 
-  it("renders tactile search input with Coral focus offset and search button", () => {
-    render(
-      <ClearanceView
-        openSemester={mockSemester}
-        initialQuery=""
-        initialResults={mockResults}
-      />
-    );
+  it("renders tactile search input with Coral focus offset (live client-side search)", () => {
+    renderClearance();
 
     const searchInput = screen.getByRole("textbox", {
       name: /search name, email, or student id/i,
@@ -135,9 +119,7 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
     expect(searchInput.className).toMatch(/focus-visible:ring-\[var\(--color-coral\)\]/);
     expect(searchInput.className).toMatch(/focus-visible:border-\[var\(--color-coral\)\]/);
 
-    const searchBtn = screen.getByRole("button", { name: /search/i });
-    expect(searchBtn).toBeInTheDocument();
-    expect(searchBtn.className).toMatch(/border-2/);
+    expect(screen.queryByRole("button", { name: /search/i })).not.toBeInTheDocument();
   });
 
   it("displays no open semester notice when openSemester is null", () => {
@@ -150,5 +132,72 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
     );
 
     expect(screen.getByText(/no open semester — nothing to clear/i)).toBeInTheDocument();
+  });
+});
+
+describe("Clearance ledger pagination (Issue #220)", () => {
+  function makeResults(count: number): ClearanceItem[] {
+    return Array.from({ length: count }, (_, index) => ({
+      student: {
+        id: `s${index + 1}`,
+        name: `Student ${index + 1}`,
+        email: `student${index + 1}@example.edu`,
+        studentId: `24-${String(index + 1).padStart(3, "0")}`,
+        program: "Computer Science",
+        role: "student" as const,
+      },
+      outstanding: 0,
+    }));
+  }
+
+  const paginatedResults = makeResults(21);
+
+  function expectRows(visible: string[], hidden: string[]) {
+    for (const name of visible) {
+      expect(screen.getByText(name)).toBeInTheDocument();
+    }
+    for (const name of hidden) {
+      expect(screen.queryByText(name)).not.toBeInTheDocument();
+    }
+  }
+
+  it("shows the full student list on load, no search required first", () => {
+    renderClearance(paginatedResults);
+
+    expectRows(["Student 1", "Student 20"], ["Student 21"]);
+    expect(screen.getByText("21 total")).toBeInTheDocument();
+  });
+
+  it("defaults to 20 rows, flips pages, and can switch to 15 rows per page", () => {
+    renderClearance(paginatedResults);
+
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+    expectRows(["Student 1", "Student 20"], ["Student 21"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expectRows(["Student 21"], ["Student 1"]);
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    fireEvent.click(screen.getByRole("combobox", { name: "Rows per page" }));
+    fireEvent.click(screen.getByRole("option", { name: "15 per page" }));
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+    expectRows(["Student 1", "Student 15"], ["Student 16"]);
+  });
+
+  it("searching by student ID resets to page 1 of the narrowed results", () => {
+    renderClearance(paginatedResults);
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("Student 21")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: /search name, email, or student id/i }), {
+      target: { value: "24-002" },
+    });
+
+    expect(screen.queryByText("Student 21")).not.toBeInTheDocument();
+    expectRows(["Student 2"], ["Student 1", "Student 20"]);
+    expect(screen.getByText("1 total")).toBeInTheDocument();
+    expect(screen.getByText("Page 1 of 1")).toBeInTheDocument();
   });
 });

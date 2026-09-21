@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   Select,
   SelectContent,
@@ -443,15 +444,12 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
         </CardHeader>
         <CardContent className="flex flex-col gap-4 p-6">
           <div className="flex flex-col sm:flex-row gap-3">
-            <Input
+            <SearchInput
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+              onChange={(value) => {
+                setSearch(value);
                 pagination.setPage(1);
               }}
-              placeholder="Search name, email, or student ID"
-              aria-label="Search name, email, or student ID"
-              className="flex-1 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
             />
             <Select
               value={program}
@@ -551,14 +549,7 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
             </div>
           )}
           {filtered.length > 0 && (
-            <Pagination
-              page={pagination.page}
-              pageSize={pagination.pageSize}
-              totalItems={filtered.length}
-              totalPages={pagination.totalPages}
-              onPageChange={pagination.setPage}
-              onPageSizeChange={pagination.setPageSize}
-            />
+            <Pagination pagination={pagination} />
           )}
         </CardContent>
       </Card>

@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import { useState, useMemo } from "react";
-import { AlertCircle, CheckCircle2, Search } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import type { SemesterResponse, StudentSummary } from "@attendance/contracts";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Pagination, usePagination } from "@/components/ui/pagination";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   Table,
   TableBody,
@@ -46,6 +46,8 @@ export function ClearanceView({
     );
   }, [initialResults, query]);
 
+  const pagination = usePagination(filteredResults);
+
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8 bg-[var(--bg-page)] min-h-[calc(100vh-3rem)]">
       {/* Editorial Header */}
@@ -72,22 +74,15 @@ export function ClearanceView({
         </div>
       )}
 
-      {/* Tactile Search Form Card */}
+{/* Tactile Search Card */}
       <Card className="rounded-[10px] border-2 border-border bg-card p-5 shadow-[var(--shadow-md)]">
-        <form method="GET" className="flex flex-col sm:flex-row gap-3">
-          <Input
-            name="q"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name, email, or student ID"
-            aria-label="Search name, email, or student ID"
-            className="flex-1 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
-          />
-          <Button type="submit" variant="default" className="shrink-0 font-bold">
-            <Search className="size-4 mr-1.5" />
-            Search
-          </Button>
-        </form>
+        <SearchInput
+          value={query}
+          onChange={(value) => {
+            setQuery(value);
+            pagination.setPage(1);
+          }}
+        />
       </Card>
 
       {/* Verification Ledger Table Card */}
@@ -130,7 +125,7 @@ export function ClearanceView({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredResults.map(({ student, outstanding }) => {
+                  {pagination.pageItems.map(({ student, outstanding }) => {
                     const isCleared = outstanding === 0;
                     return (
                       <TableRow
@@ -176,6 +171,11 @@ export function ClearanceView({
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+          {filteredResults.length > 0 && (
+            <div className="border-t-2 border-border bg-[var(--bg-page)] px-6 py-4">
+              <Pagination pagination={pagination} />
             </div>
           )}
         </CardContent>

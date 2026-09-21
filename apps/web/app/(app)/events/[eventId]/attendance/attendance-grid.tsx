@@ -355,14 +355,7 @@ export function AttendanceGrid({
         </Table>
       </div>
       {visible.length > 0 && (
-        <Pagination
-          page={pagination.page}
-          pageSize={pagination.pageSize}
-          totalItems={visible.length}
-          totalPages={pagination.totalPages}
-          onPageChange={pagination.setPage}
-          onPageSizeChange={pagination.setPageSize}
-        />
+        <Pagination pagination={pagination} />
       )}
     </div>
   );
