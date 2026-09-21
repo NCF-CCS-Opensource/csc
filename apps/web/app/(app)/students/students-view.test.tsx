@@ -52,7 +52,7 @@ function renderStudents() {
 
 function openCorrection() {
   renderStudents();
-  fireEvent.click(screen.getByRole("button", { name: "Correct" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit student" }));
 }
 
 function changeId(id: string) {
@@ -145,6 +145,25 @@ describe("QR Card invalidation confirmation (spec #143)", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
     expect(correctStudentMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("icon-only edit action (Issue #258)", () => {
+  it("renders a bordered icon-only Edit button with no visible label", () => {
+    renderStudents();
+
+    const editButton = screen.getByRole("button", { name: "Edit student" });
+    expect(editButton).toBeInTheDocument();
+    expect(editButton).toHaveTextContent("");
+    expect(screen.queryByRole("button", { name: "Correct" })).not.toBeInTheDocument();
+  });
+
+  it("still opens the inline Student ID / Program edit form when clicked", () => {
+    renderStudents();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit student" }));
+
+    expect(screen.getByDisplayValue("24-001")).toBeInTheDocument();
   });
 });
 
