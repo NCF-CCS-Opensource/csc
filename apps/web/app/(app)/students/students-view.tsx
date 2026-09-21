@@ -165,12 +165,12 @@ const StudentTableRow = memo(function StudentTableRow({
   if (!editing) {
     return (
       <>
-        <TableRow className="border-b border-[#111111]/20 hover:bg-[var(--bg-page)]/40 transition-colors">
+        <TableRow className="border-b border-border/20 hover:bg-[var(--bg-page)]/40 transition-colors">
           {checkboxCell}
           <TableCell className="font-medium text-foreground">{student.name}</TableCell>
           <TableCell className="text-muted-foreground font-mono text-xs">{student.email}</TableCell>
           <TableCell>
-            <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-[6px] border border-[#111111] bg-[var(--bg-page)] text-[#111111]">
+            <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-[6px] border border-border bg-[var(--bg-page)] text-foreground">
               {student.studentId}
             </span>
           </TableCell>
@@ -240,7 +240,7 @@ const StudentTableRow = memo(function StudentTableRow({
 
   return (
     <>
-      <TableRow className="border-b border-[#111111]/20 bg-[var(--bg-page)]/20">
+      <TableRow className="border-b border-border/20 bg-[var(--bg-page)]/20">
         {checkboxCell}
         <TableCell className="font-medium text-foreground">{student.name}</TableCell>
         <TableCell className="text-muted-foreground font-mono text-xs">{student.email}</TableCell>
@@ -248,7 +248,7 @@ const StudentTableRow = memo(function StudentTableRow({
           <Input
             value={studentId}
             onChange={(e) => setStudentId(e.target.value)}
-            className="w-32 border-2 border-[#111111] rounded-[8px] bg-white focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
+            className="w-32 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
           />
           {errorFor("studentId") && (
             <p className="text-destructive text-xs">{errorFor("studentId")}</p>
@@ -256,7 +256,7 @@ const StudentTableRow = memo(function StudentTableRow({
         </TableCell>
         <TableCell>
         <Select value={program} onValueChange={setProgram}>
-          <SelectTrigger className="w-full border-2 border-[#111111] rounded-[8px] bg-white focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]">
+          <SelectTrigger className="w-full border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -293,7 +293,7 @@ const StudentTableRow = memo(function StudentTableRow({
       </TableCell>
     </TableRow>
     <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent className="border-2 border-[#111111] rounded-[12px] shadow-[6px_6px_0px_0px_#111111]">
+        <AlertDialogContent className="border-2 border-border rounded-[12px] shadow-[var(--shadow-lg)]">
           <AlertDialogHeader>
             <AlertDialogTitle>
               This correction invalidates {student.name}&apos;s printed QR Card
@@ -425,13 +425,13 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
         </p>
       </header>
 
-      <Card className="rounded-[10px] border-2 border-[#111111] bg-white shadow-[var(--shadow-md)] overflow-hidden">
-        <CardHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111] px-6 py-4">
+      <Card className="rounded-[10px] border-2 border-border bg-card shadow-[var(--shadow-md)] overflow-hidden">
+        <CardHeader className="bg-[var(--bg-page)] border-b-2 border-border px-6 py-4">
           <div className="flex flex-col gap-1">
             <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#888888]">
               STUDENT ROSTER
             </span>
-            <CardTitle className="font-heading text-xl font-bold text-[#111111]">
+            <CardTitle className="font-heading text-xl font-bold text-foreground">
               Roster
             </CardTitle>
           </div>
@@ -443,12 +443,12 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name, email, or student ID"
               aria-label="Search name, email, or student ID"
-              className="flex-1 border-2 border-[#111111] rounded-[8px] bg-white focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
+              className="flex-1 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
             />
             <Select value={program} onValueChange={setProgram}>
               <SelectTrigger
                 aria-label="Filter by program"
-                className="w-full sm:w-56 border-2 border-[#111111] rounded-[8px] bg-white shadow-[var(--shadow-sm)] focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
+                className="w-full sm:w-56 border-2 border-border rounded-[8px] bg-card shadow-[var(--shadow-sm)] focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
               >
                 <SelectValue />
               </SelectTrigger>
@@ -500,24 +500,24 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
           {filtered.length === 0 ? (
             <p className="text-muted-foreground text-sm py-4">No Students match.</p>
           ) : (
-            <div className="rounded-[10px] border-2 border-[#111111] overflow-hidden bg-white shadow-[var(--shadow-sm)]">
+            <div className="rounded-[10px] border-2 border-border overflow-hidden bg-card shadow-[var(--shadow-sm)]">
               <Table>
-                <TableHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111]">
+                <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-10 text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                    <TableHead className="w-10 text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       <Checkbox
                         checked={allFilteredSelected}
                         onCheckedChange={(checked) => toggleAllFiltered(checked === true)}
                         aria-label="Select all matching Students"
                       />
                     </TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">Name</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">Email</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">Student ID</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">Program</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">Role</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">Name</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">Email</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">Student ID</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">Program</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">Role</TableHead>
                     <TableHead />
-                    <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">QR Card</TableHead>
+                    <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">QR Card</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

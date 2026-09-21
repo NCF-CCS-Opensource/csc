@@ -98,14 +98,14 @@ export function MyAttendanceView({
           className="flex flex-col justify-between gap-6"
         >
           {/* Active Balance Display */}
-          <div className="flex flex-col gap-3 rounded-[12px] border-2 border-[#111111] bg-white p-5 shadow-[var(--shadow-sm)]">
+          <div className="flex flex-col gap-3 rounded-[12px] border-2 border-border bg-card p-5 shadow-[var(--shadow-sm)]">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
-                <Wallet className="size-4 text-[#111111]" />
+                <Wallet className="size-4 text-foreground" />
                 Outstanding Balance
               </span>
               {hasOpenSemester && (
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full border border-[#111111] bg-[var(--bg-page)] text-[#111111]">
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full border border-border bg-[var(--bg-page)] text-foreground">
                   Active Semester
                 </span>
               )}
@@ -115,7 +115,7 @@ export function MyAttendanceView({
               <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
                 <div
                   data-testid="outstanding-balance-amount"
-                  className="font-heading text-4xl sm:text-5xl font-extrabold tracking-tight text-[#111111] tabular-nums"
+                  className="font-heading text-4xl sm:text-5xl font-extrabold tracking-tight text-foreground tabular-nums"
                 >
                   ₱{outstanding.toFixed(2)}
                 </div>
@@ -123,7 +123,7 @@ export function MyAttendanceView({
                   Total penalties accrued:{" "}
                   <span
                     data-testid="total-penalties-amount"
-                    className="font-bold text-[#111111] tabular-nums"
+                    className="font-bold text-foreground tabular-nums"
                   >
                     ₱{totalPenalty.toFixed(2)}
                   </span>
@@ -139,11 +139,11 @@ export function MyAttendanceView({
           {/* Clearance Readiness Card */}
           <div
             data-testid="clearance-readiness-card"
-            className={`flex flex-col gap-3 rounded-[12px] border-2 border-[#111111] p-5 transition-all ${clearanceConfig.cardBg}`}
+            className={`flex flex-col gap-3 rounded-[12px] border-2 border-border p-5 transition-all ${clearanceConfig.cardBg}`}
           >
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111] flex items-center gap-1.5">
-                <ShieldCheck className="size-4 text-[#111111]" />
+              <span className="text-xs font-bold uppercase tracking-[0.08em] text-foreground flex items-center gap-1.5">
+                <ShieldCheck className="size-4 text-foreground" />
                 Clearance Readiness
               </span>
 
@@ -176,10 +176,10 @@ export function MyAttendanceView({
           {/* High-contrast container with distinct borders */}
           <div
             data-testid="qr-code-container"
-            className="flex flex-col sm:flex-row items-center gap-5 rounded-[12px] border-2 border-[#111111] bg-white p-5 shadow-[var(--shadow-sm)] w-full"
+            className="flex flex-col sm:flex-row items-center gap-5 rounded-[12px] border-2 border-border bg-card p-5 shadow-[var(--shadow-sm)] w-full"
           >
             {/* High-contrast QR image box for fast camera scanning */}
-            <div className="shrink-0 flex items-center justify-center p-3 rounded-[10px] border-2 border-[#111111] bg-white shadow-[var(--shadow-sm)]">
+            <div className="shrink-0 flex items-center justify-center p-3 rounded-[10px] border-2 border-border bg-card shadow-[var(--shadow-sm)]">
               {/* eslint-disable-next-line @next/next/no-img-element -- generated PNG, not an optimizable static asset */}
               <img
                 src="/qr"
@@ -194,10 +194,10 @@ export function MyAttendanceView({
             <div className="flex flex-1 flex-col justify-between gap-3 w-full text-center sm:text-left">
               <div>
                 <div className="flex items-center justify-center sm:justify-between gap-2 flex-wrap">
-                  <h4 className="font-heading text-base font-bold text-[#111111]">
+                  <h4 className="font-heading text-base font-bold text-foreground">
                     {student.name}
                   </h4>
-                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-[6px] border-2 border-[#111111] bg-[var(--bg-page)] text-[#111111] shadow-[var(--shadow-sm)]">
+                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-[6px] border-2 border-border bg-[var(--bg-page)] text-foreground shadow-[var(--shadow-sm)]">
                     {student.studentId}
                   </span>
                 </div>
@@ -230,14 +230,14 @@ export function MyAttendanceView({
               No payments yet.
             </p>
           ) : (
-            <div className="rounded-[12px] border-2 border-[#111111] overflow-hidden bg-white mt-2">
+            <div className="rounded-[12px] border-2 border-border overflow-hidden bg-card mt-2">
               <Table>
-                <TableHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111]">
+                <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
                   <TableRow>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Date
                     </TableHead>
-                    <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                    <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Amount
                     </TableHead>
                   </TableRow>
@@ -246,12 +246,12 @@ export function MyAttendanceView({
                   {paymentHistory.map((payment) => (
                     <TableRow
                       key={payment.id}
-                      className="border-b border-[#111111] hover:bg-[var(--bg-page)]/50 transition-colors"
+                      className="border-b border-border hover:bg-[var(--bg-page)]/50 transition-colors"
                     >
                       <TableCell className="font-mono text-sm text-muted-foreground">
                         {payment.paidOn}
                       </TableCell>
-                      <TableCell className="text-right font-bold tabular-nums text-sm text-[#111111]">
+                      <TableCell className="text-right font-bold tabular-nums text-sm text-foreground">
                         ₱{payment.amount}
                       </TableCell>
                     </TableRow>
@@ -278,14 +278,14 @@ export function MyAttendanceView({
               No attendance recorded yet.
             </p>
           ) : (
-            <div className="rounded-[12px] border-2 border-[#111111] overflow-hidden bg-white mt-2">
+            <div className="rounded-[12px] border-2 border-border overflow-hidden bg-card mt-2">
               <Table>
-                <TableHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111]">
+                <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
                   <TableRow>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Event
                     </TableHead>
-                    <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                    <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Status
                     </TableHead>
                   </TableRow>
@@ -294,9 +294,9 @@ export function MyAttendanceView({
                   {attendanceHistory.map((row) => (
                     <TableRow
                       key={`${row.eventId}:${row.half}`}
-                      className="border-b border-[#111111] hover:bg-[var(--bg-page)]/50 transition-colors"
+                      className="border-b border-border hover:bg-[var(--bg-page)]/50 transition-colors"
                     >
-                      <TableCell className="font-medium text-sm text-[#111111]">
+                      <TableCell className="font-medium text-sm text-foreground">
                         {row.eventName}{" "}
                         <span className="text-xs font-mono text-muted-foreground font-semibold">
                           ({row.half.toUpperCase()})

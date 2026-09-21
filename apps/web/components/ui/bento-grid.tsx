@@ -44,7 +44,7 @@ export function BentoGrid({
 }
 
 export const bentoCellVariants = cva(
-  "bento-cell relative flex flex-col overflow-hidden bg-white text-foreground border-2 border-[#111111] rounded-[10px] p-5 sm:p-6 transition-all duration-100",
+  "bento-cell relative flex flex-col overflow-hidden bg-card text-foreground border-2 border-border rounded-[10px] p-5 sm:p-6 transition-all duration-100",
   {
     variants: {
       span: {
@@ -60,8 +60,8 @@ export const bentoCellVariants = cva(
         "1x1": "col-span-1 row-span-1",
       },
       elevation: {
-        hero: "shadow-[var(--shadow-lg)] shadow-[6px_6px_0px_0px_#111111]",
-        standard: "shadow-[var(--shadow-md)] shadow-[4px_4px_0px_0px_#111111]",
+        hero: "shadow-[var(--shadow-lg)]",
+        standard: "shadow-[var(--shadow-md)]",
         flat: "shadow-none",
       },
       interactive: {
