@@ -39,4 +39,10 @@ describe("resolveTheme", () => {
       expect(scheme.neoPink).toBe("#F9A8B8");
     }
   });
+
+  it("light and dark palettes define the same set of token keys", () => {
+    const light = resolveTheme("light", "light");
+    const dark = resolveTheme("dark", "dark");
+    expect(Object.keys(light).sort()).toEqual(Object.keys(dark).sort());
+  });
 });

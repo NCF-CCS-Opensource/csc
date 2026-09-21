@@ -198,6 +198,20 @@ export async function needsReviewScans(officerId: string): Promise<QueuedScan[]>
   );
 }
 
+export type QueueSummary = { needsReview: number; pending: number };
+
+export async function queueSummary(officerId: string): Promise<QueueSummary> {
+  const queue = await loadQueue(officerId);
+  return queue.reduce<QueueSummary>(
+    (summary, scan) => {
+      if (scan.deliveryState === "needs_review") summary.needsReview += 1;
+      else if (scan.deliveryState === "pending") summary.pending += 1;
+      return summary;
+    },
+    { needsReview: 0, pending: 0 },
+  );
+}
+
 function recentKey(officerId: string): string {
   return `${RECENT_KEY}.${officerId}`;
 }
