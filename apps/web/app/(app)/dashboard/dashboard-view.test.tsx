@@ -157,7 +157,7 @@ describe("DashboardView Bento Interface", () => {
     expect(grid).toBeInTheDocument();
     expect(grid).toHaveAttribute("data-slot", "bento-grid");
     expect(grid.className).toContain("grid");
-    expect(grid.className).toContain("min-[900px]:grid-cols-4");
+    expect(grid.className).toContain("min-[901px]:grid-cols-4");
 
     // Hero 2x2 Cell with hero elevation
     const heroCell = screen.getByTestId("active-session-hero-cell");
@@ -171,10 +171,10 @@ describe("DashboardView Bento Interface", () => {
     expect(recentScansCell).toHaveAttribute("data-span", "wide");
     expect(recentScansCell).toHaveAttribute("data-elevation", "standard");
 
-    // Tall 1x2 Cell for Real-time Session Counts
+    // Wide 2x1 Cell for the compact real-time session summary
     const sessionCountsCell = screen.getByTestId("session-counts-cell");
     expect(sessionCountsCell).toBeInTheDocument();
-    expect(sessionCountsCell).toHaveAttribute("data-span", "tall");
+    expect(sessionCountsCell).toHaveAttribute("data-span", "wide");
     expect(sessionCountsCell).toHaveAttribute("data-elevation", "standard");
 
     // Small metric cells
@@ -304,10 +304,10 @@ describe("DashboardView Bento Interface", () => {
     renderDashboard();
 
     const grid = screen.getByTestId("dashboard-bento-grid");
-    // Mobile (<520px): 1 col, Tablet (>=520px): 2 cols, Desktop (>=900px): 4 cols
+    // Mobile (≤520px): 1 col, Tablet (521px–900px): 2 cols, Desktop (>900px): 4 cols
     expect(grid.className).toContain("grid-cols-1");
-    expect(grid.className).toContain("min-[520px]:grid-cols-2");
-    expect(grid.className).toContain("min-[900px]:grid-cols-4");
+    expect(grid.className).toContain("min-[521px]:grid-cols-2");
+    expect(grid.className).toContain("min-[901px]:grid-cols-4");
 
     const hero = screen.getByTestId("active-session-hero-cell");
     expect(hero.className).toContain("max-[520px]:col-span-1");
@@ -316,8 +316,8 @@ describe("DashboardView Bento Interface", () => {
     const wide = screen.getByTestId("recent-scans-cell");
     expect(wide.className).toContain("max-[520px]:col-span-1");
 
-    const tall = screen.getByTestId("session-counts-cell");
-    expect(tall.className).toContain("max-[520px]:row-span-1");
+    const sessionCounts = screen.getByTestId("session-counts-cell");
+    expect(sessionCounts.className).toContain("max-[520px]:col-span-1");
   });
 
   it("renders governor controls for governors and hides for officers", () => {

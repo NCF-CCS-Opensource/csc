@@ -149,7 +149,7 @@ describe("MyAttendanceView Bento Layout (Issue #204)", () => {
     expect(bentoGrid).toBeInTheDocument();
     expect(bentoGrid).toHaveAttribute("data-slot", "bento-grid");
     expect(bentoGrid.className).toMatch(/bento-grid/);
-    expect(bentoGrid.className).toMatch(/grid-cols-1.*min-\[520px\]:grid-cols-2.*min-\[900px\]:grid-cols-4/);
+    expect(bentoGrid.className).toMatch(/grid-cols-1.*min-\[521px\]:grid-cols-2.*min-\[901px\]:grid-cols-4/);
   });
 
   it("renders active Penalty Ledger balance and clearance readiness inside a dominant Hero 2x2 Bento cell with 6px hard shadow", () => {

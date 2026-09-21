@@ -82,7 +82,7 @@ function ActiveSessionHeroCell({
       className="flex flex-col justify-between gap-6"
     >
       {activeEvent ? (
-        <div className="flex flex-col justify-between h-full gap-5">
+        <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-4 rounded-[12px] border-2 border-border bg-card p-5 shadow-[var(--shadow-sm)]">
             <div className="flex items-start justify-between gap-2 flex-wrap">
               <div className="min-w-0 flex-1">
@@ -133,7 +133,7 @@ function ActiveSessionHeroCell({
             )}
           </div>
 
-          <div className="flex flex-col gap-2 mt-auto">
+          <div className="flex flex-col gap-2">
             <Button
               asChild
               variant="default"
@@ -263,15 +263,15 @@ function RealtimeSessionCountsCell({
 
   return (
     <BentoCell
-      span="tall"
+      span="wide"
       elevation="standard"
       overline="REAL-TIME"
       title="session counts"
       description="Verified counts for the active session."
       data-testid="session-counts-cell"
-      className="flex flex-col justify-between gap-4"
+      className="gap-4"
     >
-      <div className="flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1 rounded-[10px] border-2 border-border bg-[var(--color-teal)]/20 p-4 shadow-[var(--shadow-sm)]">
           <span className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
             Present
@@ -348,7 +348,7 @@ function SemesterOverviewCells({
         overline="SEMESTER"
         title="overall rate"
         data-testid="attendance-rate-cell"
-        className="flex flex-col justify-between"
+        className="flex flex-col gap-3 self-start"
       >
         <span className="font-heading text-3xl sm:text-4xl font-extrabold text-foreground tabular-nums">
           {ledger.totals.rate.toFixed(1)}%
@@ -364,7 +364,7 @@ function SemesterOverviewCells({
         overline="CALENDAR"
         title="open semester"
         data-testid="semester-window-cell"
-        className="flex flex-col justify-between"
+        className="flex flex-col gap-3 self-start"
       >
         <span className="font-heading text-sm sm:text-base font-bold text-foreground">
           {openSemester.startDate}
@@ -380,7 +380,7 @@ function SemesterOverviewCells({
         overline="OPERATIONS"
         title="events hosted"
         data-testid="total-events-cell"
-        className="flex flex-col justify-between"
+        className="flex flex-col gap-3 self-start"
       >
         <span className="font-heading text-3xl sm:text-4xl font-extrabold text-foreground tabular-nums">
           {ledger.events.length}
@@ -396,7 +396,7 @@ function SemesterOverviewCells({
         overline="LEDGER"
         title="resolved counts"
         data-testid="resolved-sessions-cell"
-        className="flex flex-col justify-between"
+        className="flex flex-col gap-3 self-start"
       >
         <div className="flex flex-col gap-0.5">
           <span className="font-heading text-xl font-extrabold text-emerald-700 tabular-nums">

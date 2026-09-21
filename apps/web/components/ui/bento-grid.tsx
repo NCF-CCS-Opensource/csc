@@ -5,7 +5,7 @@ import { Slot } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 export const bentoGridVariants = cva(
-  "bento-grid grid grid-cols-1 min-[520px]:grid-cols-2 min-[900px]:grid-cols-4 gap-5 w-full",
+  "bento-grid grid grid-cols-1 min-[521px]:grid-cols-2 min-[901px]:grid-cols-4 gap-5 w-full",
   {
     variants: {
       gap: {
