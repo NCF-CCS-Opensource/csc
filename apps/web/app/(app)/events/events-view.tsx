@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CalendarCheck, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import {
@@ -71,7 +72,7 @@ export function EventsView({
   const { openSemester, eventTypes, events: allEvents } = data;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-8">
       <h1 className="text-xl font-medium">Events</h1>
       {error && <p className="text-destructive text-sm">{error}</p>}
 
@@ -108,8 +109,10 @@ export function EventsView({
                     </TableCell>
                     <TableCell className="flex justify-end gap-1">
                       <EventActions event={event} eventTypes={eventTypes} />
-                      <Button asChild variant="link" size="sm">
-                        <Link href={`/events/${event.id}/attendance`}>Attendance</Link>
+                      <Button asChild variant="secondary" size="icon-sm">
+                        <Link href={`/events/${event.id}/attendance`} aria-label="Attendance">
+                          <CalendarCheck />
+                        </Link>
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -242,8 +245,8 @@ function EventActions({
         }}
       >
         <AlertDialogTrigger asChild>
-          <Button variant="link" size="sm">
-            Edit
+          <Button variant="outline" size="icon-sm" aria-label="Edit">
+            <Pencil />
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
@@ -357,8 +360,8 @@ function EventActions({
         }}
       >
         <AlertDialogTrigger asChild>
-          <Button variant="link" size="sm" className="text-destructive">
-            Delete
+          <Button variant="destructive" size="icon-sm" aria-label="Delete">
+            <Trash2 />
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
