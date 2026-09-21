@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# impeccable skill scratch artifacts (design tokens live in DESIGN.md)
+/.impeccable/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

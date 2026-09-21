@@ -12,23 +12,12 @@ import {
 } from "react-native";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
+import { AppLogo } from "../components/AppLogo";
 import { matchesRedirectScheme, watchForRedirectUrl } from "../lib/ssoRedirect";
 
 // Google refuses OAuth inside an embedded WebView, so the flow runs in the
 // system browser and returns to the app through the deep link below.
 WebBrowser.maybeCompleteAuthSession();
-
-function LogoMark({ styles }: { styles: Styles }) {
-  return (
-    <View style={styles.logo}>
-      <View style={[styles.corner, styles.cornerTL]} />
-      <View style={[styles.corner, styles.cornerTR]} />
-      <View style={[styles.corner, styles.cornerBL]} />
-      <View style={[styles.corner, styles.cornerBR]} />
-      <View style={styles.centerLine} />
-    </View>
-  );
-}
 
 type Styles = ReturnType<typeof makeStyles>;
 
@@ -115,9 +104,8 @@ export function LoginScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.center}>
-        <LogoMark styles={styles} />
-        <Text style={styles.title}>AttendKita</Text>
-        <Text style={styles.tagline}>CCS Attendance System</Text>
+        <AppLogo size="xl" title="AttendKita" subtitle="CCS Attendance System" />
+        <View style={styles.brandSpacer} />
 
         <View style={styles.form}>
           {error && <Text style={styles.error}>{error}</Text>}
@@ -129,7 +117,7 @@ export function LoginScreen() {
             onPress={signIn}
           >
             {pending ? (
-              <ActivityIndicator color={colors.primaryText} />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.buttonText}>Continue with Google</Text>
             )}
@@ -146,50 +134,53 @@ export function LoginScreen() {
   );
 }
 
+// Zero-blur hard offset shadow per apps/mobile/DESIGN.md — dark mode keeps a
+// black shadow even though the border flips to white.
+function hardShadow(c: ThemeColors, size: 3 | 4 | 6) {
+  return {
+    shadowColor: c.mode === "dark" ? "#000000" : "#111111",
+    shadowOffset: { width: size, height: size },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: size,
+  } as const;
+}
+
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: c.background,
+      backgroundColor: c.neoBgPage,
       paddingHorizontal: 28,
       paddingVertical: 24,
       justifyContent: "space-between",
     },
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
-    logo: {
-      width: 76,
-      height: 76,
-      borderRadius: 22,
-      backgroundColor: c.primary,
-      marginBottom: 20,
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 10,
-      elevation: 4,
+    brandSpacer: { height: 28 },
+    form: {
+      width: "100%",
+      gap: 14,
+      backgroundColor: c.neoBgSurface,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      borderRadius: 14,
+      padding: 20,
+      ...hardShadow(c, 4),
     },
-    corner: { position: "absolute", width: 14, height: 14, borderColor: c.primaryText },
-    cornerTL: { top: 21, left: 21, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 4 },
-    cornerTR: { top: 21, right: 21, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 4 },
-    cornerBL: { bottom: 21, left: 21, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 4 },
-    cornerBR: { bottom: 21, right: 21, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 4 },
-    centerLine: { width: 30, height: 2.5, backgroundColor: c.primaryText, borderRadius: 1.5 },
-    title: { fontSize: 24, fontWeight: "700", marginTop: 4, color: c.text, letterSpacing: -0.3 },
-    tagline: { fontSize: 13, color: c.textMuted, marginTop: 4, marginBottom: 32 },
-    form: { width: "100%", gap: 14 },
-    error: { fontSize: 13, color: c.danger, textAlign: "center" },
-    hint: { fontSize: 13, color: c.textMuted, textAlign: "center" },
+    error: { fontSize: 13, fontFamily: "DMSans_500Medium", color: c.danger, textAlign: "center" },
+    hint: { fontSize: 13, fontFamily: "DMSans_400Regular", color: c.textMuted, textAlign: "center" },
     button: {
-      backgroundColor: c.primary,
-      borderRadius: 12,
+      backgroundColor: c.neoPrimary,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      borderRadius: 10,
       paddingVertical: 15,
       alignItems: "center",
       width: "100%",
       marginTop: 6,
+      ...hardShadow(c, 3),
     },
-    buttonText: { color: c.primaryText, fontWeight: "600", fontSize: 15 },
-    version: { textAlign: "center", fontSize: 13, color: c.textFaint, paddingBottom: 8 },
+    buttonText: { color: "#FFFFFF", fontFamily: "DMSans_700Bold", fontSize: 15 },
+    version: { textAlign: "center", fontSize: 13, fontFamily: "DMSans_400Regular", color: c.textFaint, paddingBottom: 8 },
   });
 }

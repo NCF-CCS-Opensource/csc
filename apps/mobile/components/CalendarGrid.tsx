@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import { useTheme } from "../lib/theme-context";
-import type { ThemeColors } from "../lib/theme";
+import { neoShadow, type ThemeColors } from "../lib/theme";
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTH_NAMES = [
@@ -55,13 +56,13 @@ export function CalendarGrid({
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={goPrevMonth} hitSlop={12} style={styles.navBtn}>
-          <Text style={styles.nav}>‹</Text>
+          <ChevronLeft size={16} color={colors.text} strokeWidth={2.5} />
         </TouchableOpacity>
         <Text style={styles.monthLabel}>
           {MONTH_NAMES[viewMonth]} {viewYear}
         </Text>
         <TouchableOpacity onPress={goNextMonth} hitSlop={12} style={styles.navBtn}>
-          <Text style={styles.nav}>›</Text>
+          <ChevronRight size={16} color={colors.text} strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
 
@@ -80,7 +81,7 @@ export function CalendarGrid({
           const selected = dateStr === value;
           return (
             <TouchableOpacity key={i} style={styles.cell} onPress={() => onChange(dateStr)}>
-              <View style={[styles.dayCircle, selected && styles.daySelected]}>
+              <View style={[styles.daySquare, selected && styles.daySelected]}>
                 <Text style={[styles.dayText, selected && styles.dayTextSelected]}>{day}</Text>
               </View>
             </TouchableOpacity>
@@ -95,24 +96,44 @@ const CELL_SIZE = `${100 / 7}%` as const;
 
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
-    container: { gap: 10, paddingVertical: 4 },
+    container: {
+      gap: 10,
+      padding: 12,
+      backgroundColor: c.neoBgSurface,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      borderRadius: 14,
+      ...neoShadow(c.mode, "sm"),
+    },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4 },
-    navBtn: { padding: 4 },
-    nav: { fontSize: 20, fontWeight: "600", color: c.text },
-    monthLabel: { fontSize: 14, fontWeight: "700", color: c.text },
+    navBtn: {
+      width: 28,
+      height: 28,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      borderRadius: 6,
+      backgroundColor: c.neoBgSurface,
+    },
+    monthLabel: { fontSize: 14, color: c.text, fontFamily: "DMSans_700Bold" },
     weekRow: { flexDirection: "row", marginVertical: 4 },
-    weekday: { width: CELL_SIZE, textAlign: "center", fontSize: 12, fontWeight: "600", color: c.textMuted },
+    weekday: { width: CELL_SIZE, textAlign: "center", fontSize: 12, color: c.textMuted, fontFamily: "DMSans_700Bold" },
     grid: { flexDirection: "row", flexWrap: "wrap" },
     cell: { width: CELL_SIZE, alignItems: "center", justifyContent: "center", paddingVertical: 4 },
-    dayCircle: {
+    daySquare: {
       width: 32,
       height: 32,
-      borderRadius: 16,
+      borderRadius: 8,
       alignItems: "center",
       justifyContent: "center",
     },
-    daySelected: { backgroundColor: c.primary },
-    dayText: { fontSize: 13, color: c.text, fontWeight: "400" },
-    dayTextSelected: { color: c.primaryText, fontWeight: "700" },
+    daySelected: {
+      backgroundColor: c.neoPrimary,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+    },
+    dayText: { fontSize: 13, color: c.text, fontFamily: "DMSans_400Regular" },
+    dayTextSelected: { color: "#ffffff", fontFamily: "DMSans_800ExtraBold" },
   });
 }

@@ -39,85 +39,82 @@ export interface ThemeColors {
   iconGray: string;
   iconPinkBg: string;
   iconPink: string;
+  /** Neobrutalist design-foundation palette (DESIGN.md). New fields only —
+   * existing keys above are untouched so current consumers keep compiling. */
+  neoBgPage: string;
+  neoBgSurface: string;
+  neoBgDark: string;
+  neoBorder: string;
+  neoPrimary: string;
+  neoSecondary: string;
+  neoLavender: string;
+  neoTeal: string;
+  neoYellow: string;
+  neoPink: string;
 }
 
-const light: ThemeColors = {
-  mode: "light",
-  background: "#f8f8f9",
-  card: "#ffffff",
-  border: "#e5e5ea",
-  borderSubtle: "#f2f2f7",
-  text: "#000000",
-  textMuted: "#8e8e93",
-  textFaint: "#a0a0a5",
-  textDisabled: "#c7c7cc",
-  chevron: "#c7c7cc",
-  inputBackground: "#f4f4f6",
-  primary: "#000000",
-  primaryText: "#ffffff",
-  cancelBackground: "#ffffff",
-  cancelText: "#000000",
-  danger: "#ef4444",
-  dangerBg: "#fee2e2",
-  dangerBorder: "#fca5a5",
-  success: "#15803d",
-  successBg: "#e6f7ed",
-  warning: "#a16207",
-  warningBg: "#fef9c3",
-  neutral: "#64748b",
-  neutralBg: "#f1f5f9",
-  backdrop: "rgba(0,0,0,0.45)",
-  handle: "#d1d1d6",
-  tabActive: "#000000",
-  tabInactive: "#8e8e93",
-  iconPurpleBg: "#f3e8ff",
-  iconPurple: "#9333ea",
-  iconBlueBg: "#dbeafe",
-  iconBlue: "#2563eb",
-  iconGrayBg: "#f1f5f9",
-  iconGray: "#475569",
-  iconPinkBg: "#ffe4e6",
-  iconPink: "#e11d48",
-};
+type SchemeValue = { light: string; dark: string };
 
-const dark: ThemeColors = {
-  mode: "dark",
-  background: "#09090b",
-  card: "#141416",
-  border: "#27272a",
-  borderSubtle: "#1f1f22",
-  text: "#ffffff",
-  textMuted: "#9a9a9f",
-  textFaint: "#71717a",
-  textDisabled: "#52525b",
-  chevron: "#71717a",
-  inputBackground: "#1c1c1e",
-  primary: "#ffffff",
-  primaryText: "#000000",
-  cancelBackground: "#141416",
-  cancelText: "#ffffff",
-  danger: "#f87171",
-  dangerBg: "#371b1e",
-  dangerBorder: "#5a2a2a",
-  success: "#4ade80",
-  successBg: "#0f2e1a",
-  warning: "#fbbf24",
-  warningBg: "#33270a",
-  neutral: "#94a3b8",
-  neutralBg: "#27272a",
-  backdrop: "rgba(0,0,0,0.7)",
-  handle: "#3f3f46",
-  tabActive: "#ffffff",
-  tabInactive: "#71717a",
-  iconPurpleBg: "#2e1065",
-  iconPurple: "#c084fc",
-  iconBlueBg: "#1e3a8a",
-  iconBlue: "#60a5fa",
-  iconGrayBg: "#334155",
-  iconGray: "#94a3b8",
-  iconPinkBg: "#4c0519",
-  iconPink: "#fb7185",
-};
+/** Single source of truth: each token's light/dark value, listed once. */
+const tokens = {
+  background: { light: "#f8f8f9", dark: "#09090b" },
+  card: { light: "#ffffff", dark: "#141416" },
+  border: { light: "#e5e5ea", dark: "#27272a" },
+  borderSubtle: { light: "#f2f2f7", dark: "#1f1f22" },
+  text: { light: "#000000", dark: "#ffffff" },
+  textMuted: { light: "#8e8e93", dark: "#9a9a9f" },
+  textFaint: { light: "#a0a0a5", dark: "#71717a" },
+  textDisabled: { light: "#c7c7cc", dark: "#52525b" },
+  chevron: { light: "#c7c7cc", dark: "#71717a" },
+  inputBackground: { light: "#f4f4f6", dark: "#1c1c1e" },
+  primary: { light: "#000000", dark: "#ffffff" },
+  primaryText: { light: "#ffffff", dark: "#000000" },
+  cancelBackground: { light: "#ffffff", dark: "#141416" },
+  cancelText: { light: "#000000", dark: "#ffffff" },
+  danger: { light: "#ef4444", dark: "#f87171" },
+  dangerBg: { light: "#fee2e2", dark: "#371b1e" },
+  dangerBorder: { light: "#fca5a5", dark: "#5a2a2a" },
+  success: { light: "#15803d", dark: "#4ade80" },
+  successBg: { light: "#e6f7ed", dark: "#0f2e1a" },
+  warning: { light: "#a16207", dark: "#fbbf24" },
+  warningBg: { light: "#fef9c3", dark: "#33270a" },
+  neutral: { light: "#64748b", dark: "#94a3b8" },
+  neutralBg: { light: "#f1f5f9", dark: "#27272a" },
+  backdrop: { light: "rgba(0,0,0,0.45)", dark: "rgba(0,0,0,0.7)" },
+  handle: { light: "#d1d1d6", dark: "#3f3f46" },
+  tabActive: { light: "#000000", dark: "#ffffff" },
+  tabInactive: { light: "#8e8e93", dark: "#71717a" },
+  iconPurpleBg: { light: "#f3e8ff", dark: "#2e1065" },
+  iconPurple: { light: "#9333ea", dark: "#c084fc" },
+  iconBlueBg: { light: "#dbeafe", dark: "#1e3a8a" },
+  iconBlue: { light: "#2563eb", dark: "#60a5fa" },
+  iconGrayBg: { light: "#f1f5f9", dark: "#334155" },
+  iconGray: { light: "#475569", dark: "#94a3b8" },
+  iconPinkBg: { light: "#ffe4e6", dark: "#4c0519" },
+  iconPink: { light: "#e11d48", dark: "#fb7185" },
+  // Neobrutalist design-foundation palette (DESIGN.md). Accent colors are
+  // identical across schemes, per apps/web's .dark block.
+  neoBgPage: { light: "#FAFADF", dark: "#121212" },
+  neoBgSurface: { light: "#FFFFFF", dark: "#1E1E1E" },
+  neoBgDark: { light: "#111111", dark: "#0A0A0A" },
+  neoBorder: { light: "#111111", dark: "#FFFFFF" },
+  neoPrimary: { light: "#E8635A", dark: "#E8635A" },
+  neoSecondary: { light: "#7B6CF6", dark: "#7B6CF6" },
+  neoLavender: { light: "#C4B5FD", dark: "#C4B5FD" },
+  neoTeal: { light: "#4ECDC4", dark: "#4ECDC4" },
+  neoYellow: { light: "#FFE566", dark: "#FFE566" },
+  neoPink: { light: "#F9A8B8", dark: "#F9A8B8" },
+} satisfies Record<Exclude<keyof ThemeColors, "mode">, SchemeValue>;
+
+function buildTheme(mode: ColorScheme): ThemeColors {
+  const colors = Object.fromEntries(
+    Object.entries(tokens).map(([key, value]) => [key, value[mode]]),
+  ) as Omit<ThemeColors, "mode">;
+  return { mode, ...colors };
+}
+
+const light: ThemeColors = buildTheme("light");
+const dark: ThemeColors = buildTheme("dark");
 
 /**
  * Maps a user preference plus the OS colour scheme to the active palette.
@@ -130,4 +127,23 @@ export function resolveTheme(
 ): ThemeColors {
   const scheme = preference === "system" ? systemScheme : preference;
   return scheme === "dark" ? dark : light;
+}
+
+export type ShadowSize = "sm" | "md" | "lg";
+
+const SHADOW_OFFSET: Record<ShadowSize, number> = { sm: 3, md: 4, lg: 6 };
+
+/**
+ * Neobrutalist hard-offset shadow (DESIGN.md "Elevation & Depth"). Dark mode
+ * keeps the shadow black even though `border` flips to white in dark mode.
+ */
+export function neoShadow(mode: ColorScheme, size: ShadowSize = "md") {
+  const offset = SHADOW_OFFSET[size];
+  return {
+    shadowColor: mode === "dark" ? "#000000" : "#111111",
+    shadowOffset: { width: offset, height: offset },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: offset,
+  };
 }

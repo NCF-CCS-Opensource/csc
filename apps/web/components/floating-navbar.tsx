@@ -1,8 +1,9 @@
 "use client";
 
-import { Menu, ScanLine } from "lucide-react";
+import { Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AppLogo } from "@/components/app-logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,12 +44,9 @@ export function FloatingNavbar({
       >
         <Link
           href={brandHref}
-          className="flex shrink-0 items-center gap-2 font-bold tracking-tight"
+          className="flex shrink-0 items-center transition-transform hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px]"
         >
-          <span className="flex size-8 items-center justify-center rounded-full border-2 border-border bg-[var(--color-yellow)]">
-            <ScanLine className="size-4" aria-hidden />
-          </span>
-          <span className="hidden sm:inline">CCS Attendance</span>
+          <AppLogo size="sm" wordmarkClassName="hidden sm:inline-flex" />
         </Link>
 
         {links.length > 0 && (
