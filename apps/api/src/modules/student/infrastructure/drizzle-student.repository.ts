@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { students, type Database } from "@attendance/db";
+import type { StudentSummary } from "@attendance/contracts";
 import { DB } from "../../../shared/infrastructure/db.module";
 import type {
   NewStudent,
@@ -59,6 +60,29 @@ export class DrizzleStudentRepository implements StudentRepository {
     }
     if (!row) throw new StudentNotFoundError();
     return toActor(row);
+  }
+
+  async listAll(): Promise<StudentSummary[]> {
+    return this.db
+      .select({
+        id: students.id,
+        name: students.name,
+        email: students.email,
+        studentId: students.studentId,
+        program: students.program,
+        role: students.role,
+      })
+      .from(students)
+      .orderBy(asc(students.name));
+  }
+
+  async promoteToOfficer(id: string): Promise<Actor | null> {
+    const [row] = await this.db
+      .update(students)
+      .set({ role: "officer" })
+      .where(and(eq(students.id, id), eq(students.role, "student")))
+      .returning();
+    return row ? toActor(row) : null;
   }
 
   private findRowByAuthUserId(authUserId: string) {

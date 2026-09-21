@@ -24,6 +24,8 @@ import { CreateSemesterUseCase } from "../src/modules/semester/application/creat
 import { UpdateSemesterDatesUseCase } from "../src/modules/semester/application/update-semester-dates.use-case";
 import { CloseSemesterUseCase } from "../src/modules/semester/application/close-semester.use-case";
 import { GetOpenSemesterUseCase } from "../src/modules/semester/application/get-open-semester.use-case";
+import { ListSemestersUseCase } from "../src/modules/semester/application/list-semesters.use-case";
+import { DeleteSemesterUseCase } from "../src/modules/semester/application/delete-semester.use-case";
 import { SemesterController } from "../src/modules/semester/presentation/semester.controller";
 import { EVENT_REPOSITORY } from "../src/modules/event/domain/event-repository";
 import { DrizzleEventRepository } from "../src/modules/event/infrastructure/drizzle-event.repository";
@@ -74,6 +76,8 @@ describe("Semester and Event lifecycle (e2e)", () => {
         UpdateSemesterDatesUseCase,
         CloseSemesterUseCase,
         GetOpenSemesterUseCase,
+        ListSemestersUseCase,
+        DeleteSemesterUseCase,
         ListEventsUseCase,
         CreateEventUseCase,
         UpdateEventUseCase,
@@ -195,6 +199,75 @@ describe("Semester and Event lifecycle (e2e)", () => {
         startDate: "2026-05-01",
         endDate: "2026-11-30",
       });
+    });
+
+    // Known Gap #4 (PR #184).
+    it("lists every Semester, newest first — unlike semester/current", async () => {
+      const governor = await seedActor("governor");
+      authAs(governor);
+      const [older] = await db
+        .insert(semesters)
+        .values({ startDate: "2025-01-01", endDate: "2025-05-31", closedAt: new Date() })
+        .returning();
+      const [newer] = await db
+        .insert(semesters)
+        .values({ startDate: "2026-01-01", endDate: "2026-05-31" })
+        .returning();
+
+      const response = await request(server())
+        .post("/semester/list")
+        .set("Authorization", bearer)
+        .send({});
+
+      expect(response.status).toBe(201);
+      expect(response.body.semesters.map((s: { id: string }) => s.id)).toEqual([
+        newer.id,
+        older.id,
+      ]);
+    });
+
+    // Known Gap #2 (PR #184).
+    it("deletes a Semester with no Events under it", async () => {
+      const governor = await seedActor("governor");
+      authAs(governor);
+      const [semester] = await db
+        .insert(semesters)
+        .values({ startDate: "2026-01-01", endDate: "2026-05-31" })
+        .returning();
+
+      const response = await request(server())
+        .post("/semester/delete")
+        .set("Authorization", bearer)
+        .send({ id: semester.id });
+
+      expect(response.status).toBe(201);
+      expect(await db.query.semesters.findFirst({ where: eq(semesters.id, semester.id) })).toBeUndefined();
+    });
+
+    it("refuses to delete a Semester an Event still references", async () => {
+      const governor = await seedActor("governor");
+      authAs(governor);
+      const [semester] = await db
+        .insert(semesters)
+        .values({ startDate: "2026-01-01", endDate: "2026-05-31" })
+        .returning();
+      await db.insert(events).values({
+        name: "Foundation Day",
+        semesterId: semester.id,
+        date: "2026-02-01",
+        type: "half_day",
+        halfDayPenaltyAmount: "50.00",
+      });
+
+      const response = await request(server())
+        .post("/semester/delete")
+        .set("Authorization", bearer)
+        .send({ id: semester.id });
+
+      expect(response.status).toBe(409);
+      expect(response.body.message).toBe(
+        "Can't delete a Semester that already has Events under it",
+      );
     });
   });
 

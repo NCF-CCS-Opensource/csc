@@ -22,3 +22,13 @@ export interface UpdateSemesterDatesRequest {
 export interface CloseSemesterRequest {
   id: string;
 }
+
+export interface DeleteSemesterRequest {
+  id: string;
+}
+
+// Every Semester, newest first — unlike semester/current, not scoped to the
+// open one. Backs Admin's and Analytics' "all Semesters" reads.
+export interface SemesterListResponse {
+  semesters: SemesterResponse[];
+}

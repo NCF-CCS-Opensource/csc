@@ -1,5 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { ScanDecisionRequest, ScannedStudent } from "@attendance/contracts";
+import type {
+  RejectedScanLogEntry,
+  RejectedScanLogRequest,
+  ScanDecisionRequest,
+  ScannedStudent,
+} from "@attendance/contracts";
 import type { Actor } from "../../../shared/domain/actor";
 import { DrizzleScanRepository } from "../infrastructure/drizzle-scan.repository";
 import type { RejectionReason } from "../domain/scan-rules";
@@ -27,5 +32,12 @@ export class ScanApprovalUseCase {
     student: ScannedStudent | null; reason: RejectionReason;
   }> }> {
     return this.scans.rejections(actor);
+  }
+
+  rejectionsLog(
+    actor: Actor,
+    filter: RejectedScanLogRequest,
+  ): Promise<{ rejections: RejectedScanLogEntry[] }> {
+    return this.scans.rejectionsLog(actor, filter);
   }
 }

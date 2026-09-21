@@ -21,6 +21,10 @@ export class DrizzleProgramRepository implements ProgramRepository {
     return rows.map((row) => row.name);
   }
 
+  async listAll(): Promise<Program[]> {
+    return this.db.select().from(programs).orderBy(asc(programs.name));
+  }
+
   async create(name: string): Promise<Program> {
     try {
       const [row] = await this.db.insert(programs).values({ name }).returning();

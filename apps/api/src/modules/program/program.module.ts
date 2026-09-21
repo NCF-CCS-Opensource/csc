@@ -7,7 +7,12 @@ import { AuthGuard } from "../../shared/presentation/auth.guard";
 import { CapabilityGuard } from "../../shared/presentation/capability.guard";
 import { PROGRAM_REPOSITORY } from "./domain/program-repository";
 import { DrizzleProgramRepository } from "./infrastructure/drizzle-program.repository";
-import { CreateProgramUseCase, DeleteProgramUseCase, ListProgramsUseCase } from "./application/program.use-cases";
+import {
+  CreateProgramUseCase,
+  DeleteProgramUseCase,
+  ListProgramsDetailedUseCase,
+  ListProgramsUseCase,
+} from "./application/program.use-cases";
 import { ProgramController } from "./presentation/program.controller";
 
 @Module({
@@ -17,6 +22,7 @@ import { ProgramController } from "./presentation/program.controller";
     { provide: STUDENT_REPOSITORY, useClass: DrizzleStudentRepository },
     { provide: PROGRAM_REPOSITORY, useClass: DrizzleProgramRepository },
     ListProgramsUseCase,
+    ListProgramsDetailedUseCase,
     CreateProgramUseCase,
     DeleteProgramUseCase,
     AuthGuard,

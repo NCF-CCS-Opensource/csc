@@ -1,5 +1,5 @@
 import { Body, Controller, HttpException, Inject, Post, UseGuards } from "@nestjs/common";
-import type { ScanDecisionRequest } from "@attendance/contracts";
+import type { RejectedScanLogRequest, ScanDecisionRequest } from "@attendance/contracts";
 import { CallerActor } from "../../../shared/presentation/actor.decorator";
 import { AuthGuard } from "../../../shared/presentation/auth.guard";
 import { RequireCapability } from "../../../shared/presentation/capability.decorator";
@@ -38,6 +38,15 @@ export class ScanController {
   @RequireCapability("use_mobile_booth")
   async rejections(@CallerActor() actor: Actor) {
     return this.run(() => this.scans.rejections(actor));
+  }
+
+  // Known Gap #6 (PR #184): Governor-wide, searchable/sortable — unlike
+  // "rejections" above, which is Actor-scoped to the calling Officer's own
+  // Needs Review queue. Ported from admin/rejections/page.tsx.
+  @Post("rejections-log")
+  @RequireCapability("administer")
+  async rejectionsLog(@CallerActor() actor: Actor, @Body() body: RejectedScanLogRequest) {
+    return this.run(() => this.scans.rejectionsLog(actor, body ?? {}));
   }
 
   private validate(body: ScanDecisionRequest, needsMode: boolean): void {

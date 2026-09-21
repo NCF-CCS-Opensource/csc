@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, gt, lt, or } from "drizzle-orm";
+import { and, desc, eq, gt, lt, or } from "drizzle-orm";
 import { events, semesters, type Database } from "@attendance/db";
 import { DB } from "../../../shared/infrastructure/db.module";
 import type { SemesterRepository } from "../domain/semester-repository";
@@ -22,6 +22,12 @@ export class DrizzleSemesterRepository implements SemesterRepository {
       where: eq(semesters.id, id),
     });
     return semester ?? null;
+  }
+
+  async findAll(): Promise<Semester[]> {
+    return this.db.query.semesters.findMany({
+      orderBy: desc(semesters.createdAt),
+    });
   }
 
   async create(dates: DateRange): Promise<Semester> {
@@ -79,5 +85,22 @@ export class DrizzleSemesterRepository implements SemesterRepository {
       .returning();
     if (!closed) throw new SemesterLifecycleError("Semester not found", 404);
     return closed;
+  }
+
+  async delete(id: string): Promise<void> {
+    let deleted: Semester | undefined;
+    try {
+      [deleted] = await this.db.delete(semesters).where(eq(semesters.id, id)).returning();
+    } catch (error) {
+      // Events still reference this Semester (events.semester_id FK).
+      if ((error as { code?: string }).code === "23503") {
+        throw new SemesterLifecycleError(
+          "Can't delete a Semester that already has Events under it",
+          409,
+        );
+      }
+      throw error;
+    }
+    if (!deleted) throw new SemesterLifecycleError("Semester not found", 404);
   }
 }

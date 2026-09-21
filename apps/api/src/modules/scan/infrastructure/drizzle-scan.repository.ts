@@ -1,5 +1,12 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { BOOTH_MODES, type BoothMode, type ScanDecisionRequest, type ScannedStudent } from "@attendance/contracts";
+import {
+  BOOTH_MODES,
+  type BoothMode,
+  type RejectedScanLogEntry,
+  type RejectedScanLogRequest,
+  type ScanDecisionRequest,
+  type ScannedStudent,
+} from "@attendance/contracts";
 import {
   attendanceSessions,
   events,
@@ -9,7 +16,8 @@ import {
   students,
   type Database,
 } from "@attendance/db";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { DB } from "../../../shared/infrastructure/db.module";
 import type { Actor } from "../../../shared/domain/actor";
 import { hasCapability } from "../../../shared/domain/role";
@@ -194,6 +202,51 @@ export class DrizzleScanRepository {
         reason: qrRejectionReason(decoded, row.studentName && row.studentProgram ? { name: row.studentName, program: row.studentProgram } : undefined) ?? "Rejected by Officer",
       };
     }) };
+  }
+
+  // Known Gap #6 (PR #184): Governor-wide, searchable/sortable — unlike
+  // rejections() above, not scoped to the calling Officer. Ported from
+  // admin/rejections/page.tsx's direct-DB read.
+  async rejectionsLog(actor: Actor, filter: RejectedScanLogRequest): Promise<{ rejections: RejectedScanLogEntry[] }> {
+    if (!hasCapability(actor.role, "administer")) throw new ScanError("Forbidden", 403);
+
+    const officers = alias(students, "officers");
+    const conditions = [eq(scans.result, "rejected")];
+    if (filter.q) {
+      conditions.push(
+        or(
+          ilike(students.name, `%${filter.q}%`),
+          ilike(students.studentId, `%${filter.q}%`),
+          ilike(scans.qrPayload, `%${filter.q}%`),
+        )!,
+      );
+    }
+
+    const rows = await this.db
+      .select({
+        scanId: scans.id,
+        qrPayload: scans.qrPayload,
+        scannedAt: scans.scannedAt,
+        studentName: students.name,
+        studentIdText: students.studentId,
+        officerName: officers.name,
+      })
+      .from(scans)
+      .leftJoin(students, eq(scans.studentId, students.id))
+      .innerJoin(officers, eq(scans.officerId, officers.id))
+      .where(and(...conditions))
+      .orderBy(filter.sort === "time" ? desc(scans.scannedAt) : asc(students.name));
+
+    return {
+      rejections: rows.map((row) => ({
+        scanId: row.scanId,
+        qrPayload: row.qrPayload,
+        scannedAt: row.scannedAt.toISOString(),
+        studentName: row.studentName,
+        studentIdText: row.studentIdText,
+        officerName: row.officerName,
+      })),
+    };
   }
 
   private authorize(actor: Actor): void {

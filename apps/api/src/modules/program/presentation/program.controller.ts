@@ -1,9 +1,19 @@
 import { Body, ConflictException, Controller, Post, UseGuards } from "@nestjs/common";
-import type { CreateProgramRequest, DeleteProgramRequest, Program } from "@attendance/contracts";
+import type {
+  CreateProgramRequest,
+  DeleteProgramRequest,
+  Program,
+  ProgramListDetailedResponse,
+} from "@attendance/contracts";
 import { AuthGuard } from "../../../shared/presentation/auth.guard";
 import { CapabilityGuard } from "../../../shared/presentation/capability.guard";
 import { RequireCapability } from "../../../shared/presentation/capability.decorator";
-import { CreateProgramUseCase, DeleteProgramUseCase, ListProgramsUseCase } from "../application/program.use-cases";
+import {
+  CreateProgramUseCase,
+  DeleteProgramUseCase,
+  ListProgramsDetailedUseCase,
+  ListProgramsUseCase,
+} from "../application/program.use-cases";
 import { DuplicateProgramError, ProgramInUseError } from "../domain/program-repository";
 
 // Ported from apps/web/app/(app)/admin/actions.ts and students/actions.ts
@@ -15,6 +25,7 @@ import { DuplicateProgramError, ProgramInUseError } from "../domain/program-repo
 export class ProgramController {
   constructor(
     private readonly listPrograms: ListProgramsUseCase,
+    private readonly listProgramsDetailed: ListProgramsDetailedUseCase,
     private readonly createProgram: CreateProgramUseCase,
     private readonly deleteProgram: DeleteProgramUseCase,
   ) {}
@@ -23,6 +34,14 @@ export class ProgramController {
   @RequireCapability("manage_operations")
   async list(): Promise<{ programs: string[] }> {
     return { programs: await this.listPrograms.execute() };
+  }
+
+  // Known Gap #5 (PR #184). Governor-only: the only caller is Admin's
+  // remove-Program form.
+  @Post("list-detailed")
+  @RequireCapability("administer")
+  async listDetailed(): Promise<ProgramListDetailedResponse> {
+    return { programs: await this.listProgramsDetailed.execute() };
   }
 
   @Post("create")

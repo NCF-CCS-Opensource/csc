@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   attendanceSessions,
   events,
@@ -11,11 +11,11 @@ import {
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 
-// Covers what's still genuinely DB-backed in apps/web (see the PR's Known
-// Gaps): admin/actions.ts's deleteSemester/promoteToOfficer, and the
-// my-attendance payment-history join. Everything else moved to apps/api and
-// is covered there — this only proves the queries these leftover call sites
-// depend on still behave the way those call sites assume.
+// Covers what's still genuinely DB-backed in apps/web: the my-attendance
+// payment-history join (no API-side read exists yet). deleteSemester and
+// promoteToOfficer moved to apps/api's semester/delete and student/promote
+// endpoints and are covered there (semester-event-lifecycle.integration.test.ts,
+// student-correction.integration.test.ts).
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is required");
 
@@ -31,54 +31,6 @@ beforeEach(async () => {
   await db.delete(events);
   await db.delete(students);
   await db.delete(semesters);
-});
-
-describe("admin/actions.ts#deleteSemester's query", () => {
-  it("deletes a Semester with no Events under it", async () => {
-    const [semester] = await db
-      .insert(semesters)
-      .values({ startDate: "2026-01-01", endDate: "2026-05-31" })
-      .returning();
-
-    await db.delete(semesters).where(eq(semesters.id, semester.id));
-
-    expect(await db.query.semesters.findFirst({ where: eq(semesters.id, semester.id) })).toBeUndefined();
-  });
-});
-
-describe("admin/actions.ts#promoteToOfficer's query", () => {
-  it("promotes a Student but not an existing Officer", async () => {
-    const suffix = randomUUID();
-    const [student] = await db
-      .insert(students)
-      .values({
-        authUserId: `user_${suffix}`,
-        email: `${suffix}@gbox.ncf.edu.ph`,
-        name: "Test Student",
-        program: "Computer Science",
-        studentId: suffix,
-      })
-      .returning();
-
-    await db
-      .update(students)
-      .set({ role: "officer" })
-      .where(and(eq(students.id, student.id), eq(students.role, "student")));
-
-    expect(
-      (await db.query.students.findFirst({ where: eq(students.id, student.id) }))?.role,
-    ).toBe("officer");
-
-    // Re-running against an already-promoted row is a no-op, not a demotion.
-    await db
-      .update(students)
-      .set({ role: "student" })
-      .where(and(eq(students.id, student.id), eq(students.role, "student")));
-
-    expect(
-      (await db.query.students.findFirst({ where: eq(students.id, student.id) }))?.role,
-    ).toBe("officer");
-  });
 });
 
 describe("my-attendance/actions.ts's payment-history query", () => {

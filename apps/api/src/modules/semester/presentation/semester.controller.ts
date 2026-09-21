@@ -2,6 +2,8 @@ import { Body, Controller, Inject, Post, UseGuards } from "@nestjs/common";
 import type {
   CloseSemesterRequest,
   CreateSemesterRequest,
+  DeleteSemesterRequest,
+  SemesterListResponse,
   SemesterResponse,
   UpdateSemesterDatesRequest,
 } from "@attendance/contracts";
@@ -13,6 +15,8 @@ import { CreateSemesterUseCase } from "../application/create-semester.use-case";
 import { UpdateSemesterDatesUseCase } from "../application/update-semester-dates.use-case";
 import { CloseSemesterUseCase } from "../application/close-semester.use-case";
 import { GetOpenSemesterUseCase } from "../application/get-open-semester.use-case";
+import { ListSemestersUseCase } from "../application/list-semesters.use-case";
+import { DeleteSemesterUseCase } from "../application/delete-semester.use-case";
 import { presentSemester } from "./semester.presenter";
 
 // Single-action controllers, one per use case (ADR-0017). "administer" gates
@@ -27,6 +31,8 @@ export class SemesterController {
     private readonly updateSemesterDates: UpdateSemesterDatesUseCase,
     @Inject(CloseSemesterUseCase) private readonly closeSemester: CloseSemesterUseCase,
     @Inject(GetOpenSemesterUseCase) private readonly getOpenSemester: GetOpenSemesterUseCase,
+    @Inject(ListSemestersUseCase) private readonly listSemesters: ListSemestersUseCase,
+    @Inject(DeleteSemesterUseCase) private readonly deleteSemester: DeleteSemesterUseCase,
   ) {}
 
   @Post("create")
@@ -60,5 +66,22 @@ export class SemesterController {
   async current(): Promise<SemesterResponse | null> {
     const semester = await this.getOpenSemester.execute();
     return semester ? presentSemester(semester) : null;
+  }
+
+  // Known Gap #4 (PR #184): the minimum capability shared by both callers
+  // (Admin is Governor-only, Analytics is any Officer or Governor).
+  @Post("list")
+  @RequireCapability("manage_operations")
+  async list(): Promise<SemesterListResponse> {
+    const semesters = await this.listSemesters.execute();
+    return { semesters: semesters.map(presentSemester) };
+  }
+
+  // Known Gap #2 (PR #184), ported from admin/actions.ts#deleteSemester.
+  @Post("delete")
+  @RequireCapability("administer")
+  async delete(@Body() body: DeleteSemesterRequest): Promise<{ ok: true }> {
+    await runLifecycle(() => this.deleteSemester.execute(body.id));
+    return { ok: true };
   }
 }

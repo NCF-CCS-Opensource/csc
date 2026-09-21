@@ -13,6 +13,17 @@ export class ListProgramsUseCase {
   }
 }
 
+// Closes Known Gap #5 (PR #184): listNames() drops the id the
+// remove-Program form on admin/page.tsx needs; this keeps it.
+@Injectable()
+export class ListProgramsDetailedUseCase {
+  constructor(@Inject(PROGRAM_REPOSITORY) private readonly programs: ProgramRepository) {}
+
+  execute(): Promise<Program[]> {
+    return this.programs.listAll();
+  }
+}
+
 @Injectable()
 export class CreateProgramUseCase {
   constructor(@Inject(PROGRAM_REPOSITORY) private readonly programs: ProgramRepository) {}
