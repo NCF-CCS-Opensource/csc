@@ -424,7 +424,7 @@ describe("BentoCell primitive", () => {
       )
 
       const grid = screen.getByTestId("full-dashboard")
-      expect(grid.children.length).toBe(4)
+      expect(grid.children).toHaveLength(4)
 
       const hero = screen.getByTestId("hero-module")
       expect(hero).toHaveAttribute("data-span", "hero")

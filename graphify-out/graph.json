@@ -10302,7 +10302,7 @@
       "file_type": "code",
       "norm_label": "bentocellcontent()",
       "source_file": "apps/web/components/ui/bento-grid.tsx",
-      "source_location": "L234"
+      "source_location": "L237"
     },
     {
       "id": "apps_web_components_ui_bento_grid_bentocelldescription",
@@ -10314,7 +10314,7 @@
       "file_type": "code",
       "norm_label": "bentocelldescription()",
       "source_file": "apps/web/components/ui/bento-grid.tsx",
-      "source_location": "L221"
+      "source_location": "L224"
     },
     {
       "id": "apps_web_components_ui_bento_grid_bentocellfooter",
@@ -10326,7 +10326,7 @@
       "file_type": "code",
       "norm_label": "bentocellfooter()",
       "source_file": "apps/web/components/ui/bento-grid.tsx",
-      "source_location": "L247"
+      "source_location": "L250"
     },
     {
       "id": "apps_web_components_ui_bento_grid_bentocellheader",
@@ -31289,7 +31289,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/web/components/ui/bento-grid.tsx",
-      "source_location": "L241",
+      "source_location": "L244",
       "weight": 1.0
     },
     {
@@ -31301,7 +31301,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/web/components/ui/bento-grid.tsx",
-      "source_location": "L228",
+      "source_location": "L231",
       "weight": 1.0
     },
     {
@@ -31313,7 +31313,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/web/components/ui/bento-grid.tsx",
-      "source_location": "L254",
+      "source_location": "L257",
       "weight": 1.0
     },
     {
@@ -31349,7 +31349,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/web/components/ui/bento-grid.tsx",
-      "source_location": "L212",
+      "source_location": "L213",
       "weight": 1.0
     },
     {
@@ -72832,7 +72832,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/web/components/ui/bento-grid.tsx",
-      "source_location": "L221",
+      "source_location": "L224",
       "weight": 1.0
     },
     {
@@ -72854,7 +72854,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/web/components/ui/bento-grid.tsx",
-      "source_location": "L234",
+      "source_location": "L237",
       "weight": 1.0
     },
     {
@@ -72865,7 +72865,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/web/components/ui/bento-grid.tsx",
-      "source_location": "L247",
+      "source_location": "L250",
       "weight": 1.0
     },
     {
@@ -84287,5 +84287,5 @@
       "source_file": "apps/mobile/assets/android-icon-foreground.png"
     }
   ],
-  "built_at_commit": "1154df05e6cf7338cf9ab0a1d548b54afe96e2b7"
+  "built_at_commit": "ecb500ebf3b664051520e363d30375f2df50be1c"
 }

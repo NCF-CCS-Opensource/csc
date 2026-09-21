@@ -31,7 +31,7 @@ export function BentoGrid({
   gap,
   asChild = false,
   ...props
-}: BentoGridProps) {
+}: Readonly<BentoGridProps>) {
   const Comp = asChild ? Slot.Root : "div"
 
   return (
@@ -117,7 +117,7 @@ export function BentoCell({
   asChild = false,
   children,
   ...props
-}: BentoCellProps) {
+}: Readonly<BentoCellProps>) {
   const Comp = asChild ? Slot.Root : "div"
 
   // Selective hard offset elevation:
@@ -176,7 +176,7 @@ export function BentoCell({
 export function BentoCellHeader({
   className,
   ...props
-}: React.ComponentProps<"div">) {
+}: Readonly<React.ComponentProps<"div">>) {
   return (
     <div
       data-slot="bento-cell-header"
@@ -189,7 +189,7 @@ export function BentoCellHeader({
 export function BentoCellOverline({
   className,
   ...props
-}: React.ComponentProps<"span">) {
+}: Readonly<React.ComponentProps<"span">>) {
   return (
     <span
       data-slot="bento-cell-overline"
@@ -204,8 +204,9 @@ export function BentoCellOverline({
 
 export function BentoCellTitle({
   className,
+  children,
   ...props
-}: React.ComponentProps<"h3">) {
+}: Readonly<React.ComponentProps<"h3">>) {
   return (
     <h3
       data-slot="bento-cell-title"
@@ -214,14 +215,16 @@ export function BentoCellTitle({
         className
       )}
       {...props}
-    />
+    >
+      {children}
+    </h3>
   )
 }
 
 export function BentoCellDescription({
   className,
   ...props
-}: React.ComponentProps<"p">) {
+}: Readonly<React.ComponentProps<"p">>) {
   return (
     <p
       data-slot="bento-cell-description"
@@ -234,7 +237,7 @@ export function BentoCellDescription({
 export function BentoCellContent({
   className,
   ...props
-}: React.ComponentProps<"div">) {
+}: Readonly<React.ComponentProps<"div">>) {
   return (
     <div
       data-slot="bento-cell-content"
@@ -247,7 +250,7 @@ export function BentoCellContent({
 export function BentoCellFooter({
   className,
   ...props
-}: React.ComponentProps<"div">) {
+}: Readonly<React.ComponentProps<"div">>) {
   return (
     <div
       data-slot="bento-cell-footer"
