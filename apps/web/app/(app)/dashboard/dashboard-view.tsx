@@ -49,7 +49,7 @@ function getEventRowBadgeVariant(status: string): "present" | "incomplete" | "se
   return "secondary";
 }
 
-function EmptySemesterCard({ role }: { role: string }) {
+function EmptySemesterCard({ role }: Readonly<{ role: string }>) {
   return (
     <Card className="border-2 border-[#111111] rounded-[12px] shadow-[var(--shadow-md)] bg-white">
       <CardHeader>
@@ -68,9 +68,9 @@ function EmptySemesterCard({ role }: { role: string }) {
 
 function ActiveSessionHeroCell({
   activeEvent,
-}: {
+}: Readonly<{
   activeEvent: EventItem | null;
-}) {
+}>) {
   return (
     <BentoCell
       span="hero"
@@ -162,10 +162,10 @@ function ActiveSessionHeroCell({
 function RecentScansFeedCell({
   recentScans,
   pendingSyncCount,
-}: {
+}: Readonly<{
   recentScans: NonNullable<DashboardSnapshot["recentScans"]>;
   pendingSyncCount: number;
-}) {
+}>) {
   return (
     <BentoCell
       span="wide"
@@ -252,10 +252,10 @@ function RecentScansFeedCell({
 function RealtimeSessionCountsCell({
   activeEvent,
   ledgerTotals,
-}: {
+}: Readonly<{
   activeEvent: EventItem | null;
   ledgerTotals: DashboardSnapshot["ledger"]["totals"];
-}) {
+}>) {
   const presentCount = activeEvent ? activeEvent.present : ledgerTotals.present;
   const incompleteCount = activeEvent ? activeEvent.incomplete : 0;
   const absentCount = activeEvent ? activeEvent.absent : ledgerTotals.absent;
@@ -336,10 +336,10 @@ function RealtimeSessionCountsCell({
 function SemesterOverviewCells({
   openSemester,
   ledger,
-}: {
+}: Readonly<{
   openSemester: NonNullable<DashboardSnapshot["openSemester"]>;
   ledger: DashboardSnapshot["ledger"];
-}) {
+}>) {
   return (
     <>
       <BentoCell
@@ -418,9 +418,9 @@ function SemesterOverviewCells({
 
 function AllSemesterEventsCell({
   events,
-}: {
+}: Readonly<{
   events: DashboardSnapshot["ledger"]["events"];
-}) {
+}>) {
   return (
     <BentoCell
       colSpan={4}
@@ -504,10 +504,10 @@ function AllSemesterEventsCell({
 function GovernorControlsCell({
   openSemester,
   governorCounts,
-}: {
+}: Readonly<{
   openSemester: DashboardSnapshot["openSemester"];
   governorCounts: NonNullable<DashboardSnapshot["governorCounts"]>;
-}) {
+}>) {
   return (
     <BentoCell
       colSpan={4}
@@ -561,7 +561,7 @@ function GovernorControlsCell({
   );
 }
 
-export function DashboardView({ initialData }: { initialData: DashboardSnapshot }) {
+export function DashboardView({ initialData }: Readonly<{ initialData: DashboardSnapshot }>) {
   // Seeded from the server shell, so a cold visit paints rendered HTML and a
   // revisit paints from cache while a background refetch replaces it.
   const { data } = useQuery({
