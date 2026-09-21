@@ -1,5 +1,7 @@
 # Mobile/web platform split
 
+Status: accepted, with the backend topology amended by ADR-0017, ADR-0018 and ADR-0019. This ADR's description of the mobile app as *"a thin client calling the web app's `/api/*` routes and Supabase directly"* is now wrong twice over: it calls the NestJS API directly at `v1/api/*`, and it reaches no database host at all. Routing it through the web app instead was considered and rejected — the BFF exists to server-render pages and gate navigation, which the booth app does neither of, so a proxy would only add a second thing that can be down in the one path that must survive bad campus wifi. The role × platform split this ADR records is unaffected.
+
 The system ships two clients against one Supabase backend, and responsibility is split by **device context**, not cleanly by role. The **native mobile app is Officer-only** and carries the booth work — QR scanning with the offline capture/sync queue, Event setup, and on-the-spot Payment logging. The **web app is mobile-responsive for every role** (a Student's QR and Penalty balance must work in a phone browser), but the desk-shaped screens — attendance correction, Clearance sign-off, analytics, Governor admin, and rejection review — are **gated to desktop viewports** and hidden below the desktop breakpoint.
 
 ## Considered Options

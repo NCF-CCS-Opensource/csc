@@ -1,10 +1,9 @@
 name: csc-stack
 
 services:
-  # Supabase Postgres Database with pgvector, extensions, and pre-configured roles
   db:
-    container_name: csc-supabase-db
-    image: public.ecr.aws/supabase/postgres:17.6.1.167
+    container_name: csc-db
+    image: postgres:17-alpine
     restart: unless-stopped
     ports:
       - "${POSTGRES_PORT:-54322}:5432"
@@ -13,54 +12,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
     volumes:
-      - supabase_db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
-
-  # Postgres Meta API for Supabase Studio
-  meta:
-    container_name: csc-supabase-meta
-    image: public.ecr.aws/supabase/postgres-meta:v0.99.0
-    restart: unless-stopped
-    environment:
-      PG_META_PORT: 8080
-      PG_META_DB_HOST: db
-      PG_META_DB_PORT: 5432
-      PG_META_DB_NAME: ${POSTGRES_DB:-postgres}
-      PG_META_DB_USER: ${POSTGRES_USER:-postgres}
-      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    depends_on:
-      db:
-        condition: service_healthy
-
-  # Supabase Studio Web UI (Table Editor, SQL runner, Schema visualizer)
-  studio:
-    container_name: csc-supabase-studio
-    image: public.ecr.aws/supabase/studio:2026.08.24-sha-8ec45b2
-    restart: unless-stopped
-    ports:
-      - "${STUDIO_PORT:-54323}:3000"
-    environment:
-      STUDIO_PG_META_URL: http://meta:8080
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_USER_READ_WRITE: postgres
-      DEFAULT_ORGANIZATION_NAME: "NCF CCS Attendance"
-      DEFAULT_PROJECT_NAME: "Attendance Local"
-      SUPABASE_URL: http://db:5432
-      SUPABASE_PUBLIC_URL: http://localhost:54323
-      AUTH_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
-    depends_on:
-      db:
-        condition: service_healthy
-      meta:
-        condition: service_started
 
   # Web Application (Next.js)
   web:
@@ -88,4 +46,4 @@ services:
         condition: service_healthy
 
 volumes:
-  supabase_db_data:
+  db_data:

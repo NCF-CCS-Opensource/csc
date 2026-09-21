@@ -1,6 +1,10 @@
 # Architecture Deepening Plan
 
-Status: approved for specification
+Status: superseded by the NestJS rewrite — see [rewrite-plan.md](./rewrite-plan.md) and ADR-0017.
+
+**Still authoritative:** the "Confirmed behavior" sections below. They are the most precise statement of intent in this repository and they are the acceptance criteria the rewrite must satisfy.
+
+**Dead:** the "Outcome" premise of deepening *"without changing the Vercel, Supabase, Drizzle, Expo, or Resend topology"*, and the "Delivery stages" section. Supabase is replaced by any managed Postgres (ADR-0018), the four seams below are now modules in a NestJS API (ADR-0017), and the staging order lives in the rewrite plan.
 
 ## Outcome
 
@@ -34,7 +38,7 @@ Deepen four existing areas without changing the Vercel, Supabase, Drizzle, Expo,
 
 ### Offline Scan Queue
 
-- Queue state is partitioned by the Officer's stable Supabase user ID.
+- Queue state is partitioned by the Officer's stable Clerk user ID (ADR-0012).
 - Only that Officer may synchronize, review, or discard their decisions.
 - Temporary network, timeout, `429`, and server failures retry immediately at enqueue, at startup, when connectivity returns, and with bounded exponential backoff while the app is open.
 - Permanent failures move to Needs Review and do not block later decisions.

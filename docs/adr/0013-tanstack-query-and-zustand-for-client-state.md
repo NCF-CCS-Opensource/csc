@@ -1,6 +1,8 @@
 # TanStack Query and Zustand for client-side data and state
 
-Status: accepted
+Status: accepted, with the route-handler rejection below superseded by ADR-0019.
+
+The mechanic this ADR chose survives: server actions remain the `queryFn` on web. They now proxy to the NestJS API instead of querying Drizzle, so the browser still never calls a route handler and pages still keep their server shell and `initialData`. What does not survive is the *reason* given below for rejecting route handlers — the refusal to let one authorization path serve both the browser and the booth. ADR-0019 deliberately adopts exactly that: one Clerk token, verified once in the API, for both callers. A single authorization point was judged worth more than two separate trust stories. The Offline Scan Queue carve-out is unaffected and remains correct.
 
 Both applications adopt **TanStack Query** for server-derived data and **Zustand** for the small amount of client state that is not server-derived. Navigation in the web application re-fetches the same data on every visit and re-renders from scratch; a client-side cache is what makes a revisited page appear immediately instead of re-earning its own data. Mobile gets the same pair so that one set of fetching and state idioms covers the codebase.
 
