@@ -121,14 +121,19 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
 
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-display text-xl">Report Configuration</CardTitle>
-          <CardDescription>
+      <Card className="rounded-[10px] border-2 border-[#111111] bg-white shadow-[var(--shadow-md)] overflow-hidden">
+        <CardHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111] px-6 py-4">
+          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#888888]">
+            INSTITUTIONAL AUDIT EXPORT
+          </span>
+          <CardTitle className="font-heading text-xl font-bold text-[#111111]">
+            Report Configuration
+          </CardTitle>
+          <CardDescription className="text-sm text-muted-foreground">
             Select the type of report and parameters to generate institutional PDF reports.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-6">
+        <CardContent className="flex flex-col gap-6 p-6">
           <div className="flex flex-col gap-2 max-w-sm">
             <Label htmlFor="report-type">Report Type</Label>
             <Select value={reportType} onValueChange={(val) => {
@@ -279,8 +284,12 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
             <div className="flex flex-col gap-3 pt-2">
               <div>
                 <Button
+                  variant="pill"
+                  size="lg"
                   onClick={() => generate.mutate()}
                   disabled={isGenerating || !isSelectionComplete}
+                  data-testid="generate-pdf-btn"
+                  className="font-bold gap-2"
                 >
                   {isGenerating ? (
                     <>

@@ -142,3 +142,125 @@ describe("QR Card invalidation confirmation (spec #143)", () => {
     expect(correctStudentMock).not.toHaveBeenCalled();
   });
 });
+
+describe("Neobrutalist table styling and search filtering (Issue #206)", () => {
+  const multiStudentSnapshot: StudentsSnapshot = {
+    students: [
+      {
+        id: "s1",
+        name: "Alice Reyes",
+        email: "alice@example.edu",
+        studentId: "24-001",
+        program: "Computer Science",
+        role: "student",
+      },
+      {
+        id: "s2",
+        name: "Bob Cruz",
+        email: "bob@example.edu",
+        studentId: "24-002",
+        program: "Information Technology",
+        role: "officer",
+      },
+      {
+        id: "s3",
+        name: "Charlie Tan",
+        email: "charlie@example.edu",
+        studentId: "24-003",
+        program: "Computer Science",
+        role: "governor",
+      },
+    ],
+    programs: ["Computer Science", "Information Technology"],
+  };
+
+  function renderMulti() {
+    const client = new QueryClient();
+    return render(
+      <QueryClientProvider client={client}>
+        <StudentsView initialData={multiStudentSnapshot} />
+      </QueryClientProvider>,
+    );
+  }
+
+  it("renders warm cream table header and 1px row dividers", () => {
+    const { container } = renderMulti();
+
+    // Warm cream table header
+    const thead = container.querySelector("thead");
+    expect(thead).toBeInTheDocument();
+    expect(thead?.className).toMatch(/bg-\[var\(--bg-page\)\]|bg-\[#FAFADF\]/);
+    expect(thead?.className).toMatch(/border-b-2.*border-\[#111111\]/);
+
+    // 1px row dividers
+    const rows = container.querySelectorAll("tbody tr");
+    expect(rows.length).toBe(3);
+    rows.forEach((row) => {
+      expect(row.className).toMatch(/border-b.*border-\[#111111\]\/20/);
+    });
+  });
+
+  it("renders status pills for roles using Badge component", () => {
+    renderMulti();
+
+    // Student role pill
+    const s1Badge = screen.getByTestId("role-badge-s1");
+    expect(s1Badge).toBeInTheDocument();
+    expect(s1Badge).toHaveAttribute("data-slot", "badge");
+    expect(s1Badge).toHaveAttribute("data-variant", "secondary");
+    expect(s1Badge).toHaveTextContent("Student");
+
+    // Officer role pill
+    const s2Badge = screen.getByTestId("role-badge-s2");
+    expect(s2Badge).toBeInTheDocument();
+    expect(s2Badge).toHaveAttribute("data-slot", "badge");
+    expect(s2Badge).toHaveAttribute("data-variant", "default");
+    expect(s2Badge).toHaveTextContent("Officer");
+
+    // Governor role pill
+    const s3Badge = screen.getByTestId("role-badge-s3");
+    expect(s3Badge).toBeInTheDocument();
+    expect(s3Badge).toHaveAttribute("data-slot", "badge");
+    expect(s3Badge).toHaveAttribute("data-variant", "cleared");
+    expect(s3Badge).toHaveTextContent("Governor");
+  });
+
+  it("renders search input with Coral search focus offset", () => {
+    renderMulti();
+
+    const searchInput = screen.getByRole("textbox", {
+      name: /search name, email, or student id/i,
+    });
+    expect(searchInput.className).toMatch(/focus-visible:ring-\[var\(--color-coral\)\]/);
+    expect(searchInput.className).toMatch(/focus-visible:border-\[var\(--color-coral\)\]/);
+  });
+
+  it("filters student rows correctly by name, email, and student ID", () => {
+    renderMulti();
+
+    expect(screen.getByText("Alice Reyes")).toBeInTheDocument();
+    expect(screen.getByText("Bob Cruz")).toBeInTheDocument();
+    expect(screen.getByText("Charlie Tan")).toBeInTheDocument();
+
+    const searchInput = screen.getByRole("textbox", {
+      name: /search name, email, or student id/i,
+    });
+
+    // Search by name
+    fireEvent.change(searchInput, { target: { value: "Bob" } });
+    expect(screen.queryByText("Alice Reyes")).not.toBeInTheDocument();
+    expect(screen.getByText("Bob Cruz")).toBeInTheDocument();
+    expect(screen.queryByText("Charlie Tan")).not.toBeInTheDocument();
+
+    // Search by student ID
+    fireEvent.change(searchInput, { target: { value: "24-003" } });
+    expect(screen.queryByText("Alice Reyes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Bob Cruz")).not.toBeInTheDocument();
+    expect(screen.getByText("Charlie Tan")).toBeInTheDocument();
+
+    // No matches
+    fireEvent.change(searchInput, { target: { value: "nomatch" } });
+    expect(screen.getByText("No Students match.")).toBeInTheDocument();
+  });
+});
+
