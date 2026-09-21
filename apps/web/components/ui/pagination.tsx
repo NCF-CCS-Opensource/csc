@@ -39,7 +39,7 @@ export function usePagination<T>(items: T[], initialPageSize = 20) {
 
 export type PaginationState = ReturnType<typeof usePagination>;
 
-export function Pagination({ pagination }: { pagination: PaginationState }) {
+export function Pagination({ pagination }: Readonly<{ pagination: PaginationState }>) {
   const { page, pageSize, totalItems, totalPages, setPage, setPageSize } = pagination;
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

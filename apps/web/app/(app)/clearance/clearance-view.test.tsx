@@ -46,15 +46,19 @@ afterEach(() => {
   cleanup();
 });
 
+function renderClearance(initialResults: ClearanceItem[] = mockResults) {
+  return render(
+    <ClearanceView
+      openSemester={mockSemester}
+      initialQuery=""
+      initialResults={initialResults}
+    />
+  );
+}
+
 describe("ClearanceView Ledger Verification (Issue #206)", () => {
   it("renders on warm cream canvas with Neobrutalist structure", () => {
-    const { container } = render(
-      <ClearanceView
-        openSemester={mockSemester}
-        initialQuery=""
-        initialResults={mockResults}
-      />
-    );
+    const { container } = renderClearance();
 
     const main = container.querySelector("main");
     expect(main).toBeInTheDocument();
@@ -63,13 +67,7 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
   });
 
   it("highlights clearance readiness with Lavender badge when balance is zero", () => {
-    render(
-      <ClearanceView
-        openSemester={mockSemester}
-        initialQuery=""
-        initialResults={mockResults}
-      />
-    );
+    renderClearance();
 
     const aliceBadge = screen.getByTestId("clearance-badge-s1");
     expect(aliceBadge).toBeInTheDocument();
@@ -80,13 +78,7 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
   });
 
   it("highlights pending clearance with Coral badge when balance is greater than zero", () => {
-    render(
-      <ClearanceView
-        openSemester={mockSemester}
-        initialQuery=""
-        initialResults={mockResults}
-      />
-    );
+    renderClearance();
 
     const bobBadge = screen.getByTestId("clearance-badge-s2");
     expect(bobBadge).toBeInTheDocument();
@@ -97,13 +89,7 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
   });
 
   it("filters students in real-time when typing in search input", () => {
-    render(
-      <ClearanceView
-        openSemester={mockSemester}
-        initialQuery=""
-        initialResults={mockResults}
-      />
-    );
+    renderClearance();
 
     expect(screen.getByText("Alice Reyes")).toBeInTheDocument();
     expect(screen.getByText("Bob Cruz")).toBeInTheDocument();
@@ -125,13 +111,7 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
   });
 
   it("renders tactile search input with Coral focus offset (live client-side search)", () => {
-    render(
-      <ClearanceView
-        openSemester={mockSemester}
-        initialQuery=""
-        initialResults={mockResults}
-      />
-    );
+    renderClearance();
 
     const searchInput = screen.getByRole("textbox", {
       name: /search name, email, or student id/i,
@@ -173,7 +153,7 @@ describe("Clearance ledger pagination (Issue #220)", () => {
   const paginatedResults = makeResults(21);
 
   it("shows the full student list on load, no search required first", () => {
-    render(<ClearanceView openSemester={mockSemester} initialResults={paginatedResults} />);
+    renderClearance(paginatedResults);
 
     expect(screen.getByText("Student 1")).toBeInTheDocument();
     expect(screen.getByText("Student 20")).toBeInTheDocument();
@@ -182,7 +162,7 @@ describe("Clearance ledger pagination (Issue #220)", () => {
   });
 
   it("defaults to 20 rows and changes pages and page sizes without reloading", () => {
-    render(<ClearanceView openSemester={mockSemester} initialResults={paginatedResults} />);
+    renderClearance(paginatedResults);
 
     expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
 
@@ -198,7 +178,7 @@ describe("Clearance ledger pagination (Issue #220)", () => {
   });
 
   it("search narrows the paginated list and resets to page 1", () => {
-    render(<ClearanceView openSemester={mockSemester} initialResults={paginatedResults} />);
+    renderClearance(paginatedResults);
 
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
 

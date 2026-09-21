@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 export function SearchInput({
   value,
   onChange,
-}: {
+}: Readonly<{
   value: string;
   onChange: (value: string) => void;
-}) {
+}>) {
   return (
     <Input
       value={value}
