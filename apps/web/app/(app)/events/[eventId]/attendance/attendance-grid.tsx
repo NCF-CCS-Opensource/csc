@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import {
   Table,
   TableBody,
@@ -68,7 +69,11 @@ function ScanCell({ cell, eventId }: { cell: EventGridCell; eventId: string }) {
 
   return (
     <fieldset
-      className="flex items-center gap-1.5 border-0 p-0 m-0"
+      // Present/Absent stack vertically so each session-field column stays
+      // narrow enough to fit the viewport without horizontal scrolling (ticket
+      // #221). A side-by-side pair of buttons per field made the grid wider
+      // than a desktop or tablet can show.
+      className="flex flex-col gap-1 border-0 p-0 m-0"
       aria-label={`Attendance status for ${cell.label}`}
     >
       <Button
@@ -256,12 +261,17 @@ export function AttendanceGrid({
       )
     : rows;
 
+  const pagination = usePagination(visible);
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 attendance-grid">
       <Input
         placeholder="Search by name or Student ID…"
         value={query}
-        onChange={(e) => setQuery(eventId, e.target.value)}
+        onChange={(e) => {
+          setQuery(eventId, e.target.value);
+          pagination.setPage(1);
+        }}
         className="max-w-xs rounded-[8px] border-2 border-border bg-card px-3 py-2 text-sm shadow-[var(--shadow-sm)] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
       />
       <div className="rounded-[12px] border-2 border-border bg-card shadow-[var(--shadow-md)] overflow-hidden">
@@ -282,21 +292,21 @@ export function AttendanceGrid({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visible.map((row) => (
+            {pagination.pageItems.map((row) => (
               <TableRow
                 key={row.studentId}
                 className="border-b border-border hover:bg-[var(--bg-page)]/50 transition-colors"
               >
-                <TableCell className="whitespace-nowrap font-medium text-sm text-foreground">
+                <TableCell data-label="Student" className="whitespace-normal font-medium text-sm text-foreground">
                   {row.name}{" "}
                   <span className="text-muted-foreground font-mono">({row.studentIdText})</span>
                 </TableCell>
                 {row.cells.map((cell) => (
-                  <TableCell key={`${cell.sessionId}:${cell.field}`}>
+                  <TableCell key={`${cell.sessionId}:${cell.field}`} data-label={cell.label}>
                     <ScanCell cell={cell} eventId={eventId} />
                   </TableCell>
                 ))}
-                <TableCell className="text-right">
+                <TableCell className="text-right" data-label="Payment">
                   <PaymentCell row={row} eventId={eventId} />
                 </TableCell>
               </TableRow>
@@ -304,6 +314,16 @@ export function AttendanceGrid({
           </TableBody>
         </Table>
       </div>
+      {visible.length > 0 && (
+        <Pagination
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          totalItems={visible.length}
+          totalPages={pagination.totalPages}
+          onPageChange={pagination.setPage}
+          onPageSizeChange={pagination.setPageSize}
+        />
+      )}
     </div>
   );
 }

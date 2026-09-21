@@ -8,6 +8,10 @@ import React from "react";
 import { AttendanceGrid } from "./attendance-grid";
 import type { EventGridRow } from "./actions";
 
+// jsdom doesn't implement scrollIntoView; stub it or opening the Radix
+// "Rows per page" Select throws.
+Element.prototype.scrollIntoView ??= () => {};
+
 const { setScanFieldMock, markPaidMock, eventGridMock } = vi.hoisted(() => ({
   setScanFieldMock: vi.fn(),
   markPaidMock: vi.fn(),
@@ -78,18 +82,18 @@ function renderGrid(rows: EventGridRow[] = mockRows, eventId = "ev-123") {
   );
 }
 
+beforeEach(() => {
+  eventGridMock.mockResolvedValue(mockRows);
+  setScanFieldMock.mockResolvedValue({ eventId: "ev-123" });
+  markPaidMock.mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
 describe("AttendanceGrid & Sentinel Controls", () => {
-  beforeEach(() => {
-    eventGridMock.mockResolvedValue(mockRows);
-    setScanFieldMock.mockResolvedValue({ eventId: "ev-123" });
-    markPaidMock.mockResolvedValue(undefined);
-  });
-
-  afterEach(() => {
-    cleanup();
-    vi.restoreAllMocks();
-  });
-
   it("renders distinct Present and Absent sentinel buttons with tactile press-down states", () => {
     renderGrid();
 
@@ -217,5 +221,89 @@ describe("AttendanceGrid & Sentinel Controls", () => {
     expect(screen.queryByText(/Juan Dela Cruz/)).not.toBeInTheDocument();
     expect(screen.getByText(/Maria Clara/)).toBeInTheDocument();
     expect(screen.queryByText(/Jose Rizal/)).not.toBeInTheDocument();
+  });
+
+  it("stacks Present/Absent toggles per session field so columns stay narrow (no horizontal scroll)", () => {
+    renderGrid(mockRows, "ev-responsive");
+
+    const row1 = screen.getByText("Juan Dela Cruz").closest("tr")!;
+    const amInGroup = within(row1).getByRole("group", { name: /Attendance status for AM In/ });
+
+    // Present above Absent (flex-col) keeps each session-field column narrow
+    // enough for the whole grid to fit the viewport instead of scrolling
+    // sideways, and the Student name cell wraps rather than forcing nowrap.
+    expect(amInGroup.className).toContain("flex-col");
+    expect(within(amInGroup).getByRole("button", { name: "Present" })).toBeInTheDocument();
+    expect(within(amInGroup).getByRole("button", { name: "Absent" })).toBeInTheDocument();
+
+    const nameCell = screen.getByText("Juan Dela Cruz").closest("td")!;
+    expect(nameCell.className).toContain("whitespace-normal");
+    expect(nameCell.className).not.toContain("whitespace-nowrap");
+
+    // Below tablet width (globals.css media query) the table flattens each
+    // row into stacked labeled fields instead of scrolling; every cell carries
+    // its header text in data-label so a stacked cell still names its session.
+    expect(
+      screen.getByText("Juan Dela Cruz").closest(".attendance-grid")!,
+    ).toBeInTheDocument();
+    expect(nameCell).toHaveAttribute("data-label", "Student");
+    expect(amInGroup.closest("td")).toHaveAttribute("data-label", "AM In");
+  });
+});
+
+describe("AttendanceGrid pagination (Issue #221)", () => {
+  function buildRows(count: number): EventGridRow[] {
+    return Array.from({ length: count }, (_, index) => ({
+      studentId: `st-${index + 1}`,
+      name: `Student ${index + 1}`,
+      studentIdText: `24-${String(index + 1).padStart(5, "0")}`,
+      settled: false,
+      outstanding: 0,
+      unpaidPenaltyIds: [],
+      cells: [
+        { sessionId: "sess-1", field: "timeIn", label: "AM In", present: true },
+        { sessionId: "sess-1", field: "timeOut", label: "AM Out", present: false },
+      ],
+    }));
+  }
+
+  it("defaults to 20 rows per page and pages to the remainder", () => {
+    renderGrid(buildRows(21), "ev-pag-1");
+
+    expect(screen.getByText("Student 20")).toBeInTheDocument();
+    expect(screen.queryByText("Student 21")).not.toBeInTheDocument();
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("Student 21")).toBeInTheDocument();
+    expect(screen.queryByText("Student 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+  });
+
+  it("changes rows per page with the shared 10/15/20 control", () => {
+    renderGrid(buildRows(25), "ev-pag-2");
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Rows per page" }));
+    fireEvent.click(screen.getByRole("option", { name: "10 per page" }));
+
+    expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
+    expect(screen.getByText("Student 10")).toBeInTheDocument();
+    expect(screen.queryByText("Student 11")).not.toBeInTheDocument();
+  });
+
+  it("resets to the first page when searching the paginated list", () => {
+    renderGrid(buildRows(25), "ev-pag-3");
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/Search by name or Student ID/), {
+      target: { value: "Student 1" },
+    });
+
+    // "Student 1" matches 1, 10..19 (11 rows) → single filtered page, from page 1.
+    expect(screen.getByText("Page 1 of 1")).toBeInTheDocument();
+    expect(screen.getByText("Student 1")).toBeInTheDocument();
+    expect(screen.queryByText("Student 2")).not.toBeInTheDocument();
   });
 });
