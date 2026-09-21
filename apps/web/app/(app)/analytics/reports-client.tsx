@@ -13,7 +13,7 @@ type Semester = {
   id: string;
   startDate: string;
   endDate: string;
-  closedAt: Date | null;
+  closedAt: string | null;
 };
 
 type Event = {
