@@ -4,7 +4,14 @@ import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import NetInfo from "@react-native-community/netinfo";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useState } from "react";
+import {
+  useFonts,
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_700Bold,
+  DMSans_800ExtraBold,
+} from "@expo-google-fonts/dm-sans";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -69,12 +76,12 @@ function AuthenticatedApp({
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: colors.tabActive,
+        tabBarActiveTintColor: colors.neoPrimary,
         tabBarInactiveTintColor: colors.tabInactive,
         tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
+          backgroundColor: colors.neoBgSurface,
+          borderTopColor: colors.neoBorder,
+          borderTopWidth: 2,
           height: 64,
           paddingBottom: 10,
           paddingTop: 8,
@@ -83,6 +90,7 @@ function AuthenticatedApp({
           fontSize: 11,
           fontWeight: "500",
           marginTop: 2,
+          fontFamily: "DMSans_500Medium",
         },
         tabBarIcon: ({ color }) => <TabIcon route={route.name} color={color} />,
       })}
@@ -113,6 +121,26 @@ function AuthenticatedApp({
 // bundle — Clerk then never starts loading at all (infinite spinner, zero
 // network calls), while dev builds work because the dev server injects a real
 // runtime `process.env`.
+// Gates the auth/identity flow behind DM Sans loading so no screen ever
+// flashes the system fallback font before the neobrutalist type ramps in.
+function FontGate({ children }: { children: ReactNode }) {
+  const [fontsLoaded] = useFonts({
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_700Bold,
+    DMSans_800ExtraBold,
+  });
+  const { colors } = useTheme();
+  if (!fontsLoaded) {
+    return (
+      <View style={[styles.accessState, { backgroundColor: colors.neoBgPage }]}>
+        <ActivityIndicator color={colors.neoPrimary} />
+      </View>
+    );
+  }
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <ClerkProvider
@@ -122,9 +150,11 @@ export default function App() {
       <GestureHandlerRootView style={styles.container}>
         <SafeAreaProvider>
           <ThemeProvider>
-            <BoothQueryProvider>
-              <BoothApp />
-            </BoothQueryProvider>
+            <FontGate>
+              <BoothQueryProvider>
+                <BoothApp />
+              </BoothQueryProvider>
+            </FontGate>
           </ThemeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
@@ -274,11 +304,11 @@ function navTheme(colors: ThemeColors): Theme {
     ...base,
     colors: {
       ...base.colors,
-      background: colors.background,
-      card: colors.card,
+      background: colors.neoBgPage,
+      card: colors.neoBgSurface,
       text: colors.text,
-      border: colors.border,
-      primary: colors.primary,
+      border: colors.neoBorder,
+      primary: colors.neoPrimary,
     },
   };
 }
@@ -305,7 +335,7 @@ function AppShell({
   const { colors } = useTheme();
   const { signOut } = useAuth();
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.neoBgPage }]}>
       {!identityResolved && authTimedOut ? (
         <View style={styles.accessState}>
           <Text style={[styles.accessTitle, { color: colors.text }]}>
