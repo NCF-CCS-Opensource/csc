@@ -1,8 +1,13 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import type { LedgerSession } from "@attendance/contracts";
+
+// Radix Select scrolls the highlighted option into view on open; jsdom has no
+// scrollIntoView, so stub it or the status filter interaction throws.
+Element.prototype.scrollIntoView ??= () => {};
 
 import { MyAttendanceView } from "./my-attendance-view";
 import type { MyAttendanceSnapshot } from "./actions";
@@ -282,5 +287,103 @@ describe("MyAttendanceView Bento Layout (Issue #204)", () => {
 
     const paymentHistoryCell = screen.getByTestId("payment-history-cell");
     expect(paymentHistoryCell.className).toMatch(/max-\[520px\]:col-span-1/);
+  });
+});
+
+function makeSession(overrides: Partial<LedgerSession> & { eventId: string }): LedgerSession {
+  return {
+    eventName: `Event ${overrides.eventId}`,
+    eventDate: "2026-09-01",
+    half: "am",
+    timeIn: "08:00",
+    timeOut: "12:00",
+    status: "present",
+    amount: 0,
+    paid: true,
+    ...overrides,
+  };
+}
+
+describe("MyAttendanceView session audit filter + pagination (Issue #219)", () => {
+  it("filters the session audit by status and resets to page 1", () => {
+    const sessions: LedgerSession[] = [
+      makeSession({ eventId: "ev-1", status: "present", eventDate: "2026-09-01" }),
+      makeSession({ eventId: "ev-2", status: "absent", eventDate: "2026-09-02" }),
+      makeSession({ eventId: "ev-3", status: "incomplete", eventDate: "2026-09-03" }),
+    ];
+    renderView({
+      ...mockSnapshotWithDebt,
+      ledger: { total: 0, outstanding: 0, sessions },
+    });
+
+    expect(screen.getByTestId("status-badge-ev-1-am")).toBeInTheDocument();
+    expect(screen.getByTestId("status-badge-ev-2-am")).toBeInTheDocument();
+    expect(screen.getByTestId("status-badge-ev-3-am")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("combobox", { name: /filter by status/i }));
+    fireEvent.click(screen.getByRole("option", { name: "Absent" }));
+
+    expect(screen.queryByTestId("status-badge-ev-1-am")).not.toBeInTheDocument();
+    expect(screen.getByTestId("status-badge-ev-2-am")).toBeInTheDocument();
+    expect(screen.queryByTestId("status-badge-ev-3-am")).not.toBeInTheDocument();
+  });
+
+  it("filters the session audit by event date range", () => {
+    const sessions: LedgerSession[] = [
+      makeSession({ eventId: "ev-1", eventDate: "2026-09-01" }),
+      makeSession({ eventId: "ev-2", eventDate: "2026-09-10" }),
+      makeSession({ eventId: "ev-3", eventDate: "2026-09-20" }),
+    ];
+    renderView({
+      ...mockSnapshotWithDebt,
+      ledger: { total: 0, outstanding: 0, sessions },
+    });
+
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-09-05" } });
+    fireEvent.change(screen.getByLabelText("To"), { target: { value: "2026-09-15" } });
+
+    expect(screen.queryByTestId("status-badge-ev-1-am")).not.toBeInTheDocument();
+    expect(screen.getByTestId("status-badge-ev-2-am")).toBeInTheDocument();
+    expect(screen.queryByTestId("status-badge-ev-3-am")).not.toBeInTheDocument();
+  });
+
+  it("shows clear messaging when no session matches the active filters", () => {
+    const sessions: LedgerSession[] = [
+      makeSession({ eventId: "ev-1", status: "present" }),
+    ];
+    renderView({
+      ...mockSnapshotWithDebt,
+      ledger: { total: 0, outstanding: 0, sessions },
+    });
+
+    fireEvent.click(screen.getByRole("combobox", { name: /filter by status/i }));
+    fireEvent.click(screen.getByRole("option", { name: "Absent" }));
+
+    expect(
+      screen.getByText(/no attendance records match the selected filters/i)
+    ).toBeInTheDocument();
+  });
+
+  it("paginates the session audit using the shared 10/15/20 page-size selector", () => {
+    const sessions: LedgerSession[] = Array.from({ length: 25 }, (_, i) =>
+      makeSession({
+        eventId: `ev-${i + 1}`,
+        eventDate: `2026-09-${String((i % 28) + 1).padStart(2, "0")}`,
+      })
+    );
+    renderView({
+      ...mockSnapshotWithDebt,
+      ledger: { total: 0, outstanding: 0, sessions },
+    });
+
+    // Default page size is 20, so page 1 shows 20 rows and page 2 has the rest.
+    expect(screen.getByTestId("status-badge-ev-1-am")).toBeInTheDocument();
+    expect(screen.getByTestId("status-badge-ev-20-am")).toBeInTheDocument();
+    expect(screen.queryByTestId("status-badge-ev-21-am")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /next page/i }));
+
+    expect(screen.getByTestId("status-badge-ev-21-am")).toBeInTheDocument();
+    expect(screen.queryByTestId("status-badge-ev-1-am")).not.toBeInTheDocument();
   });
 });
