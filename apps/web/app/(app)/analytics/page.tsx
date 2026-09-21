@@ -43,16 +43,16 @@ export default async function AnalyticsPage() {
     }));
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <header className="border-b pb-5">
-        <p className="text-primary text-xs font-semibold tracking-[0.18em] uppercase">
-          CCS Institutional Reporting
-        </p>
-        <h1 className="font-display mt-1 text-3xl font-semibold tracking-tight">
-          Reports
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8 bg-[var(--bg-page)] min-h-[calc(100vh-3rem)]">
+      <header className="flex flex-col gap-2">
+        <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#888888]">
+          CCS INSTITUTIONAL REPORTING
+        </span>
+        <h1 className="font-heading text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground lowercase">
+          institutional reports
         </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Campus date: {campusDate}
+        <p className="text-sm sm:text-base text-muted-foreground">
+          Generate institutional PDF audits, event breakdowns, and financial statements. Campus date: {campusDate}
         </p>
       </header>
 
