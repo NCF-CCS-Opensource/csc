@@ -9,6 +9,7 @@ import {
   loadQueue,
   loadRecentScans,
   needsReviewScans,
+  queueSummary,
   retryScan,
   updateRecentScan,
   type QueuedScan,
@@ -228,5 +229,21 @@ describe("Offline Scan Queue ownership", () => {
 
     expect((await loadRecentScans("officer-a")).some(({ id }) => id === "1")).toBe(false);
     expect(await needsReviewScans("officer-a")).toEqual([failed]);
+  });
+});
+
+describe("queueSummary", () => {
+  it("counts pending and needs-review scans per Officer", async () => {
+    await enqueue(queued("1"));
+    await enqueue({ ...queued("2"), deliveryState: "needs_review", error: "Bad request" });
+    await enqueue({ ...queued("3"), deliveryState: "needs_review", error: "Unknown student" });
+    await enqueue(queued("4", "officer-b"));
+
+    expect(await queueSummary("officer-a")).toEqual({ needsReview: 2, pending: 1 });
+    expect(await queueSummary("officer-b")).toEqual({ needsReview: 0, pending: 1 });
+  });
+
+  it("reports zero counts for an Officer with an empty queue", async () => {
+    expect(await queueSummary("officer-a")).toEqual({ needsReview: 0, pending: 0 });
   });
 });
