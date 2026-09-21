@@ -1,4 +1,5 @@
 import { useAuth } from "@clerk/clerk-expo";
+import { LogOut, Palette, type LucideIcon } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -36,6 +37,7 @@ const THEME_LABEL: Record<ThemePreference, string> = {
 function SettingsRow({
   icon,
   iconBg,
+  iconColor,
   label,
   value,
   onPress,
@@ -43,8 +45,9 @@ function SettingsRow({
   destructive,
   styles,
 }: {
-  icon: string;
+  icon: LucideIcon;
   iconBg: string;
+  iconColor: string;
   label: string;
   value?: string;
   onPress?: () => void;
@@ -52,11 +55,12 @@ function SettingsRow({
   destructive?: boolean;
   styles: Styles;
 }) {
+  const Icon = icon;
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} disabled={disabled || !onPress}>
       <View style={styles.rowLeft}>
         <View style={[styles.iconBadge, { backgroundColor: iconBg }]}>
-          <Text style={styles.iconBadgeText}>{icon}</Text>
+          <Icon size={18} color={iconColor} strokeWidth={2} />
         </View>
         <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive, disabled && styles.rowLabelDisabled]}>
           {label}
@@ -213,8 +217,9 @@ export function SettingsScreen({
       <Text style={styles.sectionLabel}>GENERAL</Text>
       <View style={styles.section}>
         <SettingsRow
-          icon="🎨"
+          icon={Palette}
           iconBg={colors.iconPurpleBg}
+          iconColor={colors.iconPurple}
           label="Change theme"
           value={THEME_LABEL[preference]}
           onPress={cycleTheme}
@@ -225,8 +230,9 @@ export function SettingsScreen({
       <Text style={styles.sectionLabel}>ACCOUNT</Text>
       <View style={styles.section}>
         <SettingsRow
-          icon="🚪"
+          icon={LogOut}
           iconBg={colors.iconPinkBg}
+          iconColor={colors.iconPink}
           label="Log out"
           destructive
           onPress={logout}
@@ -281,7 +287,6 @@ function makeStyles(c: ThemeColors) {
       alignItems: "center",
       justifyContent: "center",
     },
-    iconBadgeText: { fontSize: 16 },
     rowLabel: { fontSize: 15, color: c.text, fontWeight: "500" },
     rowLabelDisabled: { color: c.textDisabled },
     rowLabelDestructive: { color: c.danger, fontWeight: "500" },
