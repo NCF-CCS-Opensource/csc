@@ -1,8 +1,8 @@
 {
   "apps/mobile/App.tsx": {
-    "mtime": 1789984951.760241,
-    "seen": 1789984988.9832122,
-    "ast_hash": "e7a7c42c839a2588e06a37cbd8a28662",
+    "mtime": 1789994479.807645,
+    "seen": 1789994483.4737165,
+    "ast_hash": "6175db20c4d6ecfbfdc652f6889f86e6",
     "semantic_hash": ""
   },
   "apps/mobile/app.json": {
@@ -36,9 +36,9 @@
     "semantic_hash": ""
   },
   "apps/mobile/lib/api.ts": {
-    "mtime": 1789980413.0607722,
-    "seen": 1789980416.9443786,
-    "ast_hash": "fb1afa7cd4e5acada46b07cda330cee5",
+    "mtime": 1789994479.808025,
+    "seen": 1789994483.4740562,
+    "ast_hash": "993e4e163e17e613d01fbd83366cd8e4",
     "semantic_hash": ""
   },
   "apps/mobile/lib/avatar.ts": {
@@ -168,9 +168,9 @@
     "semantic_hash": ""
   },
   "apps/mobile/screens/BoothScreen.tsx": {
-    "mtime": 1789984951.7620099,
-    "seen": 1789984988.9835339,
-    "ast_hash": "cae1a3cf9d8fb23feeb2de8c6a421969",
+    "mtime": 1789994477.3549786,
+    "seen": 1789994483.4752836,
+    "ast_hash": "d9eb7ee412fb54948924517e04b53cc6",
     "semantic_hash": ""
   },
   "apps/mobile/screens/EventsScreen.tsx": {
@@ -180,9 +180,9 @@
     "semantic_hash": ""
   },
   "apps/mobile/screens/LoginScreen.tsx": {
-    "mtime": 1789986572.273127,
-    "seen": 1789986707.190378,
-    "ast_hash": "59618bdfe4b922556d0c29edcd67bb61",
+    "mtime": 1789994479.8084097,
+    "seen": 1789994483.4753082,
+    "ast_hash": "c2a4651b542cfdde10a78c22bf261954",
     "semantic_hash": ""
   },
   "apps/mobile/screens/RejectionsScreen.tsx": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "apps/web/app/(app)/admin/page.tsx": {
-    "mtime": 1789980413.0615878,
-    "seen": 1789980416.9444225,
-    "ast_hash": "22324c0d3b6c5b4084626d58ed54e3d3",
+    "mtime": 1789994477.3575122,
+    "seen": 1789994483.4754112,
+    "ast_hash": "22c215737eb5943dc365ecfd850cf2f8",
     "semantic_hash": ""
   },
   "apps/web/app/(app)/admin/rejections/page.tsx": {
@@ -300,9 +300,9 @@
     "semantic_hash": ""
   },
   "apps/web/app/(app)/events/events-view.tsx": {
-    "mtime": 1789980413.062718,
-    "seen": 1789980416.9444556,
-    "ast_hash": "ccbcc8127a57d809d42dcab9536c163b",
+    "mtime": 1789994477.3577259,
+    "seen": 1789994483.4761393,
+    "ast_hash": "cb96f5581f172dbe89e26afb5d489d01",
     "semantic_hash": ""
   },
   "apps/web/app/(app)/events/page.tsx": {
@@ -366,15 +366,15 @@
     "semantic_hash": ""
   },
   "apps/web/app/(app)/students/students-view.test.tsx": {
-    "mtime": 1789980413.0629573,
-    "seen": 1789980416.9444711,
-    "ast_hash": "2f0f29a722a7489ec3c5c8b4cccc9ab9",
+    "mtime": 1789994477.3578281,
+    "seen": 1789994483.476369,
+    "ast_hash": "a268bb1ebba60f50de9b72e166744431",
     "semantic_hash": ""
   },
   "apps/web/app/(app)/students/students-view.tsx": {
-    "mtime": 1789980413.0629573,
-    "seen": 1789980416.9444723,
-    "ast_hash": "fbcae6e93ffb630da8dce5edee4ba52e",
+    "mtime": 1789994477.357964,
+    "seen": 1789994483.4763699,
+    "ast_hash": "51b62e2b2c6e67f51fd339e5900eeb98",
     "semantic_hash": ""
   },
   "apps/web/app/(marketing)/layout.tsx": {
@@ -2100,9 +2100,9 @@
     "semantic_hash": ""
   },
   "apps/web/app/(app)/admin/admin-page.test.tsx": {
-    "mtime": 1789980413.0615287,
-    "seen": 1789980416.9444208,
-    "ast_hash": "adb4ddaa25e4ba03befe1bdf20d38d3e",
+    "mtime": 1789994477.3573616,
+    "seen": 1789994483.47541,
+    "ast_hash": "65c6b35208cce86e732c642072acf6c2",
     "semantic_hash": ""
   },
   "apps/web/app/(app)/analytics/reports-client.test.tsx": {
@@ -2178,9 +2178,9 @@
     "semantic_hash": ""
   },
   "apps/web/app/(app)/events/events-view.test.tsx": {
-    "mtime": 1789980413.0626628,
-    "seen": 1789980416.9444537,
-    "ast_hash": "261223e3c5fdee10a8457cceab900ebe",
+    "mtime": 1789994477.3576317,
+    "seen": 1789994483.476137,
+    "ast_hash": "6842fd93afb8e340d0cb43c34bccc30b",
     "semantic_hash": ""
   },
   "apps/web/components/ui/search-input.tsx": {
@@ -2202,9 +2202,9 @@
     "semantic_hash": ""
   },
   "apps/mobile/screens/PendingScreen.tsx": {
-    "mtime": 1789984951.7622194,
-    "seen": 1789984988.9835372,
-    "ast_hash": "98fcfefcdf6d94cab3c39de06fb9cc74",
+    "mtime": 1789994477.3552456,
+    "seen": 1789994483.47531,
+    "ast_hash": "eff21b27f2d0cde773babd15950dc944",
     "semantic_hash": ""
   },
   "apps/mobile/DESIGN.md": {
@@ -2214,9 +2214,9 @@
     "semantic_hash": ""
   },
   "apps/mobile/components/AppLogo.tsx": {
-    "mtime": 1789987012.4310174,
-    "seen": 1789987043.0483673,
-    "ast_hash": "e0dcd3698039b76077fe202a819d6db9",
+    "mtime": 1789994477.3542461,
+    "seen": 1789994483.4737616,
+    "ast_hash": "b34a3af0f22908c578bfe95d44e84f26",
     "semantic_hash": ""
   },
   "apps/web/components/app-logo.test.tsx": {
@@ -2241,6 +2241,12 @@
     "mtime": 1789986345.0249412,
     "seen": 1789986707.1942492,
     "ast_hash": "552025cb6463c319844f0265d1bdd3e0",
+    "semantic_hash": ""
+  },
+  "apps/mobile/scripts/generate-android-icons.sh": {
+    "mtime": 1789994479.808702,
+    "seen": 1789994483.4753537,
+    "ast_hash": "c906a2fd55f30a06781636144b6a01db",
     "semantic_hash": ""
   }
 }
