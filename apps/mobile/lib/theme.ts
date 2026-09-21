@@ -128,3 +128,22 @@ export function resolveTheme(
   const scheme = preference === "system" ? systemScheme : preference;
   return scheme === "dark" ? dark : light;
 }
+
+export type ShadowSize = "sm" | "md" | "lg";
+
+const SHADOW_OFFSET: Record<ShadowSize, number> = { sm: 3, md: 4, lg: 6 };
+
+/**
+ * Neobrutalist hard-offset shadow (DESIGN.md "Elevation & Depth"). Dark mode
+ * keeps the shadow black even though `border` flips to white in dark mode.
+ */
+export function neoShadow(mode: ColorScheme, size: ShadowSize = "md") {
+  const offset = SHADOW_OFFSET[size];
+  return {
+    shadowColor: mode === "dark" ? "#000000" : "#111111",
+    shadowOffset: { width: offset, height: offset },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: offset,
+  };
+}
