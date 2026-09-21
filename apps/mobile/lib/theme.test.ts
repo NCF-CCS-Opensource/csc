@@ -21,4 +21,10 @@ describe("resolveTheme", () => {
     expect(resolveTheme("system", null).mode).toBe("light");
     expect(resolveTheme("system", undefined).mode).toBe("light");
   });
+
+  it("light and dark palettes define the same set of token keys", () => {
+    const light = resolveTheme("light", "light");
+    const dark = resolveTheme("dark", "dark");
+    expect(Object.keys(light).sort()).toEqual(Object.keys(dark).sort());
+  });
 });
