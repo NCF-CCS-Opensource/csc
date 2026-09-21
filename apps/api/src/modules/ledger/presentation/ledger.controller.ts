@@ -18,6 +18,11 @@ export class LedgerController {
     }
     return this.ledger.student(body.semesterId, actor.id);
   }
+  @Post("mine/history")
+  @RequireCapability("view_own_attendance")
+  mineHistory(@CallerActor() actor: Actor) {
+    return this.ledger.paymentHistory(actor.id);
+  }
   @Post("student")
   @RequireCapability("manage_operations")
   student(@Body() body: { semesterId?: string; studentId?: string }) {

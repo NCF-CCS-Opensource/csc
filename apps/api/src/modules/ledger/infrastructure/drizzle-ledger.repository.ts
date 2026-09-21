@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { attendanceSessions, events, payments, penalties, semesters, students, type Database } from "@attendance/db";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { DB } from "../../../shared/infrastructure/db.module";
 import type { LedgerRepository } from "../domain/ledger-repository";
 import { currentCampusDate, type LedgerInput } from "../domain/ledger";
@@ -28,5 +28,14 @@ export class DrizzleLedgerRepository implements LedgerRepository {
   async eventDetails(semesterId: string): Promise<Map<string, { name: string; venue: string | null }>> {
     const rows = await this.db.select({ id: events.id, name: events.name, venue: events.venue }).from(events).where(eq(events.semesterId, semesterId));
     return new Map(rows.map((event) => [event.id, event]));
+  }
+
+  async paymentHistory(studentId: string): Promise<{ id: string; amount: string; paidAt: Date }[]> {
+    return this.db
+      .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })
+      .from(payments)
+      .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
+      .where(eq(penalties.studentId, studentId))
+      .orderBy(desc(payments.paidAt));
   }
 }

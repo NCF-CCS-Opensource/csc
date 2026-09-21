@@ -7,6 +7,7 @@ import type { LedgerInput } from "./ledger";
 export interface LedgerRepository {
   ledgerInput(semesterId: string, studentId?: string): Promise<LedgerInput | null>;
   eventDetails(semesterId: string): Promise<Map<string, { name: string; venue: string | null }>>;
+  paymentHistory(studentId: string): Promise<{ id: string; amount: string; paidAt: Date }[]>;
 }
 
 export const LEDGER_REPOSITORY = Symbol("LedgerRepository");

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { SemesterLedgerResponse, StudentLedgerResponse } from "@attendance/contracts";
+import type { PaymentHistoryEntry, SemesterLedgerResponse, StudentLedgerResponse } from "@attendance/contracts";
 import { LEDGER_REPOSITORY, type LedgerRepository } from "../domain/ledger-repository";
 import { computeLedger } from "../domain/ledger";
 
@@ -19,5 +19,10 @@ export class LedgerUseCase {
     const ledger = computeLedger(input);
     const details = await this.ledgerRepository.eventDetails(semesterId);
     return { events: ledger.events.map((event) => ({ ...event, name: details.get(event.eventId)!.name, venue: details.get(event.eventId)!.venue })), totals: ledger.totals };
+  }
+
+  async paymentHistory(studentId: string): Promise<PaymentHistoryEntry[]> {
+    const rows = await this.ledgerRepository.paymentHistory(studentId);
+    return rows.map(({ id, amount, paidAt }) => ({ id, amount, paidAt: paidAt.toISOString() }));
   }
 }
