@@ -1,8 +1,7 @@
-import { students } from "@attendance/db";
-import { inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import type { StudentListResponse } from "@attendance/contracts";
 import { requireCapability } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { apiPost } from "@/lib/api-client";
 import { buildQrCardModels } from "@/lib/qr";
 import { renderQrCardPdf } from "@/components/reports/qr-card-pdf-document";
 
@@ -16,11 +15,9 @@ export const maxDuration = 60;
 // limits. requireCapability redirects on a page; here that redirect throws
 // and is turned into a 403, same as the report routes (spec #119, #115).
 //
-// ponytail-gap: no "look up students by id" endpoint exists on the API yet
-// (student/identity only resolves the caller's own record) — the row lookup
-// below stays on direct DB access. See the PR description's Known Gaps
-// section. This route is otherwise the QR Card renderer the issue calls out
-// to retain.
+// No "look up students by id" endpoint exists on the API — student/list
+// returns the full roster (spec #117), same as the Students page, so the
+// requested ids are filtered out of it in memory instead of a direct DB read.
 export async function POST(request: Request) {
   try {
     await requireCapability("manage_operations");
@@ -42,14 +39,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const rows = await db
-    .select({
-      name: students.name,
-      studentId: students.studentId,
-      program: students.program,
-    })
-    .from(students)
-    .where(inArray(students.id, studentIds));
+  const { students: roster } = await apiPost<StudentListResponse>("student/list");
+  const idSet = new Set(studentIds);
+  const rows = roster
+    .filter((student) => idSet.has(student.id))
+    .map(({ name, studentId, program }) => ({ name, studentId, program }));
 
   // ids that don't resolve to a row (stale selection, tampered body) are
   // silently dropped above; if none resolved, don't hand back a blank page.
