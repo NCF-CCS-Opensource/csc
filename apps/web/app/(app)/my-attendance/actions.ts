@@ -1,10 +1,7 @@
 "use server";
 
-import { payments, penalties, students } from "@attendance/db";
-import { desc, eq } from "drizzle-orm";
 import { requireCapability } from "@/lib/auth";
-import { db } from "@/lib/db";
-import type { SemesterResponse, StudentLedgerResponse } from "@attendance/contracts";
+import type { PaymentHistoryEntry, SemesterResponse, StudentLedgerResponse } from "@attendance/contracts";
 import { apiFetch } from "@/lib/api-client";
 
 function findOpenSemester(): Promise<SemesterResponse | null> {
@@ -31,22 +28,11 @@ export async function myAttendanceSnapshot(): Promise<MyAttendanceSnapshot> {
     findOpenSemester(),
   ]);
 
-  // ponytail-gap: there's no API-side "payment history" read yet (ledger/mine
-  // only totals + sessions), so that stays on a direct DB lookup by
-  // authUserId (separate gap from #190 — no student/identity change closes
-  // this one). identity.program (closed by #190/#185) covers the program
-  // field, so the Student-row lookup that used to exist here is gone.
   const [ledger, paymentHistory] = await Promise.all([
     openSemester
       ? apiFetch<StudentLedgerResponse>("/v1/api/ledger/mine", { semesterId: openSemester.id })
       : Promise.resolve({ total: 0, outstanding: 0, sessions: [] }),
-    db
-      .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })
-      .from(payments)
-      .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
-      .innerJoin(students, eq(penalties.studentId, students.id))
-      .where(eq(students.authUserId, identity.authUserId))
-      .orderBy(desc(payments.paidAt)),
+    apiFetch<PaymentHistoryEntry[]>("/v1/api/ledger/mine/history"),
   ]);
 
   return {
