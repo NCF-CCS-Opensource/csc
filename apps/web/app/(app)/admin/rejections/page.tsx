@@ -41,7 +41,7 @@ export default async function RejectionsPage({
           name="q"
           defaultValue={q ?? ""}
           placeholder="Filter by Student or QR reference"
-          className="flex-1 rounded-[8px] border-2 border-[#111111] bg-white px-3 py-2 text-sm shadow-[3px_3px_0px_0px_#111111] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
+          className="flex-1 rounded-[8px] border-2 border-border bg-card px-3 py-2 text-sm shadow-[var(--shadow-sm)] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
         />
         <input type="hidden" name="sort" value={sort ?? ""} />
         <Button type="submit" variant="default" className="shadow-[var(--shadow-sm)]">
@@ -62,8 +62,8 @@ export default async function RejectionsPage({
         </Button>
       </div>
 
-      <Card className="border-2 border-[#111111] rounded-[12px] bg-white shadow-[var(--shadow-md)]">
-        <CardHeader className="border-b-2 border-[#111111]/10">
+      <Card className="border-2 border-border rounded-[12px] bg-card shadow-[var(--shadow-md)]">
+        <CardHeader className="border-b-2 border-border/10">
           <CardTitle className="font-heading text-lg font-bold">
             Rejected Scans Log ({rows.length})
           </CardTitle>
@@ -77,7 +77,7 @@ export default async function RejectionsPage({
                 <div
                   key={row.scanId}
                   data-testid="rejected-scan-entry"
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-[10px] bg-white border-2 border-[#F9A8B8] shadow-[4px_4px_0px_0px_#111111] transition-all"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-[10px] bg-card border-2 border-[#F9A8B8] shadow-[var(--shadow-md)] transition-all"
                 >
                   <div className="flex flex-col gap-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

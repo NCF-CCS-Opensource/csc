@@ -60,10 +60,10 @@ export default async function Home() {
           {STEPS.map((step, i) => (
             <Card
               key={step.title}
-              className="relative rounded-[12px] border-2 border-[#111111] bg-[var(--bg-surface)] shadow-[var(--shadow-md)]"
+              className="relative rounded-[12px] border-2 border-border bg-[var(--bg-surface)] shadow-[var(--shadow-md)]"
             >
               <CardHeader className="items-center gap-3 text-center">
-                <span className="flex size-12 items-center justify-center rounded-full border-2 border-[#111111] bg-[var(--color-yellow)] text-foreground">
+                <span className="flex size-12 items-center justify-center rounded-full border-2 border-border bg-[var(--color-yellow)] text-foreground">
                   <step.icon className="size-6" aria-hidden />
                 </span>
                 <CardTitle className="text-base font-bold">
@@ -79,7 +79,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <footer className="border-t-2 border-[#111111]/10 px-4 py-6 text-center text-xs text-muted-foreground sm:px-8">
+      <footer className="border-t-2 border-border/10 px-4 py-6 text-center text-xs text-muted-foreground sm:px-8">
         CCS Attendance · College of Computer Studies
       </footer>
     </main>

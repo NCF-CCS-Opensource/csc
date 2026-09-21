@@ -109,7 +109,7 @@ describe("AttendanceGrid & Sentinel Controls", () => {
 
     // Absent button is inactive
     expect(absentBtn).toHaveAttribute("aria-pressed", "false");
-    expect(absentBtn.className).toContain("bg-white");
+    expect(absentBtn.className).toContain("bg-card");
 
     // In row 1, AM Out is absent (false)
     const amOutGroup = within(row1).getByRole("group", { name: /Attendance status for AM Out/ });
@@ -173,15 +173,15 @@ describe("AttendanceGrid & Sentinel Controls", () => {
     // Check Neobrutalist inputs with coral focus shifts
     const penaltyDueInput = screen.getByLabelText(/Penalty Amount Due/);
     expect(penaltyDueInput).toHaveValue("₱100");
-    expect(penaltyDueInput.className).toContain("border-2 border-[#111111]");
-    expect(penaltyDueInput.className).toContain("shadow-[3px_3px_0px_0px_#111111]");
+    expect(penaltyDueInput.className).toContain("border-2 border-border");
+    expect(penaltyDueInput.className).toContain("shadow-[var(--shadow-sm)]");
     expect(penaltyDueInput.className).toContain("focus:ring-[var(--color-coral)]");
     expect(penaltyDueInput.className).toContain("focus:border-[var(--color-coral)]");
 
     const cashTenderedInput = screen.getByLabelText(/Cash Tendered/);
     expect(cashTenderedInput).toHaveValue(100);
-    expect(cashTenderedInput.className).toContain("border-2 border-[#111111]");
-    expect(cashTenderedInput.className).toContain("shadow-[3px_3px_0px_0px_#111111]");
+    expect(cashTenderedInput.className).toContain("border-2 border-border");
+    expect(cashTenderedInput.className).toContain("shadow-[var(--shadow-sm)]");
     expect(cashTenderedInput.className).toContain("focus:ring-[var(--color-coral)]");
 
     const notesInput = screen.getByLabelText(/Receipt Reference/);

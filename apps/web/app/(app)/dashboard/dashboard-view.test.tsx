@@ -270,7 +270,7 @@ describe("DashboardView Bento Interface", () => {
     expect(within(rejectedItem).getByText("Charlie Santos")).toBeInTheDocument();
     expect(within(rejectedItem).getByTestId("scan-status-badge-scan-3")).toHaveTextContent("Rejected");
     expect(rejectedItem.className).toContain("border-[#F9A8B8]");
-    expect(rejectedItem.className).toContain("shadow-[4px_4px_0px_0px_#111111]");
+    expect(rejectedItem.className).toContain("shadow-[var(--shadow-md)]");
   });
 
   it("displays pending sync indicator when offline queue has items", () => {

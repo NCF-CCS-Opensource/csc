@@ -84,8 +84,8 @@ function ScanCell({ cell, eventId }: { cell: EventGridCell; eventId: string }) {
         className={cn(
           "font-bold transition-all text-xs rounded-[6px] select-none",
           cell.present
-            ? "bg-[var(--color-teal)] text-[#111111] border-2 border-[#111111] shadow-[var(--shadow-sm)] hover:bg-[var(--color-teal)]/90 hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-            : "bg-white text-muted-foreground border-2 border-[#111111] opacity-60 hover:opacity-100 hover:text-foreground hover:translate-x-[1px] hover:translate-y-[1px]"
+            ? "bg-[var(--color-teal)] text-foreground border-2 border-border shadow-[var(--shadow-sm)] hover:bg-[var(--color-teal)]/90 hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            : "bg-card text-muted-foreground border-2 border-border opacity-60 hover:opacity-100 hover:text-foreground hover:translate-x-[1px] hover:translate-y-[1px]"
         )}
       >
         Present
@@ -103,8 +103,8 @@ function ScanCell({ cell, eventId }: { cell: EventGridCell; eventId: string }) {
         className={cn(
           "font-bold transition-all text-xs rounded-[6px] select-none",
           !cell.present
-            ? "bg-[var(--color-coral)] text-white border-2 border-[#111111] shadow-[var(--shadow-sm)] hover:bg-[var(--color-coral)]/90 hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-            : "bg-white text-muted-foreground border-2 border-[#111111] opacity-60 hover:opacity-100 hover:text-foreground hover:translate-x-[1px] hover:translate-y-[1px]"
+            ? "bg-[var(--color-coral)] text-white border-2 border-border shadow-[var(--shadow-sm)] hover:bg-[var(--color-coral)]/90 hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            : "bg-card text-muted-foreground border-2 border-border opacity-60 hover:opacity-100 hover:text-foreground hover:translate-x-[1px] hover:translate-y-[1px]"
         )}
       >
         Absent
@@ -141,9 +141,9 @@ function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
             Mark paid
           </Button>
         </AlertDialogTrigger>
-        <AlertDialogContent className="border-2 border-[#111111] rounded-[12px] bg-white p-6 shadow-[6px_6px_0px_0px_#111111]">
+        <AlertDialogContent className="border-2 border-border rounded-[12px] bg-card p-6 shadow-[var(--shadow-lg)]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-heading text-lg font-bold text-[#111111]">
+            <AlertDialogTitle className="font-heading text-lg font-bold text-foreground">
               Cash Penalty Payment — {row.name}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground">
@@ -157,7 +157,7 @@ function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
             <div className="flex flex-col gap-1">
               <label
                 htmlFor={`penalty-due-${row.studentId}`}
-                className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]"
+                className="text-xs font-bold uppercase tracking-[0.08em] text-foreground"
               >
                 Penalty Amount Due
               </label>
@@ -165,14 +165,14 @@ function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
                 id={`penalty-due-${row.studentId}`}
                 readOnly
                 defaultValue={`₱${row.outstanding}`}
-                className="rounded-[8px] border-2 border-[#111111] bg-muted/20 px-3 py-2 text-sm font-bold shadow-[3px_3px_0px_0px_#111111] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
+                className="rounded-[8px] border-2 border-border bg-muted/20 px-3 py-2 text-sm font-bold shadow-[var(--shadow-sm)] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
               />
             </div>
 
             <div className="flex flex-col gap-1">
               <label
                 htmlFor={`cash-tendered-${row.studentId}`}
-                className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]"
+                className="text-xs font-bold uppercase tracking-[0.08em] text-foreground"
               >
                 Cash Tendered (₱)
               </label>
@@ -181,27 +181,27 @@ function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
                 type="number"
                 defaultValue={row.outstanding}
                 placeholder="Amount received in cash"
-                className="rounded-[8px] border-2 border-[#111111] bg-white px-3 py-2 text-sm font-semibold shadow-[3px_3px_0px_0px_#111111] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
+                className="rounded-[8px] border-2 border-border bg-card px-3 py-2 text-sm font-semibold shadow-[var(--shadow-sm)] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
               />
             </div>
 
             <div className="flex flex-col gap-1">
               <label
                 htmlFor={`receipt-notes-${row.studentId}`}
-                className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]"
+                className="text-xs font-bold uppercase tracking-[0.08em] text-foreground"
               >
                 Receipt Reference / Notes
               </label>
               <Input
                 id={`receipt-notes-${row.studentId}`}
                 placeholder="Optional OR number or notes"
-                className="rounded-[8px] border-2 border-[#111111] bg-white px-3 py-2 text-sm shadow-[3px_3px_0px_0px_#111111] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
+                className="rounded-[8px] border-2 border-border bg-card px-3 py-2 text-sm shadow-[var(--shadow-sm)] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
               />
             </div>
           </div>
 
-          <AlertDialogFooter className="border-t-2 border-[#111111] bg-[var(--bg-page)] -mx-6 -mb-6 p-4 rounded-b-[10px]">
-            <AlertDialogCancel className="border-2 border-[#111111] shadow-[var(--shadow-sm)]">
+          <AlertDialogFooter className="border-t-2 border-border bg-[var(--bg-page)] -mx-6 -mb-6 p-4 rounded-b-[10px]">
+            <AlertDialogCancel className="border-2 border-border shadow-[var(--shadow-sm)]">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -262,21 +262,21 @@ export function AttendanceGrid({
         placeholder="Search by name or Student ID…"
         value={query}
         onChange={(e) => setQuery(eventId, e.target.value)}
-        className="max-w-xs rounded-[8px] border-2 border-[#111111] bg-white px-3 py-2 text-sm shadow-[3px_3px_0px_0px_#111111] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
+        className="max-w-xs rounded-[8px] border-2 border-border bg-card px-3 py-2 text-sm shadow-[var(--shadow-sm)] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
       />
-      <div className="rounded-[12px] border-2 border-[#111111] bg-white shadow-[var(--shadow-md)] overflow-hidden">
+      <div className="rounded-[12px] border-2 border-border bg-card shadow-[var(--shadow-md)] overflow-hidden">
         <Table>
-          <TableHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111]">
+          <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
             <TableRow>
-              <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+              <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                 Student
               </TableHead>
               {scanColumns.map((c) => (
-                <TableHead key={c} className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                <TableHead key={c} className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                   {c}
                 </TableHead>
               ))}
-              <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+              <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                 Payment
               </TableHead>
             </TableRow>
@@ -285,9 +285,9 @@ export function AttendanceGrid({
             {visible.map((row) => (
               <TableRow
                 key={row.studentId}
-                className="border-b border-[#111111] hover:bg-[var(--bg-page)]/50 transition-colors"
+                className="border-b border-border hover:bg-[var(--bg-page)]/50 transition-colors"
               >
-                <TableCell className="whitespace-nowrap font-medium text-sm text-[#111111]">
+                <TableCell className="whitespace-nowrap font-medium text-sm text-foreground">
                   {row.name}{" "}
                   <span className="text-muted-foreground font-mono">({row.studentIdText})</span>
                 </TableCell>

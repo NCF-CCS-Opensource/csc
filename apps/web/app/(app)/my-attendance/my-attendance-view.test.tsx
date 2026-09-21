@@ -162,7 +162,7 @@ describe("MyAttendanceView Bento Layout (Issue #204)", () => {
     expect(heroCell).toHaveAttribute("data-elevation", "hero");
 
     // Check 6px hard shadow and 2x2 span
-    expect(heroCell.className).toMatch(/shadow-\[6px_6px_0px_0px_#111111\]/);
+    expect(heroCell.className).toMatch(/shadow-\[var\(--shadow-lg\)\]/);
     expect(heroCell.className).toMatch(/col-span-2/);
     expect(heroCell.className).toMatch(/row-span-2/);
 
