@@ -18,7 +18,7 @@ This is the DevOps entry point for CCS Attendance. It summarizes the repeatable 
 
 The documented test-production endpoint is `https://attendance.ncfccs.org`. Confirm the live target in Vercel before deploying; the repository does not verify external state.
 
-A self-hosted alternative to the Vercel path exists in-repo as `docker-compose.yml` / `Dockerfile` (web) plus the `db`/`meta`/`studio` services (self-hosted Postgres + Studio, no managed Auth/Storage/backups). See [Self-hosted Docker deployment](#self-hosted-docker-deployment) below; day-to-day local use of the same stack is [docs/setup/docker.md](./setup/docker.md).
+A self-hosted alternative to the Vercel + Heroku path exists in-repo as `docker-compose.yml` / `Dockerfile`: a `web` container (self-hosted Postgres, no managed Auth/Storage/backups) alongside a `db` container. It predates the `apps/api` split and still talks to Postgres directly — there is no `api` service in `docker-compose.yml`, so this path does not exercise the NestJS backend. See [Self-hosted Docker deployment](#self-hosted-docker-deployment) below; day-to-day local use of the same stack is [docs/setup/docker.md](./setup/docker.md).
 
 ## Prerequisites
 
@@ -41,6 +41,7 @@ A self-hosted alternative to the Vercel path exists in-repo as `docker-compose.y
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk client key | Public |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` — keeps Clerk's redirects on the self-hosted page | Public |
 | `GOVERNOR_EMAILS` | Comma-separated Governor allowlist, read at onboarding | Server only |
+| `GEMINI_API_KEY` | Optional — enables Gemini report narrative generation (`apps/web/lib/gemini.ts`); omit to skip that feature (ADR-0020, ADR-0011) | Server only |
 
 Heroku Postgres has no separate pooled/direct connection pair — `DATABASE_URL` is the one connection string, used for both runtime queries (`apps/web/lib/db.ts`) and migrations (`packages/db/drizzle.config.ts`). `createDb` caps the pool at 10 connections, below Essential-0's 20-connection limit, leaving headroom for `db:migrate`, `heroku pg:psql`, and an ad-hoc session (ADR-0018). `POSTGRES_URL` / `POSTGRES_URL_NON_POOLING` remain as fallbacks in code and docs only for the legacy Supabase-Vercel-integration path; Heroku sets neither.
 
