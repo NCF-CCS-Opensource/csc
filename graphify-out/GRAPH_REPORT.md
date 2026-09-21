@@ -1,16 +1,16 @@
-# Graph Report - issue-204  (2026-09-21)
+# Graph Report - issue-205  (2026-09-21)
 
 ## Corpus Check
-- 357 files · ~149,749 words
+- 359 files · ~152,750 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2241 nodes · 4954 edges · 122 communities (106 shown, 13 thin omitted)
+- 2247 nodes · 4973 edges · 116 communities (100 shown, 13 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 87 edges (avg confidence: 0.83)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `efe6470d`
+- Built from commit: `30895099`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -20,8 +20,8 @@
 - cn
 - event.controller.ts
 - my-attendance/actions.ts
+- apiPost
 - admin/page.tsx
-- clearance/page.tsx
 - Attendance Session
 - scanQueue.ts
 - Bento Grid Design Guidelines
@@ -42,12 +42,12 @@
 - web/lib/qr.ts
 - BoothScreen.tsx
 - dependencies
-- student-correction.integration.test.ts
+- events-view.tsx
 - compilerOptions
 - scripts
 - Architecture & Technical Design
 - ssoRedirect.test.ts
-- attendance/actions.ts
+- auth.ts
 - app/layout.tsx
 - devDependencies
 - tasks
@@ -63,7 +63,7 @@
 - @clerk/nextjs
 - DrizzleScanRepository
 - db/package.json
-- contracts/src/index.ts
+- ProgramRepository
 - @nestjs/common
 - seed-students.mjs
 - api/package.json
@@ -80,63 +80,57 @@
 - Student
 - get_latest_mtime
 - watch-obsidian.sh script
-- student.controller.ts
+- contracts/src/index.ts
 - Design Guidelines — CCS Attendance Web
-- drizzle-attendance.repository.ts
+- api-client.ts
 - proxy.ts
 - sync-obsidian.sh
 - domain/ledger.ts
-- RequireCapability
+- LedgerController
 - DrizzleStudentRepository
-- semester.controller.ts
+- Semester
 - 0016-enrollment-roster-precedes-student-identity.md
 - report.use-case.ts
 - domain/report.ts
-- reflect-metadata
+- app.module.ts
 - compilerOptions
-- semester.module.ts
+- StudentController
 - ReportUseCase
 - Bento Design Skill
 - Neobrutalism Design Skill
-- DrizzleLedgerRepository
+- capability.guard.ts
 - bento-grid.tsx
-- per-student/[id]/pdf/route.ts
-- UpdateSemesterDatesUseCase
-- drizzle-event.repository.ts
+- students-view.test.tsx
+- dashboard/actions.ts
+- scan.ts
 - contracts/package.json
 - Design Guidelines — Clean Style
 - queryClient.tsx
 - store.ts
 - semester-event-lifecycle.integration.test.ts
 - Design Guidelines — Neobrutalism
-- enrollment-roster.module.ts
+- claim-roster.use-case.ts
 - enrollment-roster.controller.ts
+- analytics/page.tsx
 - contracts/tsconfig.json
-- DrizzleSemesterRepository
+- AdminOnlyController
 - tsconfig.build.json
 - Product
-- CreateSemesterUseCase
-- semester-lifecycle.ts
+- mode-toggle.tsx
 - seed-all-roster-students.mjs
 - NestJS Rewrite Plan
-- Database
 - NestJS API with Clean Architecture and single-action controllers
 - Any managed Postgres addressed by URL, hosted on Heroku for now
 - The web app is a BFF with no database access
 - Reports are computed on the API and rendered on Vercel
 - Ledger is a module without a repository, and no-show materialization is a command
 - Actor
-- CloseSemesterUseCase
-- GetOpenSemesterUseCase
-- ListSemestersUseCase
-- db/src/index.ts
-- AttendanceUseCase
-- SemesterModule
+- AttendanceController
 - scripts
 - global-error.test.tsx
 
 ## God Nodes (most connected - your core abstractions)
-1. `cn()` - 110 edges
+1. `cn()` - 114 edges
 2. `@nestjs/common` - 66 edges
 3. `Actor` - 51 edges
 4. `RequireCapability()` - 46 edges
@@ -172,35 +166,35 @@
 - **Web Starter Template UI Icons** — apps_web_public_file_file_icon, apps_web_public_globe_globe_icon, apps_web_public_window_window_icon [INFERRED 0.85]
 - **Android Adaptive Icon Asset Suite** — apps_mobile_assets_android_icon_background_android_icon_background, apps_mobile_assets_android_icon_foreground_android_icon_foreground, apps_mobile_assets_android_icon_monochrome_android_icon_monochrome [INFERRED 0.95]
 
-## Communities (122 total, 13 thin omitted)
+## Communities (116 total, 13 thin omitted)
 
 ### Community 0 - "events/actions.ts"
-Cohesion: 0.12
-Nodes (22): createEvent(), deleteEvent(), eventsSnapshot, fail(), parseEventForm(), runOrReportError(), { apiFetch, MockApiError }, redirect (+14 more)
+Cohesion: 0.07
+Nodes (39): ClearancePage(), findOpenSemester(), createEvent(), deleteEvent(), eventsSnapshot, fail(), parseEventForm(), runOrReportError() (+31 more)
 
 ### Community 1 - "gemini.ts"
-Cohesion: 0.20
-Nodes (17): GET(), GET(), GET(), FinancialPdfDocument(), styles, PerEventPdfDocument(), styles, PerSemesterPdfDocument() (+9 more)
+Cohesion: 0.16
+Nodes (22): GET(), GET(), GET(), GET(), FinancialPdfDocument(), styles, PerEventPdfDocument(), styles (+14 more)
 
 ### Community 2 - "cn"
-Cohesion: 0.05
-Nodes (66): AppSidebar(), Identity, NAV_ITEMS, navForRole(), NavItem, readCachedIdentity(), Avatar(), AvatarBadge() (+58 more)
+Cohesion: 0.04
+Nodes (78): DashboardView(), AppSidebar(), Identity, NAV_ITEMS, navForRole(), NavItem, readCachedIdentity(), AlertDialogMedia() (+70 more)
 
 ### Community 3 - "event.controller.ts"
 Cohesion: 0.05
 Nodes (52): CreateEventUseCase, ADR-0017, Inject, Injectable, DeleteEventUseCase, Inject, Injectable, ListEventsUseCase (+44 more)
 
 ### Community 4 - "my-attendance/actions.ts"
-Cohesion: 0.14
-Nodes (14): findOpenSemester(), myAttendanceSnapshot, ADR-0013, MyAttendanceView(), MyAttendanceViewProps, mockSnapshotCleared, mockSnapshotNoOpenSemester, mockSnapshotWithDebt (+6 more)
+Cohesion: 0.15
+Nodes (13): findOpenSemester(), myAttendanceSnapshot, ADR-0013, MyAttendanceView(), MyAttendanceViewProps, mockSnapshotCleared, mockSnapshotNoOpenSemester, mockSnapshotWithDebt (+5 more)
 
-### Community 5 - "admin/page.tsx"
-Cohesion: 0.11
-Nodes (35): currentCampusDate(), addProgram(), closeSemester(), createSemester(), deleteSemester(), editSemester(), fail(), promoteToOfficer() (+27 more)
+### Community 5 - "apiPost"
+Cohesion: 0.44
+Nodes (12): addProgram(), closeSemester(), createSemester(), deleteSemester(), editSemester(), fail(), promoteToOfficer(), removeProgram() (+4 more)
 
-### Community 6 - "clearance/page.tsx"
-Cohesion: 0.10
-Nodes (29): dynamic, dynamic, dashboardQueryKey, ADR-0013, RefreshButton(), AppError(), dynamic, myAttendanceQueryKey (+21 more)
+### Community 6 - "admin/page.tsx"
+Cohesion: 0.17
+Nodes (20): dynamic, dashboardQueryKey, ADR-0013, RefreshButton(), ADR-0013, myAttendanceQueryKey, ADR-0013, ConfirmSubmitButton() (+12 more)
 
 ### Community 7 - "Attendance Session"
 Cohesion: 0.18
@@ -223,16 +217,16 @@ Cohesion: 0.21
 Nodes (11): decodeXml(), gboxEmails, isGbox(), PROGRAMS, roster, rows, sharedStrings, [source] (+3 more)
 
 ### Community 12 - "drizzle-scan.repository.ts"
-Cohesion: 0.21
-Nodes (14): ScanResult, StudentQuery, Transaction, db, createTestApp(), db, db, attendanceSessions (+6 more)
+Cohesion: 0.11
+Nodes (35): Transaction, Inject, Transaction, ADR-0017, ScanResult, StudentQuery, Transaction, DB (+27 more)
 
 ### Community 13 - "SettingsScreen.tsx"
 Cohesion: 0.13
 Nodes (19): endOfficerSession(), colorOf(), COLORS, initialsOf(), fetchRejectedScans(), RejectedScanRow, RejectionReason, apiFetch (+11 more)
 
 ### Community 14 - "students-view.tsx"
-Cohesion: 0.07
-Nodes (49): Event, ReportsClientProps, Semester, Student, ADR-0013, ADR-0013, ADR-0013, EventRow (+41 more)
+Cohesion: 0.16
+Nodes (22): ADR-0013, correctStudent(), studentsQueryKey, ADR-0013, ROLE_LABEL, StudentRow, StudentTableRow, ADR-0014 (+14 more)
 
 ### Community 15 - "web/package.json"
 Cohesion: 0.08
@@ -251,8 +245,8 @@ Cohesion: 0.08
 Nodes (23): backgroundColor, backgroundImage, foregroundImage, monochromeImage, adaptiveIcon, package, permissions, predictiveBackGestureEnabled (+15 more)
 
 ### Community 19 - "students/actions.ts"
-Cohesion: 0.05
-Nodes (49): studentsSnapshot, ADR-0013, ADR-0014, dynamic, StudentsPage(), ADR-0013, downloadQrCards(), StudentsView() (+41 more)
+Cohesion: 0.14
+Nodes (15): ADR-0013, ADR-0014, ALREADY_TAKEN, isSchoolEmail(), nameTokens(), OnboardingInput, rosterNameMatches(), PROGRAMS (+7 more)
 
 ### Community 20 - "App.tsx"
 Cohesion: 0.06
@@ -271,8 +265,8 @@ Cohesion: 0.15
 Nodes (18): apiFetch(), EventRow, EventType, fetchMyEvents(), myEventsKey, useMyEvents(), DeleteEventModal(), confirmDelete() (+10 more)
 
 ### Community 24 - "web/lib/qr.ts"
-Cohesion: 0.13
-Nodes (21): buildQrPayload(), QrSubject, GET(), maxDuration, POST(), GET(), GET(), chunk() (+13 more)
+Cohesion: 0.18
+Nodes (17): buildQrPayload(), QrSubject, maxDuration, POST(), GET(), GET(), chunk(), QrCardPdfDocument() (+9 more)
 
 ### Community 25 - "BoothScreen.tsx"
 Cohesion: 0.12
@@ -282,9 +276,9 @@ Nodes (22): isReadableQrPayload(), parseQrPayload(), QrStudent, isAlreadyScanned
 Cohesion: 0.11
 Nodes (19): dependencies, @attendance/contracts, class-variance-authority, @clerk/nextjs, clsx, @google/generative-ai, lucide-react, next (+11 more)
 
-### Community 27 - "student-correction.integration.test.ts"
-Cohesion: 0.25
-Nodes (6): correctStudent, db, listStudents, programRepository, promoteStudent, studentRepository
+### Community 27 - "events-view.tsx"
+Cohesion: 0.13
+Nodes (23): dynamic, Event, ReportsClientProps, Semester, Student, ADR-0013, EventRow, ADR-0007 (+15 more)
 
 ### Community 28 - "compilerOptions"
 Cohesion: 0.11
@@ -302,9 +296,9 @@ Nodes (26): 10. Turborepo Verification Pipeline, 1. Domain Layer (`apps/api/src/
 Cohesion: 0.39
 Nodes (5): LinkingLike, matchesRedirectScheme(), UrlHandler, watchForRedirectUrl(), signIn()
 
-### Community 32 - "attendance/actions.ts"
-Cohesion: 0.14
-Nodes (13): ReportsClient(), eventGrid(), markPaid(), setScanField(), ADR-0013, AttendanceGrid(), PaymentCell(), ScanCell() (+5 more)
+### Community 32 - "auth.ts"
+Cohesion: 0.16
+Nodes (17): GET(), getCurrentStudent, Identity, apiFetch, auth, identity, ADR-0012, ADR-0019 (+9 more)
 
 ### Community 33 - "app/layout.tsx"
 Cohesion: 0.15
@@ -355,28 +349,28 @@ Cohesion: 0.40
 Nodes (4): compilerOptions, strict, extends, expo/tsconfig.base
 
 ### Community 46 - "DrizzleScanRepository"
-Cohesion: 0.08
-Nodes (26): ScanApprovalUseCase, Inject, Injectable, ScanError, decodeQrPayload(), modeToHalfAndField(), QrPayload, qrRejectionReason() (+18 more)
+Cohesion: 0.16
+Nodes (11): Inject, ScanError, decodeQrPayload(), modeToHalfAndField(), QrPayload, qrRejectionReason(), RejectionReason, DrizzleScanRepository (+3 more)
 
 ### Community 47 - "db/package.json"
 Cohesion: 0.07
 Nodes (28): dependencies, drizzle-orm, postgres, devDependencies, drizzle-kit, typescript, vitest, drizzle-orm (+20 more)
 
-### Community 48 - "contracts/src/index.ts"
-Cohesion: 0.08
-Nodes (28): AttendanceModule, Module, CreateProgramUseCase, DeleteProgramUseCase, ListProgramsDetailedUseCase, ListProgramsUseCase, ADR-0014, ADR-0019 (+20 more)
+### Community 48 - "ProgramRepository"
+Cohesion: 0.07
+Nodes (16): Inject, DuplicateProgramError, ProgramRepository, DrizzleProgramRepository, Inject, Injectable, ProgramController, Body (+8 more)
 
 ### Community 49 - "@nestjs/common"
-Cohesion: 0.13
-Nodes (22): Capability, TOKEN_VERIFIER, TokenVerifier, VerifiedToken, ClerkTokenVerifier, ADR-0019, Injectable, CallerActor (+14 more)
+Cohesion: 0.09
+Nodes (32): AttendanceUseCase, Inject, Injectable, DrizzleAttendanceRepository, Injectable, ScanApprovalUseCase, Injectable, ADR-0017 (+24 more)
 
 ### Community 50 - "seed-students.mjs"
 Cohesion: 0.50
 Nodes (3): ADR-0012, sql, TEST_STUDENTS
 
 ### Community 51 - "api/package.json"
-Cohesion: 0.04
-Nodes (44): dependencies, @attendance/contracts, @attendance/db, @clerk/backend, drizzle-orm, @nestjs/common, @nestjs/core, @nestjs/platform-express (+36 more)
+Cohesion: 0.05
+Nodes (42): dependencies, @attendance/contracts, @attendance/db, @clerk/backend, drizzle-orm, @nestjs/common, @nestjs/core, @nestjs/platform-express (+34 more)
 
 ### Community 52 - "Graphify Knowledge Graph Rule"
 Cohesion: 0.67
@@ -402,17 +396,17 @@ Nodes (7): CCS Web Application, Pending Student, Student, ADR-0001: Supabase, Dr
 Cohesion: 0.67
 Nodes (3): Path, get_latest_mtime(), main()
 
-### Community 66 - "student.controller.ts"
-Cohesion: 0.09
-Nodes (26): CorrectStudentUseCase, Injectable, GetCallerIdentityUseCase, ADR-0017, Injectable, ListStudentsUseCase, Injectable, PromoteStudentUseCase (+18 more)
+### Community 66 - "contracts/src/index.ts"
+Cohesion: 0.05
+Nodes (43): CreateProgramUseCase, DeleteProgramUseCase, ListProgramsDetailedUseCase, ListProgramsUseCase, ADR-0014, ADR-0019, Injectable, PROGRAM_REPOSITORY (+35 more)
 
 ### Community 67 - "Design Guidelines — CCS Attendance Web"
 Cohesion: 0.08
 Nodes (25): Bento Cards & Cells, Bento Grid Architecture (Dashboards, Tables & Data Views), Buttons, Canvas & Base Surfaces, Colors, Components, Decorative Handcrafted Layer, Design Guidelines — CCS Attendance Web (+17 more)
 
-### Community 68 - "drizzle-attendance.repository.ts"
-Cohesion: 0.16
-Nodes (11): Inject, AttendanceHalf, currentCampusDate(), isAbsent(), owedHalves(), DrizzleAttendanceRepository, Transaction, Injectable (+3 more)
+### Community 68 - "api-client.ts"
+Cohesion: 0.17
+Nodes (15): claimEnrollmentRoster(), ONBOARDING_TEST_EMAILS, OnboardingState, OnboardingForm(), dynamic, OnboardingPage(), API_BASE_URL, ApiError (+7 more)
 
 ### Community 69 - "proxy.ts"
 Cohesion: 0.47
@@ -420,39 +414,39 @@ Nodes (5): hasStudentRecord(), config, isAppRoute, proxy, ADR-0005
 
 ### Community 71 - "domain/ledger.ts"
 Cohesion: 0.09
-Nodes (29): absent(), buildCollectedByEvent(), buildContext(), buildEventSessionCounts(), buildEventStats(), compareEvents(), computeEventGrid(), computeLedger() (+21 more)
+Nodes (30): absent(), buildCollectedByEvent(), buildContext(), buildEventSessionCounts(), buildEventStats(), compareEvents(), computeEventGrid(), computeLedger() (+22 more)
 
-### Community 72 - "RequireCapability"
-Cohesion: 0.07
-Nodes (25): LedgerUseCase, Injectable, LEDGER_REPOSITORY, LedgerModule, Module, LedgerController, Body, Controller (+17 more)
+### Community 72 - "LedgerController"
+Cohesion: 0.14
+Nodes (11): LedgerController, Body, Controller, Inject, Post, UseGuards, LedgerSession, PaymentHistoryEntry (+3 more)
 
 ### Community 73 - "DrizzleStudentRepository"
-Cohesion: 0.21
+Cohesion: 0.24
 Nodes (5): DrizzleStudentRepository, Inject, Injectable, StudentRow, toActor()
 
-### Community 74 - "semester.controller.ts"
-Cohesion: 0.20
-Nodes (15): SemesterController, Body, Controller, ADR-0017, Post, UseGuards, presentSemester(), runLifecycle() (+7 more)
+### Community 74 - "Semester"
+Cohesion: 0.06
+Nodes (28): Inject, Inject, Inject, Inject, Inject, Inject, DateRange, SemesterLifecycleError (+20 more)
 
 ### Community 76 - "report.use-case.ts"
 Cohesion: 0.15
 Nodes (10): FinancialReportInput, PerEventReportInput, PerSemesterReportInput, PerStudentReportInput, REPORT_REPOSITORY, ReportRepository, asOfTimestamp(), DrizzleReportRepository (+2 more)
 
 ### Community 77 - "domain/report.ts"
-Cohesion: 0.10
-Nodes (33): attendedHalvesForStudentEvent(), computeFinancialReport(), computePerEventReport(), computePerSemesterReport(), computePerStudentReport(), currentCampusDate(), deriveHalfStatus(), eventHalfPenalty() (+25 more)
+Cohesion: 0.11
+Nodes (31): attendedHalvesForStudentEvent(), computeFinancialReport(), computePerEventReport(), computePerSemesterReport(), computePerStudentReport(), deriveHalfStatus(), eventHalfPenalty(), EventType (+23 more)
 
-### Community 78 - "reflect-metadata"
-Cohesion: 0.22
-Nodes (8): AppModule, Module, bootstrap(), DevErrorLoggerFilter, ADR-0017, Catch, @nestjs/core, reflect-metadata
+### Community 78 - "app.module.ts"
+Cohesion: 0.07
+Nodes (27): AppModule, Module, bootstrap(), DevErrorLoggerFilter, ADR-0017, AttendanceModule, Module, EnrollmentRosterModule (+19 more)
 
 ### Community 79 - "compilerOptions"
 Cohesion: 0.11
 Nodes (18): compilerOptions, allowSyntheticDefaultImports, declaration, emitDecoratorMetadata, esModuleInterop, experimentalDecorators, forceConsistentCasingInFileNames, lib (+10 more)
 
-### Community 80 - "semester.module.ts"
-Cohesion: 0.29
-Nodes (5): ADR-0017, DateRange, SEMESTER_REPOSITORY, SemesterRepository, Semester
+### Community 80 - "StudentController"
+Cohesion: 0.13
+Nodes (11): StudentController, Body, Controller, Post, UseGuards, Role, ADR-0019, CorrectStudentRequest (+3 more)
 
 ### Community 81 - "ReportUseCase"
 Cohesion: 0.16
@@ -466,25 +460,25 @@ Nodes (19): 70/20/10 Color Rule, Bento Design Skill, Cell base, Deliverable Chec
 Cohesion: 0.11
 Nodes (18): Button (press-down required on every interactive button), Card, CTA Block & Testimonial, Icon Box, Input, Navbar, Neobrutalism Design Skill, Quick Reference (+10 more)
 
-### Community 84 - "DrizzleLedgerRepository"
-Cohesion: 0.15
-Nodes (6): Inject, LedgerInput, LedgerRepository, DrizzleLedgerRepository, Inject, Injectable
+### Community 84 - "capability.guard.ts"
+Cohesion: 0.08
+Nodes (22): LedgerUseCase, Inject, Injectable, LEDGER_REPOSITORY, LedgerRepository, DrizzleLedgerRepository, Inject, Injectable (+14 more)
 
 ### Community 85 - "bento-grid.tsx"
-Cohesion: 0.19
-Nodes (14): BentoCell(), BentoCellContent(), BentoCellDescription(), BentoCellElevation, BentoCellFooter(), BentoCellHeader(), BentoCellOverline(), BentoCellProps (+6 more)
+Cohesion: 0.15
+Nodes (16): AppError(), BentoCell(), BentoCellContent(), BentoCellDescription(), BentoCellElevation, BentoCellFooter(), BentoCellHeader(), BentoCellOverline() (+8 more)
 
-### Community 86 - "per-student/[id]/pdf/route.ts"
-Cohesion: 0.48
-Nodes (5): GET(), PerStudentPdfDocument(), styles, buildPerStudentReportPrompt(), PerStudentReportData
+### Community 86 - "students-view.test.tsx"
+Cohesion: 0.16
+Nodes (13): studentsSnapshot, dynamic, StudentsPage(), ADR-0013, downloadQrCards(), StudentsView(), changeId(), { correctStudentMock, snapshotMock } (+5 more)
 
-### Community 87 - "UpdateSemesterDatesUseCase"
-Cohesion: 0.40
-Nodes (3): Inject, Injectable, UpdateSemesterDatesUseCase
+### Community 87 - "dashboard/actions.ts"
+Cohesion: 0.21
+Nodes (9): dashboardSnapshot, findOpenSemester(), RecentScanItem, ADR-0013, mockSnapshot, { snapshotMock }, DashboardPage(), dynamic (+1 more)
 
-### Community 88 - "drizzle-event.repository.ts"
-Cohesion: 0.14
-Nodes (10): Transaction, ADR-0017, ProgramInUseError, DrizzleProgramRepository, Injectable, DB, DbModule, Module (+2 more)
+### Community 88 - "scan.ts"
+Cohesion: 0.31
+Nodes (6): BOOTH_MODES, BoothMode, RejectedScanLogEntry, RejectedScanLogRequest, RejectedScanLogResponse, SCAN_APPROVAL_PERMANENT_STATUSES
 
 ### Community 89 - "contracts/package.json"
 Cohesion: 0.17
@@ -499,32 +493,36 @@ Cohesion: 0.22
 Nodes (9): apiFetch, boothQueryDefaults, BoothQueryProvider(), cacheMaxAgeMs, persister, queryClient, @react-native-async-storage/async-storage, @tanstack/query-async-storage-persister (+1 more)
 
 ### Community 92 - "store.ts"
-Cohesion: 0.40
-Nodes (4): ReportSelections, ADR-0013, WebStore, zustand
+Cohesion: 0.25
+Nodes (6): ReportsClient(), ReportSelections, ADR-0013, useWebStore, WebStore, zustand
 
 ### Community 93 - "semester-event-lifecycle.integration.test.ts"
-Cohesion: 0.15
-Nodes (3): db, ADR-0007, ADR-0017
+Cohesion: 0.12
+Nodes (19): CloseSemesterUseCase, Injectable, CreateSemesterUseCase, ADR-0017, Injectable, DeleteSemesterUseCase, Injectable, GetOpenSemesterUseCase (+11 more)
 
 ### Community 94 - "Design Guidelines — Neobrutalism"
 Cohesion: 0.15
 Nodes (12): Borders & Radius, Buttons, Color Palette, Components Spotted, Design Guidelines — Neobrutalism, Icons, Imagery & Illustration, Overall Replication Notes (+4 more)
 
-### Community 95 - "enrollment-roster.module.ts"
+### Community 95 - "claim-roster.use-case.ts"
 Cohesion: 0.06
-Nodes (32): ClaimRosterUseCase, ADR-0019, Inject, Injectable, ENROLLMENT_ROSTER_REPOSITORY, EnrollmentRosterRepository, RosterRow, ADR-0017 (+24 more)
+Nodes (33): ClaimRosterUseCase, ADR-0019, Inject, Injectable, ENROLLMENT_ROSTER_REPOSITORY, EnrollmentRosterRepository, RosterRow, ADR-0017 (+25 more)
 
 ### Community 96 - "enrollment-roster.controller.ts"
-Cohesion: 0.10
-Nodes (16): Body, ADR-0017, Post, presentIdentity(), CallerAuthUserId, extractBearerToken(), TokenAuthGuard, Inject (+8 more)
+Cohesion: 0.16
+Nodes (11): EnrollmentRosterController, Body, Controller, ADR-0017, Post, UseGuards, presentIdentity(), CallerAuthUserId (+3 more)
+
+### Community 97 - "analytics/page.tsx"
+Cohesion: 0.39
+Nodes (5): currentCampusDate(), currentCampusDate(), isEventPastInManila(), AnalyticsPage(), dynamic
 
 ### Community 98 - "contracts/tsconfig.json"
 Cohesion: 0.29
 Nodes (6): compilerOptions, noEmit, outDir, extends, include, ../../tsconfig.base.json
 
-### Community 99 - "DrizzleSemesterRepository"
-Cohesion: 0.21
-Nodes (4): SemesterLifecycleError, DrizzleSemesterRepository, Inject, Injectable
+### Community 99 - "AdminOnlyController"
+Cohesion: 0.40
+Nodes (4): AdminOnlyController, Controller, UseGuards, Get
 
 ### Community 100 - "tsconfig.build.json"
 Cohesion: 0.33
@@ -534,21 +532,9 @@ Nodes (5): compilerOptions, noEmit, exclude, extends, ./tsconfig.json
 Cohesion: 0.17
 Nodes (11): Accessibility & Inclusion, Brand Commitments, Capabilities and Constraints, Evidence on Hand, Operating Context, Platform, Positioning, Product (+3 more)
 
-### Community 102 - "CreateSemesterUseCase"
-Cohesion: 0.18
-Nodes (7): CreateSemesterUseCase, Inject, Injectable, DeleteSemesterUseCase, Inject, Injectable, Inject
-
-### Community 105 - "semester-lifecycle.ts"
-Cohesion: 0.31
-Nodes (3): validateSemesterDates(), ValidationError, DomainLifecycleError
-
 ### Community 107 - "NestJS Rewrite Plan"
 Cohesion: 0.20
 Nodes (9): Architecture Deepening Plan, Acceptance gate, Decisions, Loose ends, NestJS Rewrite Plan, Out of scope, Outcome, Slice order (+1 more)
-
-### Community 109 - "Database"
-Cohesion: 0.20
-Nodes (8): Inject, Inject, db, rosterRepository, studentRepository, ADR-0019, Database, enrollmentRoster
 
 ### Community 112 - "NestJS API with Clean Architecture and single-action controllers"
 Cohesion: 0.50
@@ -571,52 +557,36 @@ Cohesion: 0.50
 Nodes (3): Consequences, Considered Options, Ledger is a module without a repository, and no-show materialization is a command
 
 ### Community 118 - "Actor"
-Cohesion: 0.09
-Nodes (20): Inject, Inject, Inject, Inject, DuplicateStudentIdError, StudentNotFoundError, ADR-0014, NewStudent (+12 more)
+Cohesion: 0.19
+Nodes (10): ScanController, Body, Controller, Inject, Post, UseGuards, Actor, CallerActor (+2 more)
 
-### Community 120 - "CloseSemesterUseCase"
-Cohesion: 0.40
-Nodes (3): CloseSemesterUseCase, Inject, Injectable
-
-### Community 121 - "GetOpenSemesterUseCase"
-Cohesion: 0.40
-Nodes (3): GetOpenSemesterUseCase, Inject, Injectable
-
-### Community 122 - "ListSemestersUseCase"
-Cohesion: 0.40
-Nodes (3): ListSemestersUseCase, Inject, Injectable
-
-### Community 123 - "db/src/index.ts"
-Cohesion: 0.17
-Nodes (12): createDb(), CreateDbOptions, schema, boothModeEnum, eventTypeEnum, halfEnum, programs, roleEnum (+4 more)
-
-### Community 124 - "AttendanceUseCase"
-Cohesion: 0.17
-Nodes (10): AttendanceUseCase, Injectable, AttendanceController, Body, Controller, Inject, Post, UseGuards (+2 more)
+### Community 124 - "AttendanceController"
+Cohesion: 0.10
+Nodes (15): AttendanceHalf, currentCampusDate(), isAbsent(), owedHalves(), AttendanceController, Body, Controller, Inject (+7 more)
 
 ### Community 129 - "scripts"
 Cohesion: 0.29
 Nodes (7): scripts, android, ios, start, test, typecheck, web
 
 ## Knowledge Gaps
-- **776 isolated node(s):** `name`, `version`, `private`, `build`, `start` (+771 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1008 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **781 isolated node(s):** `name`, `version`, `private`, `build`, `start` (+776 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1012 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **13 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `@nestjs/common` connect `@nestjs/common` to `enrollment-roster.controller.ts`, `student.controller.ts`, `event.controller.ts`, `drizzle-attendance.repository.ts`, `RequireCapability`, `semester-lifecycle.ts`, `semester.controller.ts`, `drizzle-scan.repository.ts`, `Database`, `reflect-metadata`, `report.use-case.ts`, `contracts/src/index.ts`, `semester.module.ts`, `api/package.json`, `Actor`, `drizzle-event.repository.ts`, `semester-event-lifecycle.integration.test.ts`, `enrollment-roster.module.ts`?**
-  _High betweenness centrality (0.045) - this node is a cross-community bridge._
-- **Why does `cn()` connect `cn` to `bento-grid.tsx`, `students-view.tsx`, `clearance/page.tsx`?**
-  _High betweenness centrality (0.032) - this node is a cross-community bridge._
-- **Why does `@react-pdf/renderer` connect `gemini.ts` to `web/lib/qr.ts`, `per-student/[id]/pdf/route.ts`, `web/package.json`?**
-  _High betweenness centrality (0.020) - this node is a cross-community bridge._
+- **Why does `@nestjs/common` connect `@nestjs/common` to `enrollment-roster.controller.ts`, `contracts/src/index.ts`, `event.controller.ts`, `drizzle-scan.repository.ts`, `report.use-case.ts`, `app.module.ts`, `api/package.json`, `capability.guard.ts`, `semester-event-lifecycle.integration.test.ts`, `claim-roster.use-case.ts`?**
+  _High betweenness centrality (0.044) - this node is a cross-community bridge._
+- **Why does `cn()` connect `cn` to `events/actions.ts`, `admin/page.tsx`, `students-view.tsx`, `bento-grid.tsx`, `events-view.tsx`?**
+  _High betweenness centrality (0.030) - this node is a cross-community bridge._
+- **Why does `@react-pdf/renderer` connect `gemini.ts` to `web/lib/qr.ts`, `web/package.json`?**
+  _High betweenness centrality (0.022) - this node is a cross-community bridge._
 - **What connects `name`, `version`, `private` to the rest of the system?**
-  _776 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _781 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `events/actions.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.11965811965811966 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06887755102040816 - nodes in this community are weakly interconnected._
 - **Should `cn` be split into smaller, more focused modules?**
-  _Cohesion score 0.048589341692789965 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.04 - nodes in this community are weakly interconnected._
 - **Should `event.controller.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.050686641697877656 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05002337540906966 - nodes in this community are weakly interconnected._

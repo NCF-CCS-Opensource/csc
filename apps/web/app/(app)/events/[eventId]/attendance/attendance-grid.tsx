@@ -17,13 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -31,13 +24,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import type { EventGridCell } from "@attendance/contracts";
 import type { EventGridRow } from "./actions";
 import { useWebStore } from "@/lib/store";
 import { eventGrid, markPaid, setScanField } from "./actions";
 import { eventGridQueryKey } from "./query-key";
 
-// Auto-saves the instant a value is picked; the server action re-syncs the
+// Auto-saves the instant a sentinel button is clicked; the server action re-syncs the
 // Penalty and revalidates, so outstanding updates without a Save button. The
 // cell paints the new value optimistically for instant feedback, and a failed
 // save rolls the cache back so the Officer sees the correction undo itself
@@ -73,32 +67,57 @@ function ScanCell({ cell, eventId }: { cell: EventGridCell; eventId: string }) {
   });
 
   return (
-    <Select
-      value={cell.present ? "present" : "absent"}
-      onValueChange={(v) => save.mutate(v === "present")}
+    <div
+      className="flex items-center gap-1.5"
+      role="group"
+      aria-label={`Attendance status for ${cell.label}`}
     >
-      <SelectTrigger
-        size="sm"
-        className={
+      <Button
+        type="button"
+        size="xs"
+        variant={cell.present ? "default" : "ghost"}
+        data-active={cell.present}
+        aria-pressed={cell.present}
+        disabled={save.isPending}
+        onClick={() => {
+          if (!cell.present) save.mutate(true);
+        }}
+        className={cn(
+          "font-bold transition-all text-xs rounded-[6px] select-none",
           cell.present
-            ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-            : "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400"
-        }
+            ? "bg-[var(--color-teal)] text-[#111111] border-2 border-[#111111] shadow-[var(--shadow-sm)] hover:bg-[var(--color-teal)]/90 hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            : "bg-white text-muted-foreground border-2 border-[#111111] opacity-60 hover:opacity-100 hover:text-foreground hover:translate-x-[1px] hover:translate-y-[1px]"
+        )}
       >
-        <SelectValue />
-        {save.isPending ? (
-          <span className="text-muted-foreground text-xs">…</span>
-        ) : save.isError ? (
-          <span className="text-xs text-red-600 dark:text-red-400" role="status">
-            Save failed
-          </span>
-        ) : null}
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="present">Present</SelectItem>
-        <SelectItem value="absent">Absent</SelectItem>
-      </SelectContent>
-    </Select>
+        Present
+      </Button>
+      <Button
+        type="button"
+        size="xs"
+        variant={!cell.present ? "destructive" : "ghost"}
+        data-active={!cell.present}
+        aria-pressed={!cell.present}
+        disabled={save.isPending}
+        onClick={() => {
+          if (cell.present) save.mutate(false);
+        }}
+        className={cn(
+          "font-bold transition-all text-xs rounded-[6px] select-none",
+          !cell.present
+            ? "bg-[var(--color-coral)] text-white border-2 border-[#111111] shadow-[var(--shadow-sm)] hover:bg-[var(--color-coral)]/90 hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            : "bg-white text-muted-foreground border-2 border-[#111111] opacity-60 hover:opacity-100 hover:text-foreground hover:translate-x-[1px] hover:translate-y-[1px]"
+        )}
+      >
+        Absent
+      </Button>
+      {save.isPending ? (
+        <span className="text-muted-foreground text-xs animate-pulse">…</span>
+      ) : save.isError ? (
+        <span className="text-xs text-red-600 dark:text-red-400 font-bold" role="status">
+          Save failed
+        </span>
+      ) : null}
+    </div>
   );
 }
 
@@ -106,41 +125,99 @@ function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
   const queryClient = useQueryClient();
   const [pending, startTransition] = useTransition();
 
-  if (row.settled) return <Badge variant="default">Paid</Badge>;
-  if (row.outstanding === 0) return <span className="text-muted-foreground">—</span>;
+  if (row.settled) return <Badge variant="present" className="shadow-[var(--shadow-sm)]">Paid</Badge>;
+  if (row.outstanding === 0) return <span className="text-muted-foreground font-medium">—</span>;
 
   return (
     <div className="flex items-center justify-end gap-2">
-      <span className="font-medium text-red-600 dark:text-red-400">₱{row.outstanding}</span>
+      <span className="font-bold tabular-nums text-red-600">₱{row.outstanding}</span>
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button type="button" size="sm" disabled={pending}>
+          <Button
+            type="button"
+            size="sm"
+            disabled={pending}
+            className="shadow-[var(--shadow-sm)]"
+          >
             Mark paid
           </Button>
         </AlertDialogTrigger>
-        <AlertDialogContent>
+        <AlertDialogContent className="border-2 border-[#111111] rounded-[12px] bg-white p-6 shadow-[6px_6px_0px_0px_#111111]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Mark ₱{row.outstanding} as paid?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Settles every unpaid Penalty {row.name} owes for this Event. There&apos;s no
-              &quot;unmark paid&quot; action — undoing this means editing the database directly.
+            <AlertDialogTitle className="font-heading text-lg font-bold text-[#111111]">
+              Cash Penalty Payment — {row.name}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground">
+              Settles every unpaid Penalty {row.name} ({row.studentIdText}) owes for this Event.
+              There&apos;s no &quot;unmark paid&quot; action — undoing this means editing the database directly.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+
+          {/* Cash Penalty Payment Form */}
+          <div className="flex flex-col gap-3 py-2 text-left">
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor={`penalty-due-${row.studentId}`}
+                className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]"
+              >
+                Penalty Amount Due
+              </label>
+              <Input
+                id={`penalty-due-${row.studentId}`}
+                readOnly
+                defaultValue={`₱${row.outstanding}`}
+                className="rounded-[8px] border-2 border-[#111111] bg-muted/20 px-3 py-2 text-sm font-bold shadow-[3px_3px_0px_0px_#111111] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor={`cash-tendered-${row.studentId}`}
+                className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]"
+              >
+                Cash Tendered (₱)
+              </label>
+              <Input
+                id={`cash-tendered-${row.studentId}`}
+                type="number"
+                defaultValue={row.outstanding}
+                placeholder="Amount received in cash"
+                className="rounded-[8px] border-2 border-[#111111] bg-white px-3 py-2 text-sm font-semibold shadow-[3px_3px_0px_0px_#111111] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor={`receipt-notes-${row.studentId}`}
+                className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]"
+              >
+                Receipt Reference / Notes
+              </label>
+              <Input
+                id={`receipt-notes-${row.studentId}`}
+                placeholder="Optional OR number or notes"
+                className="rounded-[8px] border-2 border-[#111111] bg-white px-3 py-2 text-sm shadow-[3px_3px_0px_0px_#111111] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
+              />
+            </div>
+          </div>
+
+          <AlertDialogFooter className="border-t-2 border-[#111111] bg-[var(--bg-page)] -mx-6 -mb-6 p-4 rounded-b-[10px]">
+            <AlertDialogCancel className="border-2 border-[#111111] shadow-[var(--shadow-sm)]">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
+              variant="default"
+              disabled={pending}
               onClick={() =>
                 startTransition(async () => {
                   await markPaid(row.unpaidPenaltyIds, eventId);
-                  // Two caches now: revalidatePath alone leaves the grid's
-                  // cached balance showing the amount just settled.
                   await queryClient.invalidateQueries({
                     queryKey: eventGridQueryKey(eventId),
                   });
                 })
               }
             >
-              Mark paid
+              {pending ? "Recording…" : "Confirm Cash Payment"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -186,37 +263,48 @@ export function AttendanceGrid({
         placeholder="Search by name or Student ID…"
         value={query}
         onChange={(e) => setQuery(eventId, e.target.value)}
-        className="max-w-xs"
+        className="max-w-xs rounded-[8px] border-2 border-[#111111] bg-white px-3 py-2 text-sm shadow-[3px_3px_0px_0px_#111111] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
       />
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Student</TableHead>
-            {scanColumns.map((c) => (
-              <TableHead key={c}>{c}</TableHead>
-            ))}
-            <TableHead className="text-right">Payment</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {visible.map((row) => (
-            <TableRow key={row.studentId}>
-              <TableCell className="whitespace-nowrap">
-                {row.name}{" "}
-                <span className="text-muted-foreground">({row.studentIdText})</span>
-              </TableCell>
-              {row.cells.map((cell) => (
-                <TableCell key={`${cell.sessionId}:${cell.field}`}>
-                  <ScanCell cell={cell} eventId={eventId} />
-                </TableCell>
+      <div className="rounded-[12px] border-2 border-[#111111] bg-white shadow-[var(--shadow-md)] overflow-hidden">
+        <Table>
+          <TableHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111]">
+            <TableRow>
+              <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                Student
+              </TableHead>
+              {scanColumns.map((c) => (
+                <TableHead key={c} className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                  {c}
+                </TableHead>
               ))}
-              <TableCell className="text-right">
-                <PaymentCell row={row} eventId={eventId} />
-              </TableCell>
+              <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                Payment
+              </TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {visible.map((row) => (
+              <TableRow
+                key={row.studentId}
+                className="border-b border-[#111111] hover:bg-[var(--bg-page)]/50 transition-colors"
+              >
+                <TableCell className="whitespace-nowrap font-medium text-sm text-[#111111]">
+                  {row.name}{" "}
+                  <span className="text-muted-foreground font-mono">({row.studentIdText})</span>
+                </TableCell>
+                {row.cells.map((cell) => (
+                  <TableCell key={`${cell.sessionId}:${cell.field}`}>
+                    <ScanCell cell={cell} eventId={eventId} />
+                  </TableCell>
+                ))}
+                <TableCell className="text-right">
+                  <PaymentCell row={row} eventId={eventId} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

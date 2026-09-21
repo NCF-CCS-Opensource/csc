@@ -13,12 +13,23 @@ function findOpenSemester(): Promise<SemesterResponse | null> {
   return apiFetch<SemesterResponse | null>("/v1/api/semester/current");
 }
 
+export type RecentScanItem = {
+  id: string;
+  studentName: string;
+  studentIdText: string;
+  timestamp: string;
+  status: "present" | "incomplete" | "absent" | "rejected";
+  mode?: string;
+};
+
 export type DashboardSnapshot = {
   role: string;
   campusDate: string;
   openSemester: { id: string; startDate: string; endDate: string } | null;
   ledger: SemesterLedgerResponse;
   governorCounts: { officers: number; programs: number } | null;
+  recentScans?: RecentScanItem[];
+  pendingSyncCount?: number;
 };
 
 // The Dashboard's one read, called by the server shell for the first paint and
@@ -66,5 +77,7 @@ export async function dashboardSnapshot(): Promise<DashboardSnapshot> {
           programs: governorCounts[1].programs.length,
         }
       : null,
+    recentScans: [],
+    pendingSyncCount: 0,
   };
 }
