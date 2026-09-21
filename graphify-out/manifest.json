@@ -246,9 +246,9 @@
     "semantic_hash": ""
   },
   "apps/web/app/(app)/dashboard/dashboard-view.tsx": {
-    "mtime": 1789964477.3198607,
-    "seen": 1789964519.867953,
-    "ast_hash": "76fbf99461c021fa716c0b7a913a8848",
+    "mtime": 1789964649.5483227,
+    "seen": 1789964682.46176,
+    "ast_hash": "e3a750973becbb78020606f83bbffb7d",
     "semantic_hash": ""
   },
   "apps/web/app/(app)/dashboard/page.tsx": {
