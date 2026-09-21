@@ -220,6 +220,30 @@
   box-shadow: 2px 2px 0px 0px #111111;
 }
 
+@utility bento-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+@utility bento-cell {
+  background-color: var(--bg-surface, #FFFFFF);
+  border: 2px solid var(--border, #111111);
+  border-radius: var(--radius-md, 10px);
+}
+
+@media (max-width: 900px) {
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
