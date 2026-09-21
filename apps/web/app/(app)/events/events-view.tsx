@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -125,7 +126,7 @@ export function EventsView({
         </CardHeader>
         <CardContent>
           {openSemester ? (
-            <form action={createEvent} className="flex max-w-sm flex-col gap-4">
+            <form id="create-event-form" action={createEvent} className="flex max-w-sm flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="name">Name</Label>
                 <Input id="name" name="name" required />
@@ -167,7 +168,15 @@ export function EventsView({
                   required
                 />
               </div>
-              <Button type="submit">Create Event</Button>
+              <ConfirmSubmitButton
+                formId="create-event-form"
+                title="Create this Event?"
+                description="Officers can scan Attendance and record Payments against it right away."
+                confirmLabel="Create Event"
+                triggerLabel="Create Event"
+                triggerVariant="default"
+                triggerSize="default"
+              />
             </form>
           ) : (
             <p className="text-muted-foreground text-sm">
