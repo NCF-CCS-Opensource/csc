@@ -1,7 +1,5 @@
-import { scans, students } from "@attendance/db";
-import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
 import Link from "next/link";
+import type { RejectedScanLogRequest, RejectedScanLogResponse } from "@attendance/contracts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,15 +12,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireGovernor } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { apiPost } from "@/lib/api-client";
 
 export const dynamic = "force-dynamic";
 
-// ponytail-gap: scan/rejections on the API is the mobile Officer's own Needs
-// Review queue (Actor-scoped), not this Governor-wide searchable/sortable
-// log across every Officer and Student — no API equivalent for this page
-// exists yet, so it stays on direct DB access. See the PR description's
-// Known Gaps section.
 export default async function RejectionsPage({
   searchParams,
 }: {
@@ -31,35 +24,10 @@ export default async function RejectionsPage({
   await requireGovernor();
   const { q, sort } = await searchParams;
 
-  const officers = alias(students, "officers");
-
-  const conditions = [eq(scans.result, "rejected")];
-  if (q) {
-    conditions.push(
-      or(
-        ilike(students.name, `%${q}%`),
-        ilike(students.studentId, `%${q}%`),
-        ilike(scans.qrPayload, `%${q}%`),
-      )!,
-    );
-  }
-
-  const rows = await db
-    .select({
-      scanId: scans.id,
-      qrPayload: scans.qrPayload,
-      scannedAt: scans.scannedAt,
-      studentName: students.name,
-      studentIdText: students.studentId,
-      officerName: officers.name,
-    })
-    .from(scans)
-    .leftJoin(students, eq(scans.studentId, students.id))
-    .innerJoin(officers, eq(scans.officerId, officers.id))
-    .where(and(...conditions))
-    .orderBy(
-      sort === "time" ? desc(scans.scannedAt) : asc(students.name),
-    );
+  const { rejections: rows } = await apiPost<RejectedScanLogResponse>("scan/rejections-log", {
+    q,
+    sort: sort === "time" ? "time" : "student",
+  } satisfies RejectedScanLogRequest);
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-8">
