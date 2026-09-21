@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
@@ -370,6 +371,7 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
       return matchesSearch && matchesProgram;
     });
   }, [data.students, search, program]);
+  const pagination = usePagination(filtered);
 
   // Select-all covers everything matching the current search + Program
   // filter, not the whole roster — checkboxes then refine that set further.
@@ -440,12 +442,21 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
           <div className="flex flex-col sm:flex-row gap-3">
             <Input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                pagination.setPage(1);
+              }}
               placeholder="Search name, email, or student ID"
               aria-label="Search name, email, or student ID"
               className="flex-1 border-2 border-[#111111] rounded-[8px] bg-white focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
             />
-            <Select value={program} onValueChange={setProgram}>
+            <Select
+              value={program}
+              onValueChange={(value) => {
+                setProgram(value);
+                pagination.setPage(1);
+              }}
+            >
               <SelectTrigger
                 aria-label="Filter by program"
                 className="w-full sm:w-56 border-2 border-[#111111] rounded-[8px] bg-white shadow-[var(--shadow-sm)] focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
@@ -521,7 +532,7 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((student) => (
+                  {pagination.pageItems.map((student) => (
                     <StudentTableRow
                       key={student.id}
                       student={student}
@@ -535,6 +546,16 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
                 </TableBody>
               </Table>
             </div>
+          )}
+          {filtered.length > 0 && (
+            <Pagination
+              page={pagination.page}
+              pageSize={pagination.pageSize}
+              totalItems={filtered.length}
+              totalPages={pagination.totalPages}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+            />
           )}
         </CardContent>
       </Card>
