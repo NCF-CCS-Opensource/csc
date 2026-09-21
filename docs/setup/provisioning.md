@@ -18,7 +18,7 @@ The provider is a configuration value, not a commitment (ADR-0018) — any manag
    ```
    Heroku Postgres uses a self-signed certificate, so append `?sslmode=no-verify` if it is not already present.
 3. Set that value as `DATABASE_URL` in Vercel Project Settings > Environment Variables (Production), and in your local `.env` for migrations. No separate pooled/direct pair exists — one URL serves both runtime queries and migrations. `apps/web/lib/db.ts` reads `process.env.DATABASE_URL` directly.
-4. No Auth variables are needed from the database host. Identity is Clerk for both `apps/web` and `apps/mobile` (step 5); Postgres is strictly a data store (ADR-0012, ADR-0018).
+4. No Auth variables are needed from the database host. Identity is Clerk for both `apps/web` and `apps/mobile` (step 6); Postgres is strictly a data store (ADR-0012, ADR-0018).
 
 ## 2. Run the Drizzle migrations
 
@@ -62,11 +62,37 @@ update students set role = 'governor' where email = 'governor@gbox.ncf.edu.ph';
 
 Set the variable *and redeploy* before the first sign-in to avoid this.
 
-## 3. Deploy apps/web to Vercel
+## 3. Deploy apps/api to Heroku
+
+`apps/api` (NestJS, ADR-0017) is the workload that owns the domain, use cases, persistence, and authorization — it needs its own Heroku app, separate from the Postgres addon's app if you split them.
+
+1. Create the app (skip if reusing the one from step 1):
+   ```bash
+   heroku create <api-app-name>
+   ```
+2. Set its environment:
+   ```bash
+   heroku config:set --app <api-app-name> \
+     DATABASE_URL=<the Heroku Postgres connection string, with ?sslmode=no-verify> \
+     CLERK_SECRET_KEY=<Clerk server key>
+   ```
+   `PORT` is set by Heroku; `apps/api/src/main.ts` falls back to `3001` when unset.
+3. Deploy. The repository-root `Procfile` (`web: node apps/api/dist/main.js`) and `heroku-postbuild` (`turbo run build --filter=api...`) are what Heroku's Node buildpack reads — no `app.json` or extra config needed:
+   ```bash
+   git push heroku main
+   ```
+4. Verify the identity route is reachable and refuses without a token:
+   ```bash
+   curl -i https://<api-app-name>.herokuapp.com/v1/api/student/identity
+   ```
+   Expected result: HTTP `401`.
+
+## 4. Deploy apps/web to Vercel
 
 1. https://vercel.com/new, import this repo, set **Root Directory** to `apps/web`.
 2. Framework preset: Next.js (auto-detected).
 3. With `DATABASE_URL` set from step 1, add the remaining variables in Vercel project settings:
+   - `API_URL` — the `apps/api` origin from step 3 (e.g. `https://<api-app-name>.herokuapp.com`); `apps/web`'s server actions proxy identity/roster/program calls here (ADR-0019)
    - `CLERK_SECRET_KEY`
    - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
    - `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
@@ -76,6 +102,7 @@ Set the variable *and redeploy* before the first sign-in to avoid this.
 4. Deploy. Then add the deployed origin (`https://attendance.ncfccs.org` or your Vercel URL) to Clerk's allowed domains for this instance and redeploy if you changed any variable.
 5. **If `/onboarding` (or any DB-backed page) fails to load after deploy**: it's almost always step 2's migration never having actually run against this Heroku database (check `heroku pg:psql` for the 9 tables), or a missing/stale env var in this Vercel project (not your local `.env`).
 6. **If web sign-in fails or bounces back to `/sign-in`**: check, in order — (a) the Clerk keys are set in *this* Vercel project (not just local `.env`), redeployed after setting them; (b) the deployed origin is allowed on the Clerk instance; (c) Clerk's Google connection is enabled and its sign-up restriction still allows `@gbox.ncf.edu.ph`.
+7. **If web loads but data-dependent actions fail**: confirm `API_URL` in this Vercel project points at a live, reachable `apps/api` deployment (step 3) — web has no database access of its own (ADR-0019).
 
 ### Custom domain via Cloudflare DNS
 
@@ -86,14 +113,14 @@ The current test-production domain is `attendance.ncfccs.org`. Vercel > Project 
 3. Wait a few minutes, Vercel auto-rechecks (or hit "Refresh" on the domain).
 4. To re-enable Cloudflare's proxy afterward, set Cloudflare SSL mode to **Full (strict)** first, or you'll get cert/redirect errors.
 
-## 4. apps/mobile (Officer booth app)
+## 5. apps/mobile (Officer booth app)
 
-1. Set `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (step 5) and `EXPO_PUBLIC_API_BASE_URL=https://<api-heroku-app>.herokuapp.com` in `apps/mobile/.env`. The API base is the deployed `apps/api` URL; `/v1/api/event/list` and `/v1/api/scan/*` resolve against it, authenticated with the Officer's Clerk session token as a Bearer credential.
-2. Officers sign in with their school Google account. The flow opens in the system browser (Google blocks OAuth in an embedded WebView) and returns through the `attendkita://` scheme declared in `apps/mobile/app.json`, so add that redirect to Clerk's allowed redirect URLs in step 5.
+1. Set `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (step 6) and `EXPO_PUBLIC_API_BASE_URL=https://<api-app-name>.herokuapp.com` in `apps/mobile/.env`, the same `apps/api` origin from step 3. `/v1/api/event/list` and `/v1/api/scan/*` resolve against it, authenticated with the Officer's Clerk session token as a Bearer credential.
+2. Officers sign in with their school Google account. The flow opens in the system browser (Google blocks OAuth in an embedded WebView) and returns through the `attendkita://` scheme declared in `apps/mobile/app.json`, so add that redirect to Clerk's allowed redirect URLs in step 6.
 3. `npx expo run:ios` / `run:android` for a dev build (`expo-camera` needs a native build, not Expo Go), or `eas build` for a real device.
 4. Verify against the live test-production database and a physical device/camera; repository checks only cover typecheck and app-level logic (`pnpm --filter web test`).
 
-## 5. Clerk + Google (identity)
+## 6. Clerk + Google (identity)
 
 Identity is Clerk with Google SSO; Supabase is no longer an identity provider (ADR-0012). One Clerk instance serves both `apps/web` and `apps/mobile`.
 
