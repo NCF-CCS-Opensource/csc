@@ -34,7 +34,7 @@ import { myAttendanceQueryKey } from "./query-key";
 
 const ALL_STATUSES = "__all__";
 
-type AttendanceStatus = "present" | "incomplete" | "absent";
+type AttendanceStatus = MyAttendanceSnapshot["ledger"]["sessions"][number]["status"];
 
 export interface MyAttendanceViewProps {
   initialData: MyAttendanceSnapshot;
