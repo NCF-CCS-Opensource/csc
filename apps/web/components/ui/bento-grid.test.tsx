@@ -34,12 +34,12 @@ describe("BentoGrid layout container", () => {
     expect(grid).toBeInTheDocument()
     expect(grid).toHaveAttribute("data-slot", "bento-grid")
     expect(grid.className).toContain("grid")
-    expect(grid.className).toContain("min-[900px]:grid-cols-4")
+    expect(grid.className).toContain("min-[901px]:grid-cols-4")
     expect(grid.className).toContain("gap-5")
     expect(grid.className).toContain("bento-grid")
   })
 
-  it("collapses responsively: 2 columns on tablet (<900px) and 1 column on mobile (<520px)", () => {
+  it("collapses responsively: 2 columns on tablet (521px–900px) and 1 column on mobile (≤520px)", () => {
     render(
       <BentoGrid data-testid="responsive-grid">
         <div>Cell</div>
@@ -47,12 +47,12 @@ describe("BentoGrid layout container", () => {
     )
 
     const grid = screen.getByTestId("responsive-grid")
-    // Mobile (<520px): 1 column
+    // Mobile (≤520px): 1 column
     expect(grid.className).toContain("grid-cols-1")
-    // Tablet (<900px, >=520px): 2 columns
-    expect(grid.className).toContain("min-[520px]:grid-cols-2")
-    // Desktop (>=900px): 4 columns
-    expect(grid.className).toContain("min-[900px]:grid-cols-4")
+    // Tablet (521px–900px): 2 columns
+    expect(grid.className).toContain("min-[521px]:grid-cols-2")
+    // Desktop (>900px): 4 columns
+    expect(grid.className).toContain("min-[901px]:grid-cols-4")
   })
 
   it("defines CSS @utility bento-grid with media queries for 900px tablet and 520px mobile collapse in globals.css", () => {
@@ -95,7 +95,7 @@ describe("BentoGrid layout container", () => {
     const grid = screen.getByTestId("custom-grid")
     expect(grid.className).toContain("custom-bento-class")
     expect(grid.className).toContain("grid")
-    expect(grid.className).toContain("min-[900px]:grid-cols-4")
+    expect(grid.className).toContain("min-[901px]:grid-cols-4")
   })
 })
 
