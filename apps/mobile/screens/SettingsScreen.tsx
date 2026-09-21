@@ -13,14 +13,11 @@ import { apiFetch, endOfficerSession } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
 import {
   blockingScanCount,
-  discardScan,
   discardLegacyScans,
   legacyScans,
   needsReviewScans,
-  retryScan,
-  type QueuedScan,
 } from "../lib/scanQueue";
-import { flushQueue } from "../lib/syncScans";
+import { logoutResolution } from "../lib/pendingTab";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors, ThemePreference } from "../lib/theme";
 
@@ -78,9 +75,11 @@ function SettingsRow({
 export function SettingsScreen({
   officerId,
   onQueueChanged,
+  onNavigateToPending,
 }: {
   officerId: string;
   onQueueChanged: () => void;
+  onNavigateToPending: () => void;
 }) {
   const { colors, preference, setPreference } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -118,59 +117,26 @@ export function SettingsScreen({
     );
   }
 
-  function reviewNeedsReviewScan(scan: QueuedScan, total: number) {
-    Alert.alert(
-      `Needs Review${total > 1 ? ` (1 of ${total})` : ""}`,
-      `${scan.error ?? "Delivery was rejected."}\nCaptured ${new Date(scan.scannedAt).toLocaleString()}`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Discard scan",
-          style: "destructive",
-          onPress: () =>
-            Alert.alert(
-              "Discard Needs Review scan?",
-              "This removes only this queued delivery. This cannot be undone.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Discard",
-                  style: "destructive",
-                  onPress: async () => {
-                    await discardScan(officerId, scan.id);
-                    onQueueChanged();
-                  },
-                },
-              ],
-            ),
-        },
-        {
-          text: "Retry",
-          onPress: async () => {
-            await retryScan(officerId, scan.id);
-            onQueueChanged();
-            flushQueue(officerId, onQueueChanged).catch(() => {});
-          },
-        },
-      ],
-    );
-  }
-
   async function logout() {
     const [count, legacy, needsReview] = await Promise.all([
       blockingScanCount(officerId),
       legacyScans(),
       needsReviewScans(officerId),
     ]);
-    if (count === 0 && legacy.length === 0) {
+    const resolution = logoutResolution({
+      blockingCount: count,
+      legacyCount: legacy.length,
+      needsReviewCount: needsReview.length,
+    });
+    if (resolution.canLogout) {
       await endSession();
       return;
     }
 
-    if (count === 0) {
+    if (resolution.reason === "quarantined_legacy") {
       Alert.alert(
         "Older scans quarantined",
-        `${legacy.length} scan${legacy.length === 1 ? "" : "s"} from the previous storage format cannot be safely attributed or delivered. You may log out without inheriting them.`,
+        `${resolution.legacyCount} scan${resolution.legacyCount === 1 ? "" : "s"} from the previous storage format cannot be safely attributed or delivered. You may log out without inheriting them.`,
         [
           { text: "Cancel", style: "cancel" },
           { text: "Discard older scans", style: "destructive", onPress: confirmDiscardLegacy },
@@ -182,15 +148,12 @@ export function SettingsScreen({
 
     Alert.alert(
       "Can’t log out yet",
-      `${count} scan${count === 1 ? "" : "s"} remain unresolved. Reconnect to retry Pending scans, or return to Scanner and review Needs Review rows.`,
+      resolution.message,
       [
-        ...(needsReview[0]
-          ? [{
-              text: "Review Needs Review",
-              onPress: () =>
-                reviewNeedsReviewScan(needsReview[0], needsReview.length),
-            }]
-          : []),
+        {
+          text: resolution.actionLabel,
+          onPress: onNavigateToPending,
+        },
         { text: "OK" },
       ],
     );

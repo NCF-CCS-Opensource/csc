@@ -18,3 +18,53 @@ export function networkStatus(
   if (isConnected === false) return "offline";
   return "unknown";
 }
+
+export type LogoutCounts = {
+  blockingCount: number;
+  legacyCount: number;
+  needsReviewCount: number;
+};
+
+export type LogoutResolution =
+  | { canLogout: true }
+  | { canLogout: false; reason: "quarantined_legacy"; legacyCount: number }
+  | {
+      canLogout: false;
+      reason: "unresolved_scans";
+      count: number;
+      actionLabel: "Review in Pending" | "View Pending";
+      message: string;
+    };
+
+/** Determines logout decision and directs officers to the Pending tab
+ * when unresolved scans remain (issue #245). */
+export function logoutResolution(counts: LogoutCounts): LogoutResolution {
+  const { blockingCount, legacyCount, needsReviewCount } = counts;
+  if (blockingCount === 0 && legacyCount === 0) {
+    return { canLogout: true };
+  }
+  if (blockingCount === 0) {
+    return {
+      canLogout: false,
+      reason: "quarantined_legacy",
+      legacyCount,
+    };
+  }
+  const scanWord =
+    blockingCount === 1 ? "1 scan remains" : `${blockingCount} scans remain`;
+  const actionLabel =
+    needsReviewCount > 0 ? "Review in Pending" : "View Pending";
+  const message =
+    needsReviewCount > 0
+      ? `${scanWord} unresolved. Reconnect to retry Pending scans, or review Needs Review rows in the Pending tab.`
+      : `${scanWord} unresolved. Reconnect to retry Pending scans.`;
+
+  return {
+    canLogout: false,
+    reason: "unresolved_scans",
+    count: blockingCount,
+    actionLabel,
+    message,
+  };
+}
+

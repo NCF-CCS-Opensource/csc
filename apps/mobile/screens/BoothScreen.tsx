@@ -11,7 +11,6 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -25,16 +24,15 @@ import { colorOf, initialsOf } from "../lib/avatar";
 import { parseQrPayload } from "../lib/qr";
 import {
   addRecentScan,
-  discardScan,
   enqueue,
   loadRecentScans,
-  retryScan,
   type QueuedScan,
   type RecentScan,
 } from "../lib/scanQueue";
 import { flushQueue } from "../lib/syncScans";
 import {
   isAlreadyScanned,
+  isNeedsReviewActionable,
   recentScanOutcomeLabel,
 } from "../lib/recentScanStatus";
 import { useMyEvents } from "../lib/events";
@@ -66,11 +64,13 @@ export function BoothScreen({
   pendingCount,
   queueRevision,
   onQueueChanged,
+  onNavigateToPending,
 }: {
   officerId: string;
   pendingCount: number;
   queueRevision: number;
   onQueueChanged: () => void;
+  onNavigateToPending: () => void;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -84,7 +84,7 @@ export function BoothScreen({
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
-  const [selectedReview, setSelectedReview] = useState<RecentScan | null>(null);
+
 
   const refreshRecent = useCallback(() => {
     loadRecentScans(officerId).then(setRecentScans);
@@ -207,39 +207,6 @@ export function BoothScreen({
     if (scanned) await queueDecision(decision, scanned);
   }
 
-  async function retrySelectedReview() {
-    if (!selectedReview) return;
-    await retryScan(officerId, selectedReview.id);
-    setSelectedReview(null);
-    refreshRecent();
-    onQueueChanged();
-    flushQueue(officerId, onQueueChanged)
-      .then(refreshRecent)
-      .catch(() => {});
-  }
-
-  function confirmDiscard() {
-    if (!selectedReview) return;
-    const scan = selectedReview;
-    Alert.alert(
-      "Discard Needs Review scan?",
-      "This removes only its queued delivery. The Recent scan stays visible until normal five-item eviction.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: async () => {
-            await discardScan(officerId, scan.id);
-            setSelectedReview(null);
-            refreshRecent();
-            onQueueChanged();
-          },
-        },
-      ],
-    );
-  }
-
   if (!permission) return null;
 
   if (!permission.granted) {
@@ -346,11 +313,7 @@ export function BoothScreen({
                 key={scan.id}
                 scan={scan}
                 styles={styles}
-                onPress={() =>
-                  scan.deliveryState === "needs_review" &&
-                  !scan.discarded &&
-                  setSelectedReview(scan)
-                }
+                onPress={onNavigateToPending}
               />
             ))}
           </ScrollView>
@@ -484,39 +447,6 @@ export function BoothScreen({
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-
-      <Modal
-        visible={!!selectedReview}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedReview(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.reviewCard}>
-            <Text style={styles.modalTitle}>Needs Review</Text>
-            <Text style={styles.reviewError}>
-              {selectedReview?.error ?? "Delivery was rejected."}
-            </Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.rejectButton]}
-                onPress={confirmDiscard}
-              >
-                <Text style={styles.rejectText}>Discard scan</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.acceptButton]}
-                onPress={retrySelectedReview}
-              >
-                <Text style={styles.acceptText}>Retry</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity onPress={() => setSelectedReview(null)}>
-              <Text style={styles.closeReview}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -550,15 +480,15 @@ function RecentScanRow({
         : styles.pendingLabel;
   const mode = BOOTH_MODES.find(({ value }) => value === scan.mode)?.label ?? scan.mode;
 
+  const canReview = isNeedsReviewActionable(scan);
+
   return (
     <TouchableOpacity
       style={styles.recentRow}
       onPress={onPress}
-      disabled={scan.deliveryState !== "needs_review" || scan.discarded}
+      disabled={!canReview}
       accessibilityHint={
-        scan.deliveryState === "needs_review" && !scan.discarded
-          ? "Opens delivery error and actions"
-          : undefined
+        canReview ? "Opens Pending tab to resolve scan" : undefined
       }
     >
       <View style={styles.recentMain}>
@@ -749,15 +679,6 @@ function makeStyles(c: ThemeColors) {
       paddingBottom: 28,
       gap: 16,
     },
-    reviewCard: {
-      backgroundColor: c.neoBgSurface,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      padding: 20,
-      gap: 12,
-    },
-    reviewError: { fontSize: 13, color: c.danger, fontFamily: "DMSans_400Regular" },
-    closeReview: { color: c.textMuted, textAlign: "center", paddingVertical: 6, fontFamily: "DMSans_500Medium" },
     modalHandle: {
       width: 44,
       height: 4,
