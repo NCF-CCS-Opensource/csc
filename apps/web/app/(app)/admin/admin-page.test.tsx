@@ -136,4 +136,31 @@ describe("AdminPage Bento Grid & Lifecycle Management (Issue #206)", () => {
 
     expect(screen.getByText("Alice Reyes")).toBeInTheDocument();
   });
+
+  it("renders the Officer Roster results table above the search form when results exist", async () => {
+    const page = await AdminPage({ searchParams: Promise.resolve({ q: "Alice" }) });
+    render(page);
+
+    const cell = screen.getByTestId("officer-roster-cell");
+    const table = cell.querySelector("table");
+    const form = cell.querySelector("form");
+
+    expect(table).toBeInTheDocument();
+    expect(form).toBeInTheDocument();
+
+    // Results table must precede the search form in document order.
+    expect(table!.compareDocumentPosition(form!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("keeps the Officer Roster search form present with no results table in the empty state", async () => {
+    const page = await AdminPage({ searchParams: Promise.resolve({}) });
+    render(page);
+
+    const cell = screen.getByTestId("officer-roster-cell");
+    const table = cell.querySelector("table");
+    const form = cell.querySelector("form");
+
+    expect(table).not.toBeInTheDocument();
+    expect(form).toBeInTheDocument();
+  });
 });
