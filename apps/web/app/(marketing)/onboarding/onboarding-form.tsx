@@ -2,6 +2,7 @@
 
 import { UserPlus } from "lucide-react";
 import { useActionState } from "react";
+import { DecorativeAccents } from "@/components/decorative-accents";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -21,27 +22,32 @@ export function OnboardingForm({ name, email }: { name: string; email: string })
   const studentIdError = state.errors.find((error) => error.field === "studentId")?.message;
 
   return (
-    <main className="flex flex-1 items-center justify-center p-8">
+    <main className="relative flex flex-1 items-center justify-center overflow-hidden p-8">
+      <DecorativeAccents />
       <AlertDialog open>
-        <AlertDialogContent>
+        <AlertDialogContent className="relative rounded-[14px] border-2 border-[#111111] shadow-[var(--shadow-lg)]">
           <AlertDialogHeader>
-            <span className="bg-primary/10 text-primary mx-auto flex size-12 items-center justify-center rounded-full">
+            <span className="mx-auto flex size-12 items-center justify-center rounded-full border-2 border-[#111111] bg-[var(--color-yellow)] text-foreground">
               <UserPlus className="size-6" aria-hidden />
             </span>
-            <AlertDialogTitle>Confirm your Student ID</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-center font-heading text-xl font-bold">
+              Confirm your Student ID
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
               Signed in as {name ? `${name} (${email})` : email}. Enter the Student ID from your
               school record to load your details.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <form action={formAction} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="studentId">Student ID</Label>
+              <Label htmlFor="studentId" className="text-xs font-bold tracking-[0.08em] uppercase">
+                Student ID
+              </Label>
               <Input id="studentId" name="studentId" placeholder="24-00136" required />
               {studentIdError && <p className="text-destructive text-xs">{studentIdError}</p>}
             </div>
-            <Button type="submit" disabled={pending} size="lg">
-              {pending ? "Checking…" : "Continue"}
+            <Button type="submit" variant="pill" disabled={pending} size="lg">
+              {pending ? "Checking…" : "Claim my roster spot"}
             </Button>
           </form>
         </AlertDialogContent>

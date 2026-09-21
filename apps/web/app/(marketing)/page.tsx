@@ -1,5 +1,6 @@
 import { QrCode, ScanLine, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { DecorativeAccents } from "@/components/decorative-accents";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,15 +30,18 @@ export default async function Home() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <section className="bg-muted/40 border-b">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-8 py-20 text-center">
-          <Badge variant="secondary">College of Computer Studies</Badge>
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">CCS Attendance</h1>
-          <p className="text-muted-foreground max-w-md text-base sm:text-lg">
+      <section className="relative overflow-hidden px-4 py-16 sm:px-8 sm:py-24">
+        <DecorativeAccents />
+        <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-6 text-center">
+          <Badge>College of Computer Studies</Badge>
+          <h1 className="font-heading text-4xl font-extrabold tracking-tight text-foreground sm:text-6xl">
+            ccs attendance
+          </h1>
+          <p className="max-w-md text-base font-medium text-muted-foreground sm:text-lg">
             QR-based attendance and penalty tracking — no more paper sign-in sheets.
           </p>
           <div className="flex gap-3">
-            <Button asChild size="lg">
+            <Button asChild variant="pill" size="lg">
               {userId ? (
                 <Link href="/dashboard">Go to Dashboard</Link>
               ) : (
@@ -48,31 +52,34 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-4xl px-8 py-16">
-        <h2 className="mb-8 text-center text-sm font-semibold tracking-wide uppercase text-muted-foreground">
+      <section className="mx-auto w-full max-w-4xl px-4 py-16 sm:px-8">
+        <h2 className="mb-8 text-center text-xs font-bold tracking-[0.08em] text-muted-foreground uppercase">
           How it works
         </h2>
         <div className="grid gap-6 sm:grid-cols-3">
           {STEPS.map((step, i) => (
-            <Card key={step.title} className="relative border-none shadow-sm">
+            <Card
+              key={step.title}
+              className="relative rounded-[12px] border-2 border-[#111111] bg-[var(--bg-surface)] shadow-[var(--shadow-md)]"
+            >
               <CardHeader className="items-center gap-3 text-center">
-                <span className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full">
+                <span className="flex size-12 items-center justify-center rounded-full border-2 border-[#111111] bg-[var(--color-yellow)] text-foreground">
                   <step.icon className="size-6" aria-hidden />
                 </span>
-                <CardTitle className="text-base">
-                  <span className="text-muted-foreground mr-1.5">{i + 1}.</span>
+                <CardTitle className="text-base font-bold">
+                  <span className="mr-1.5 text-muted-foreground">{i + 1}.</span>
                   {step.title}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground text-center text-sm">{step.description}</p>
+                <p className="text-center text-sm text-muted-foreground">{step.description}</p>
               </CardContent>
             </Card>
           ))}
         </div>
       </section>
 
-      <footer className="text-muted-foreground border-t px-8 py-6 text-center text-xs">
+      <footer className="border-t-2 border-[#111111]/10 px-4 py-6 text-center text-xs text-muted-foreground sm:px-8">
         CCS Attendance · College of Computer Studies
       </footer>
     </main>

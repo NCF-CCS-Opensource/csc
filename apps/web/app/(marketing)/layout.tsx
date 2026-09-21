@@ -1,3 +1,4 @@
+import { FloatingNavbar } from "@/components/floating-navbar";
 import { ModeToggle } from "@/components/mode-toggle";
 
 export default function MarketingLayout({
@@ -6,10 +7,8 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex flex-1 flex-col">
-      <header className="flex h-12 shrink-0 items-center justify-end border-b px-4">
-        <ModeToggle />
-      </header>
+    <div className="flex min-h-full flex-1 flex-col bg-[var(--bg-page)]">
+      <FloatingNavbar right={<ModeToggle />} />
       {children}
     </div>
   );
