@@ -11,7 +11,7 @@ import {
   DMSans_700Bold,
   DMSans_800ExtraBold,
 } from "@expo-google-fonts/dm-sans";
-import { Calendar, Circle, ScanLine, Settings as SettingsIcon, X, type LucideIcon } from "lucide-react-native";
+import { Calendar, Circle, Inbox, ScanLine, Settings as SettingsIcon, X, type LucideIcon } from "lucide-react-native";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -34,9 +34,11 @@ import { clerk } from "./lib/clerk";
 import { BoothScreen } from "./screens/BoothScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { LoginScreen } from "./screens/LoginScreen";
+import { PendingScreen } from "./screens/PendingScreen";
 import { RejectionsScreen } from "./screens/RejectionsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { blockingScanCount, claimLegacyScans } from "./lib/scanQueue";
+import { blockingScanCount, claimLegacyScans, queueSummary } from "./lib/scanQueue";
+import { unresolvedCount } from "./lib/pendingTab";
 import { flushQueue, stopQueueRetries } from "./lib/syncScans";
 import { BoothQueryProvider } from "./lib/queryClient";
 import { ThemeProvider, useTheme } from "./lib/theme-context";
@@ -50,6 +52,7 @@ type MobileAdmission =
 
 const TAB_ICONS: Record<string, LucideIcon> = {
   Scanner: ScanLine,
+  Pending: Inbox,
   Events: Calendar,
   Rejections: X,
   Settings: SettingsIcon,
@@ -64,11 +67,13 @@ function TabIcon({ route, color }: { route: string; color: string }) {
 function AuthenticatedApp({
   officerId,
   pendingCount,
+  unresolvedQueueCount,
   queueRevision,
   refreshQueue,
 }: {
   officerId: string;
   pendingCount: number;
+  unresolvedQueueCount: number;
   queueRevision: number;
   refreshQueue: () => void;
 }) {
@@ -101,6 +106,20 @@ function AuthenticatedApp({
           <BoothScreen
             officerId={officerId}
             pendingCount={pendingCount}
+            queueRevision={queueRevision}
+            onQueueChanged={refreshQueue}
+          />
+        )}
+      </Tab.Screen>
+      <Tab.Screen
+        name="Pending"
+        options={{
+          tabBarBadge: unresolvedQueueCount > 0 ? unresolvedQueueCount : undefined,
+        }}
+      >
+        {() => (
+          <PendingScreen
+            officerId={officerId}
             queueRevision={queueRevision}
             onQueueChanged={refreshQueue}
           />
@@ -173,6 +192,7 @@ function BoothApp() {
   const [admission, setAdmission] = useState<MobileAdmission>(undefined);
   const [admissionAttempt, setAdmissionAttempt] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
+  const [unresolvedQueueCount, setUnresolvedQueueCount] = useState(0);
   const [queueRevision, setQueueRevision] = useState(0);
   // A booth on a bad connection must never be stuck on a bare spinner with no
   // way out, so bound the wait on sign-in state and offer a retry.
@@ -181,6 +201,7 @@ function BoothApp() {
 
   const refreshQueue = useCallback(async (officerId: string) => {
     setPendingCount(await blockingScanCount(officerId));
+    setUnresolvedQueueCount(unresolvedCount(await queueSummary(officerId)));
     setQueueRevision((revision) => revision + 1);
   }, []);
 
@@ -268,6 +289,7 @@ function BoothApp() {
   useEffect(() => {
     if (!officerId) {
       setPendingCount(0);
+      setUnresolvedQueueCount(0);
       return;
     }
     refreshQueue(officerId);
@@ -293,6 +315,7 @@ function BoothApp() {
       officerId={officerId}
       admission={admission}
       pendingCount={pendingCount}
+      unresolvedQueueCount={unresolvedQueueCount}
       queueRevision={queueRevision}
       refreshQueue={refreshQueue}
     />
@@ -321,6 +344,7 @@ function AppShell({
   officerId,
   admission,
   pendingCount,
+  unresolvedQueueCount,
   queueRevision,
   refreshQueue,
 }: {
@@ -330,6 +354,7 @@ function AppShell({
   officerId: string | undefined;
   admission: MobileAdmission;
   pendingCount: number;
+  unresolvedQueueCount: number;
   queueRevision: number;
   refreshQueue: (officerId: string) => void;
 }) {
@@ -362,6 +387,7 @@ function AppShell({
           <AuthenticatedApp
             officerId={officerId}
             pendingCount={pendingCount}
+            unresolvedQueueCount={unresolvedQueueCount}
             queueRevision={queueRevision}
             refreshQueue={() => refreshQueue(officerId)}
           />
