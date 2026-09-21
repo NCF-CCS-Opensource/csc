@@ -198,6 +198,18 @@ export async function needsReviewScans(officerId: string): Promise<QueuedScan[]>
   );
 }
 
+export async function pendingScans(officerId: string): Promise<QueuedScan[]> {
+  return (await loadQueue(officerId)).filter(
+    (scan) => scan.deliveryState === "pending",
+  );
+}
+
+export async function deliveredScans(officerId: string): Promise<RecentScan[]> {
+  return (await loadRecentScans(officerId)).filter(
+    (scan) => scan.deliveryState === "delivered",
+  );
+}
+
 export type QueueSummary = { needsReview: number; pending: number };
 
 export async function queueSummary(officerId: string): Promise<QueueSummary> {

@@ -3,7 +3,8 @@ import { RefreshCw, RotateCcw, Trash2, Wifi, WifiOff } from "lucide-react-native
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
+  Alert,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,16 +12,30 @@ import {
 } from "react-native";
 import { networkStatus, type NetworkStatus } from "../lib/pendingTab";
 import {
+  deliveredScans,
+  discardLegacyScans,
   discardScan,
+  legacyScans,
   needsReviewScans,
+  pendingScans,
   retryScan,
   type QueuedScan,
+  type RecentScan,
 } from "../lib/scanQueue";
 import { flushQueue } from "../lib/syncScans";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
 
 type Styles = ReturnType<typeof makeStyles>;
+
+function formatMeta(mode: string, isoDate: string): string {
+  return `${mode} · ${new Date(isoDate).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })}`;
+}
 
 export function PendingScreen({
   officerId,
@@ -33,12 +48,18 @@ export function PendingScreen({
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [items, setItems] = useState<QueuedScan[]>([]);
+  const [needsReview, setNeedsReview] = useState<QueuedScan[]>([]);
+  const [pending, setPending] = useState<QueuedScan[]>([]);
+  const [delivered, setDelivered] = useState<RecentScan[]>([]);
+  const [legacy, setLegacy] = useState<QueuedScan[]>([]);
   const [status, setStatus] = useState<NetworkStatus>("unknown");
   const [syncing, setSyncing] = useState(false);
 
   const load = useCallback(() => {
-    needsReviewScans(officerId).then(setItems);
+    needsReviewScans(officerId).then(setNeedsReview);
+    pendingScans(officerId).then(setPending);
+    deliveredScans(officerId).then(setDelivered);
+    legacyScans().then(setLegacy);
   }, [officerId]);
 
   useEffect(() => {
@@ -80,10 +101,29 @@ export function PendingScreen({
     [officerId, onQueueChanged, load],
   );
 
+  const discardLegacy = useCallback(() => {
+    Alert.alert(
+      "Discard older scans?",
+      "These scans cannot be safely attributed after the storage upgrade. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: async () => {
+            await discardLegacyScans();
+            onQueueChanged();
+            load();
+          },
+        },
+      ],
+    );
+  }, [onQueueChanged, load]);
+
   const online = status === "online";
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Pending</Text>
 
       <View
@@ -128,27 +168,70 @@ export function PendingScreen({
       </TouchableOpacity>
 
       <Text style={styles.sectionTitle}>Needs Review</Text>
-
-      {items.length === 0 ? (
+      {needsReview.length === 0 ? (
         <Text style={styles.empty}>Nothing needs review.</Text>
       ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(scan) => scan.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <NeedsReviewCard
-              scan={item}
-              styles={styles}
-              colors={colors}
-              onRetry={retry}
-              onDiscard={discard}
-            />
-          )}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-        />
+        <View style={styles.list}>
+          {needsReview.map((scan, index) => (
+            <View key={scan.id} style={index > 0 ? styles.separator : undefined}>
+              <NeedsReviewCard
+                scan={scan}
+                styles={styles}
+                colors={colors}
+                onRetry={retry}
+                onDiscard={discard}
+              />
+            </View>
+          ))}
+        </View>
       )}
-    </View>
+
+      <Text style={styles.sectionTitle}>Pending</Text>
+      {pending.length === 0 ? (
+        <Text style={styles.empty}>No scans waiting to sync.</Text>
+      ) : (
+        <View style={styles.list}>
+          {pending.map((scan, index) => (
+            <View key={scan.id} style={index > 0 ? styles.separator : undefined}>
+              <PendingCard scan={scan} styles={styles} />
+            </View>
+          ))}
+        </View>
+      )}
+
+      <Text style={styles.sectionTitle}>Recently Delivered</Text>
+      {delivered.length === 0 ? (
+        <Text style={styles.empty}>No deliveries yet.</Text>
+      ) : (
+        <View style={styles.list}>
+          {delivered.map((scan, index) => (
+            <View key={scan.id} style={index > 0 ? styles.separator : undefined}>
+              <DeliveredCard scan={scan} styles={styles} colors={colors} />
+            </View>
+          ))}
+        </View>
+      )}
+
+      <Text style={styles.sectionTitle}>Legacy</Text>
+      {legacy.length === 0 ? (
+        <Text style={styles.empty}>No older scans to clean up.</Text>
+      ) : (
+        <View style={styles.list}>
+          <Text style={styles.legacyCopy}>
+            {legacy.length} scan{legacy.length === 1 ? "" : "s"} from the
+            previous storage format cannot be safely attributed or delivered.
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={styles.discardLegacyButton}
+            onPress={discardLegacy}
+          >
+            <Trash2 size={14} color={colors.danger} strokeWidth={2} />
+            <Text style={styles.discardButtonText}>Discard older scans</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </ScrollView>
   );
 }
 
@@ -170,15 +253,7 @@ function NeedsReviewCard({
       <Text style={styles.cardTitle}>
         {scan.type === "approve" ? "Approve" : "Reject"} scan
       </Text>
-      <Text style={styles.cardMeta}>
-        {scan.mode} ·{" "}
-        {new Date(scan.decisionAt).toLocaleString([], {
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        })}
-      </Text>
+      <Text style={styles.cardMeta}>{formatMeta(scan.mode, scan.decisionAt)}</Text>
       {scan.error ? <Text style={styles.cardError}>{scan.error}</Text> : null}
       <View style={styles.cardActions}>
         <TouchableOpacity
@@ -202,6 +277,38 @@ function NeedsReviewCard({
   );
 }
 
+function PendingCard({ scan, styles }: { scan: QueuedScan; styles: Styles }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>
+        {scan.type === "approve" ? "Approve" : "Reject"} scan
+      </Text>
+      <Text style={styles.cardMeta}>{formatMeta(scan.mode, scan.decisionAt)}</Text>
+      <Text style={styles.cardStatus}>Waiting to sync</Text>
+    </View>
+  );
+}
+
+function DeliveredCard({
+  scan,
+  styles,
+  colors,
+}: {
+  scan: RecentScan;
+  styles: Styles;
+  colors: ThemeColors;
+}) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{scan.studentName}</Text>
+      <Text style={styles.cardMeta}>
+        {scan.eventName} · {formatMeta(scan.mode, scan.decisionAt)}
+      </Text>
+      <Text style={[styles.cardStatus, { color: colors.success }]}>Delivered</Text>
+    </View>
+  );
+}
+
 function makeStyles(c: ThemeColors) {
   const shadowColor = c.mode === "dark" ? "#000000" : "#111111";
   const hardShadow = (offset: number, elevation: number) => ({
@@ -212,7 +319,8 @@ function makeStyles(c: ThemeColors) {
     elevation,
   });
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: c.neoBgPage, paddingTop: 16 },
+    container: { flex: 1, backgroundColor: c.neoBgPage },
+    content: { paddingTop: 16, paddingBottom: 32 },
     title: {
       fontSize: 26,
       fontFamily: "DMSans_800ExtraBold",
@@ -256,9 +364,15 @@ function makeStyles(c: ThemeColors) {
       paddingHorizontal: 20,
       marginBottom: 8,
     },
-    empty: { fontSize: 14, color: c.textMuted, paddingHorizontal: 20 },
-    list: { paddingHorizontal: 20, paddingBottom: 24 },
-    separator: { height: 12 },
+    empty: {
+      fontSize: 14,
+      color: c.textMuted,
+      paddingHorizontal: 20,
+      marginBottom: 20,
+    },
+    list: { paddingHorizontal: 20, marginBottom: 20 },
+    separator: { marginTop: 12 },
+    legacyCopy: { fontSize: 13, color: c.textMuted, marginBottom: 12 },
     card: {
       backgroundColor: c.neoBgSurface,
       borderWidth: 2,
@@ -269,6 +383,12 @@ function makeStyles(c: ThemeColors) {
     },
     cardTitle: { fontFamily: "DMSans_700Bold", fontSize: 15, color: c.text },
     cardMeta: { fontSize: 12, color: c.textMuted, marginTop: 4 },
+    cardStatus: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginTop: 8,
+      fontFamily: "DMSans_500Medium",
+    },
     cardError: {
       fontSize: 12,
       color: c.danger,
@@ -299,5 +419,17 @@ function makeStyles(c: ThemeColors) {
       backgroundColor: c.dangerBg,
     },
     discardButtonText: { fontFamily: "DMSans_500Medium", fontSize: 13, color: c.danger },
+    discardLegacyButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      borderWidth: 2,
+      borderColor: c.dangerBorder,
+      borderRadius: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      backgroundColor: c.dangerBg,
+    },
   });
 }
