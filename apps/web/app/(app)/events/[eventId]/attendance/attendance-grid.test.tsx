@@ -130,7 +130,7 @@ describe("AttendanceGrid & Sentinel Controls", () => {
     expect(outPresentBtn).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("clicking Absent button on a Present cell marks it absent and calls setScanField", async () => {
+  it("clicking Absent button on a Present cell opens a confirmation before calling setScanField", async () => {
     renderGrid();
 
     const row1 = screen.getByText("Juan Dela Cruz").closest("tr")!;
@@ -139,12 +139,20 @@ describe("AttendanceGrid & Sentinel Controls", () => {
 
     fireEvent.click(absentBtn);
 
+    const dialog = await screen.findByRole("alertdialog");
+    expect(
+      within(dialog).getByText("Mark Juan Dela Cruz AM In Absent?"),
+    ).toBeInTheDocument();
+    expect(setScanFieldMock).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm" }));
+
     await waitFor(() => {
       expect(setScanFieldMock).toHaveBeenCalledWith("sess-1", "timeIn", false);
     });
   });
 
-  it("clicking Present button on an Absent cell marks it present and calls setScanField", async () => {
+  it("clicking Present button on an Absent cell opens a confirmation before calling setScanField", async () => {
     renderGrid();
 
     const row1 = screen.getByText("Juan Dela Cruz").closest("tr")!;
@@ -153,9 +161,30 @@ describe("AttendanceGrid & Sentinel Controls", () => {
 
     fireEvent.click(presentBtn);
 
+    const dialog = await screen.findByRole("alertdialog");
+    expect(
+      within(dialog).getByText("Mark Juan Dela Cruz AM Out Present?"),
+    ).toBeInTheDocument();
+    expect(setScanFieldMock).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm" }));
+
     await waitFor(() => {
       expect(setScanFieldMock).toHaveBeenCalledWith("sess-1", "timeOut", true);
     });
+  });
+
+  it("cancelling the confirmation leaves the attendance record unchanged", async () => {
+    renderGrid();
+
+    const row1 = screen.getByText("Juan Dela Cruz").closest("tr")!;
+    const amInGroup = within(row1).getByRole("group", { name: /Attendance status for AM In/ });
+    fireEvent.click(within(amInGroup).getByRole("button", { name: "Absent" }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    expect(setScanFieldMock).not.toHaveBeenCalled();
   });
 
   it("opens Cash Penalty Payment dialog with Neobrutalist form and triggers markPaid", async () => {

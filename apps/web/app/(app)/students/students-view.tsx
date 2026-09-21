@@ -112,11 +112,12 @@ const StudentTableRow = memo(function StudentTableRow({
   // them the replacement download. Cleared on the next edit so it can't
   // linger past the correction it belongs to.
   const [cardInvalidated, setCardInvalidated] = useState(false);
-  // Spec #143: before a correction that would invalidate a printed QR Card is
-  // applied, the Officer confirms it in a modal (the card's payload is frozen
-  // at print time, so ID/Program edits make it fail Scan Approval). Informational
-  // and confirm-only — confirming applies the correction immediately, cancelling
-  // leaves the record untouched (ADR-0014: no approval step, no audit trail).
+  // Spec #143 / #222: every Save confirms in a modal naming the Student and
+  // summarizing the change before it's applied — a correction that would
+  // invalidate a printed QR Card (payload frozen at print time; ID/Program
+  // edits make it fail Scan Approval) gets an extra warning in the same
+  // dialog. Confirming applies the correction immediately, cancelling leaves
+  // the record untouched (ADR-0014: no approval step, no audit trail).
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const save = useMutation({
@@ -129,16 +130,20 @@ const StudentTableRow = memo(function StudentTableRow({
     },
   });
 
-  // The QR Card invalidation gate (spec #143): a Save that would actually
-  // change Student ID or Program opens the confirmation modal first; a no-op
-  // Save (or one that only re-types the same values) applies directly.
   function requestSave() {
-    if (wouldInvalidateQrCard(student, { studentId, program })) {
-      setConfirmOpen(true);
-      return;
-    }
-    save.mutate();
+    setConfirmOpen(true);
   }
+
+  const trimmedStudentId = studentId.trim();
+  const idChanged = trimmedStudentId !== student.studentId;
+  const programChanged = program !== student.program;
+  const changeSummary = [
+    idChanged && `Student ID → ${trimmedStudentId}`,
+    programChanged && `Program → ${program}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const willInvalidateCard = wouldInvalidateQrCard(student, { studentId, program });
 
   const errorFor = (field: string) =>
     save.data?.errors.find((e) => e.field === field)?.message;
@@ -297,13 +302,11 @@ const StudentTableRow = memo(function StudentTableRow({
     <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent className="border-2 border-border rounded-[12px] shadow-[var(--shadow-lg)]">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              This correction invalidates {student.name}&apos;s printed QR Card
-            </AlertDialogTitle>
+            <AlertDialogTitle>Save changes to {student.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              The printed card&apos;s payload was frozen at print time and no longer matches
-              this correction, so it will be rejected at Scan Approval. Confirm to apply the
-              change — you&apos;ll hand the Student a replacement card.
+              {changeSummary ? `Updates: ${changeSummary}.` : "No changes to Student ID or Program."}
+              {willInvalidateCard &&
+                " The printed card's payload was frozen at print time and no longer matches this correction, so it will be rejected at Scan Approval — you'll hand the Student a replacement card."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
