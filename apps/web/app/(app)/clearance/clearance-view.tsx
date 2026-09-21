@@ -6,8 +6,8 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 import type { SemesterResponse, StudentSummary } from "@attendance/contracts";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   Table,
   TableBody,
@@ -76,15 +76,12 @@ export function ClearanceView({
 
 {/* Tactile Search Card */}
       <Card className="rounded-[10px] border-2 border-border bg-card p-5 shadow-[var(--shadow-md)]">
-        <Input
+        <SearchInput
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
+          onChange={(value) => {
+            setQuery(value);
             pagination.setPage(1);
           }}
-          placeholder="Search name, email, or student ID"
-          aria-label="Search name, email, or student ID"
-          className="flex-1 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
         />
       </Card>
 
@@ -178,14 +175,7 @@ export function ClearanceView({
           )}
           {filteredResults.length > 0 && (
             <div className="border-t-2 border-border bg-[var(--bg-page)] px-6 py-4">
-              <Pagination
-                page={pagination.page}
-                pageSize={pagination.pageSize}
-                totalItems={filteredResults.length}
-                totalPages={pagination.totalPages}
-                onPageChange={pagination.setPage}
-                onPageSizeChange={pagination.setPageSize}
-              />
+              <Pagination pagination={pagination} />
             </div>
           )}
         </CardContent>

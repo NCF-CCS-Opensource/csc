@@ -27,6 +27,7 @@ export function usePagination<T>(items: T[], initialPageSize = 20) {
     page: currentPage,
     pageItems,
     pageSize,
+    totalItems: items.length,
     totalPages,
     setPage,
     setPageSize: (nextPageSize: number) => {
@@ -36,26 +37,15 @@ export function usePagination<T>(items: T[], initialPageSize = 20) {
   };
 }
 
-export function Pagination({
-  page,
-  pageSize,
-  totalItems,
-  totalPages,
-  onPageChange,
-  onPageSizeChange,
-}: {
-  page: number;
-  pageSize: number;
-  totalItems: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (pageSize: number) => void;
-}) {
+export type PaginationState = ReturnType<typeof usePagination>;
+
+export function Pagination({ pagination }: { pagination: PaginationState }) {
+  const { page, pageSize, totalItems, totalPages, setPage, setPageSize } = pagination;
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
         <span>Rows per page</span>
-        <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value))}>
+        <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
           <SelectTrigger
             aria-label="Rows per page"
             className="border-2 border-[#111111] bg-white shadow-[var(--shadow-sm)]"
@@ -71,11 +61,11 @@ export function Pagination({
         <span>{totalItems} total</span>
       </div>
       <div className="flex items-center gap-2">
-        <Button type="button" variant="outline" size="sm" aria-label="Previous page" disabled={page === 1} onClick={() => onPageChange(page - 1)}>
+        <Button type="button" variant="outline" size="sm" aria-label="Previous page" disabled={page === 1} onClick={() => setPage(page - 1)}>
           Previous
         </Button>
         <span className="min-w-24 text-center text-sm font-bold">Page {page} of {totalPages}</span>
-        <Button type="button" variant="outline" size="sm" aria-label="Next page" disabled={page === totalPages} onClick={() => onPageChange(page + 1)}>
+        <Button type="button" variant="outline" size="sm" aria-label="Next page" disabled={page === totalPages} onClick={() => setPage(page + 1)}>
           Next
         </Button>
       </div>
