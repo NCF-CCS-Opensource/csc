@@ -121,12 +121,12 @@ export function ReportsClient({ semesters, events, students = [], currentCampusD
 
   return (
     <div className="flex flex-col gap-6">
-      <Card className="rounded-[10px] border-2 border-[#111111] bg-white shadow-[var(--shadow-md)] overflow-hidden">
-        <CardHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111] px-6 py-4">
+      <Card className="rounded-[10px] border-2 border-border bg-card shadow-[var(--shadow-md)] overflow-hidden">
+        <CardHeader className="bg-[var(--bg-page)] border-b-2 border-border px-6 py-4">
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#888888]">
             INSTITUTIONAL AUDIT EXPORT
           </span>
-          <CardTitle className="font-heading text-xl font-bold text-[#111111]">
+          <CardTitle className="font-heading text-xl font-bold text-foreground">
             Report Configuration
           </CardTitle>
           <CardDescription className="text-sm text-muted-foreground">

@@ -51,7 +51,7 @@ function getEventRowBadgeVariant(status: string): "present" | "incomplete" | "se
 
 function EmptySemesterCard({ role }: Readonly<{ role: string }>) {
   return (
-    <Card className="border-2 border-[#111111] rounded-[12px] shadow-[var(--shadow-md)] bg-white">
+    <Card className="border-2 border-border rounded-[12px] shadow-[var(--shadow-md)] bg-card">
       <CardHeader>
         <CardTitle className="font-heading text-xl font-bold">No open Semester</CardTitle>
       </CardHeader>
@@ -83,17 +83,17 @@ function ActiveSessionHeroCell({
     >
       {activeEvent ? (
         <div className="flex flex-col justify-between h-full gap-5">
-          <div className="flex flex-col gap-4 rounded-[12px] border-2 border-[#111111] bg-white p-5 shadow-[var(--shadow-sm)]">
+          <div className="flex flex-col gap-4 rounded-[12px] border-2 border-border bg-card p-5 shadow-[var(--shadow-sm)]">
             <div className="flex items-start justify-between gap-2 flex-wrap">
               <div className="min-w-0 flex-1">
                 <h4
                   data-testid="active-event-name"
-                  className="font-heading text-xl sm:text-2xl font-extrabold text-[#111111] tracking-tight truncate"
+                  className="font-heading text-xl sm:text-2xl font-extrabold text-foreground tracking-tight truncate"
                 >
                   {activeEvent.name}
                 </h4>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-[#111111]">{activeEvent.date}</span>
+                  <span className="font-medium text-foreground">{activeEvent.date}</span>
                   {activeEvent.venue && (
                     <>
                       <span>·</span>
@@ -117,11 +117,11 @@ function ActiveSessionHeroCell({
             </div>
 
             {activeEvent.sessions && activeEvent.sessions.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-2 border-t border-[#111111]/10">
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border/10">
                 {activeEvent.sessions.map((sess) => (
                   <div
                     key={sess.label}
-                    className="flex items-center gap-2 rounded-[8px] border-2 border-[#111111] bg-[var(--bg-page)] px-3 py-1.5 text-xs font-bold"
+                    className="flex items-center gap-2 rounded-[8px] border-2 border-border bg-[var(--bg-page)] px-3 py-1.5 text-xs font-bold"
                   >
                     <span className="uppercase text-muted-foreground">{sess.label}:</span>
                     <span className="text-emerald-700 font-extrabold">{sess.present} Present</span>
@@ -176,7 +176,7 @@ function RecentScansFeedCell({
       data-testid="recent-scans-cell"
       className="flex flex-col justify-between gap-4"
     >
-      <div className="flex items-center justify-between gap-2 pb-1 border-b-2 border-[#111111]/10">
+      <div className="flex items-center justify-between gap-2 pb-1 border-b-2 border-border/10">
         <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#888888]">
           Scanner Booth
         </span>
@@ -188,7 +188,7 @@ function RecentScansFeedCell({
           <span
             className={cn(
               "size-2 rounded-full",
-              pendingSyncCount > 0 ? "bg-amber-800 animate-pulse" : "bg-[#111111]"
+              pendingSyncCount > 0 ? "bg-amber-800 animate-pulse" : "bg-foreground"
             )}
           />
           {pendingSyncCount > 0 ? `${pendingSyncCount} pending sync` : "Synced · 0 pending"}
@@ -211,15 +211,15 @@ function RecentScansFeedCell({
                 data-testid="recent-scan-item"
                 data-status={scan.status}
                 className={cn(
-                  "flex items-center justify-between gap-3 p-3 rounded-[10px] bg-white transition-all",
+                  "flex items-center justify-between gap-3 p-3 rounded-[10px] bg-card transition-all",
                   isRejected
-                    ? "border-2 border-[#F9A8B8] shadow-[4px_4px_0px_0px_#111111]"
-                    : "border-2 border-[#111111] shadow-[var(--shadow-sm)]"
+                    ? "border-2 border-[#F9A8B8] shadow-[var(--shadow-md)]"
+                    : "border-2 border-border shadow-[var(--shadow-sm)]"
                 )}
               >
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-heading text-sm font-bold text-[#111111] truncate">
+                    <span className="font-heading text-sm font-bold text-foreground truncate">
                       {scan.studentName}
                     </span>
                     <span className="font-mono text-xs text-muted-foreground">
@@ -235,7 +235,7 @@ function RecentScansFeedCell({
                   data-testid={`scan-status-badge-${scan.id}`}
                   className={cn(
                     "shadow-[var(--shadow-sm)]",
-                    isRejected && "bg-[#F9A8B8] text-[#111111]"
+                    isRejected && "bg-[#F9A8B8] text-foreground"
                   )}
                 >
                   {scan.status[0].toUpperCase() + scan.status.slice(1)}
@@ -272,13 +272,13 @@ function RealtimeSessionCountsCell({
       className="flex flex-col justify-between gap-4"
     >
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1 rounded-[10px] border-2 border-[#111111] bg-[var(--color-teal)]/20 p-4 shadow-[var(--shadow-sm)]">
-          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+        <div className="flex flex-col gap-1 rounded-[10px] border-2 border-border bg-[var(--color-teal)]/20 p-4 shadow-[var(--shadow-sm)]">
+          <span className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
             Present
           </span>
           <span
             data-testid="realtime-count-present"
-            className="font-heading text-3xl sm:text-4xl font-extrabold text-[#111111] tabular-nums"
+            className="font-heading text-3xl sm:text-4xl font-extrabold text-foreground tabular-nums"
           >
             {presentCount}
           </span>
@@ -287,13 +287,13 @@ function RealtimeSessionCountsCell({
           </span>
         </div>
 
-        <div className="flex flex-col gap-1 rounded-[10px] border-2 border-[#111111] bg-[var(--color-yellow)]/30 p-4 shadow-[var(--shadow-sm)]">
-          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+        <div className="flex flex-col gap-1 rounded-[10px] border-2 border-border bg-[var(--color-yellow)]/30 p-4 shadow-[var(--shadow-sm)]">
+          <span className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
             Incomplete
           </span>
           <span
             data-testid="realtime-count-incomplete"
-            className="font-heading text-3xl sm:text-4xl font-extrabold text-[#111111] tabular-nums"
+            className="font-heading text-3xl sm:text-4xl font-extrabold text-foreground tabular-nums"
           >
             {incompleteCount}
           </span>
@@ -302,13 +302,13 @@ function RealtimeSessionCountsCell({
           </span>
         </div>
 
-        <div className="flex flex-col gap-1 rounded-[10px] border-2 border-[#111111] bg-[var(--color-coral)]/20 p-4 shadow-[var(--shadow-sm)]">
-          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+        <div className="flex flex-col gap-1 rounded-[10px] border-2 border-border bg-[var(--color-coral)]/20 p-4 shadow-[var(--shadow-sm)]">
+          <span className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
             Absent
           </span>
           <span
             data-testid="realtime-count-absent"
-            className="font-heading text-3xl sm:text-4xl font-extrabold text-[#111111] tabular-nums"
+            className="font-heading text-3xl sm:text-4xl font-extrabold text-foreground tabular-nums"
           >
             {absentCount}
           </span>
@@ -318,13 +318,13 @@ function RealtimeSessionCountsCell({
         </div>
       </div>
 
-      <div className="rounded-[10px] border-2 border-[#111111] bg-white p-3 text-center shadow-[var(--shadow-sm)]">
+      <div className="rounded-[10px] border-2 border-border bg-card p-3 text-center shadow-[var(--shadow-sm)]">
         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
           Resolved Rate
         </span>
         <span
           data-testid="realtime-rate"
-          className="font-heading text-2xl font-extrabold text-[#111111] tabular-nums"
+          className="font-heading text-2xl font-extrabold text-foreground tabular-nums"
         >
           {rate}%
         </span>
@@ -350,7 +350,7 @@ function SemesterOverviewCells({
         data-testid="attendance-rate-cell"
         className="flex flex-col justify-between"
       >
-        <span className="font-heading text-3xl sm:text-4xl font-extrabold text-[#111111] tabular-nums">
+        <span className="font-heading text-3xl sm:text-4xl font-extrabold text-foreground tabular-nums">
           {ledger.totals.rate.toFixed(1)}%
         </span>
         <span className="text-xs text-muted-foreground font-medium">
@@ -366,7 +366,7 @@ function SemesterOverviewCells({
         data-testid="semester-window-cell"
         className="flex flex-col justify-between"
       >
-        <span className="font-heading text-sm sm:text-base font-bold text-[#111111]">
+        <span className="font-heading text-sm sm:text-base font-bold text-foreground">
           {openSemester.startDate}
         </span>
         <span className="text-xs text-muted-foreground font-mono">
@@ -382,7 +382,7 @@ function SemesterOverviewCells({
         data-testid="total-events-cell"
         className="flex flex-col justify-between"
       >
-        <span className="font-heading text-3xl sm:text-4xl font-extrabold text-[#111111] tabular-nums">
+        <span className="font-heading text-3xl sm:text-4xl font-extrabold text-foreground tabular-nums">
           {ledger.events.length}
         </span>
         <span className="text-xs text-muted-foreground font-medium">
@@ -434,23 +434,23 @@ function AllSemesterEventsCell({
       {events.length === 0 ? (
         <p className="text-muted-foreground text-sm py-4">No events scheduled.</p>
       ) : (
-        <div className="rounded-[12px] border-2 border-[#111111] overflow-hidden bg-white mt-2">
+        <div className="rounded-[12px] border-2 border-border overflow-hidden bg-card mt-2">
           <Table>
-            <TableHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111]">
+            <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
               <TableRow>
-                <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                   Event
                 </TableHead>
-                <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                   Status
                 </TableHead>
-                <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                   Date & Venue
                 </TableHead>
-                <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                   Rate
                 </TableHead>
-                <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                   Action
                 </TableHead>
               </TableRow>
@@ -459,9 +459,9 @@ function AllSemesterEventsCell({
               {events.map((event) => (
                 <TableRow
                   key={event.eventId}
-                  className="border-b border-[#111111] hover:bg-[var(--bg-page)]/50 transition-colors"
+                  className="border-b border-border hover:bg-[var(--bg-page)]/50 transition-colors"
                 >
-                  <TableCell className="font-heading font-bold text-sm text-[#111111]">
+                  <TableCell className="font-heading font-bold text-sm text-foreground">
                     {event.name}
                   </TableCell>
                   <TableCell>
@@ -476,7 +476,7 @@ function AllSemesterEventsCell({
                     {event.date}
                     {event.venue ? ` · ${event.venue}` : ""}
                   </TableCell>
-                  <TableCell className="text-right font-bold tabular-nums text-sm text-[#111111]">
+                  <TableCell className="text-right font-bold tabular-nums text-sm text-foreground">
                     {event.status === "upcoming" ? "—" : `${event.rate.toFixed(1)}%`}
                   </TableCell>
                   <TableCell className="text-right">
@@ -518,13 +518,13 @@ function GovernorControlsCell({
       data-testid="governor-controls-cell"
       className="col-span-4 max-[900px]:col-span-2 max-[520px]:col-span-1"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-[10px] border-2 border-[#111111] bg-white shadow-[var(--shadow-sm)]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-[10px] border-2 border-border bg-card shadow-[var(--shadow-sm)]">
         <div className="grid grid-cols-3 gap-6">
           <div>
             <span className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground block">
               Semester
             </span>
-            <span className="font-heading text-lg font-bold text-[#111111]">
+            <span className="font-heading text-lg font-bold text-foreground">
               {openSemester ? "Open" : "Closed"}
             </span>
           </div>
@@ -534,7 +534,7 @@ function GovernorControlsCell({
             </span>
             <span
               data-testid="governor-officers-count"
-              className="font-heading text-lg font-bold text-[#111111] tabular-nums"
+              className="font-heading text-lg font-bold text-foreground tabular-nums"
             >
               {governorCounts.officers}
             </span>
@@ -545,7 +545,7 @@ function GovernorControlsCell({
             </span>
             <span
               data-testid="governor-programs-count"
-              className="font-heading text-lg font-bold text-[#111111] tabular-nums"
+              className="font-heading text-lg font-bold text-foreground tabular-nums"
             >
               {governorCounts.programs}
             </span>
@@ -589,7 +589,7 @@ export function DashboardView({ initialData }: Readonly<{ initialData: Dashboard
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8 bg-[var(--bg-page)] min-h-[calc(100vh-3rem)]">
       {/* Editorial Header */}
-      <header className="flex flex-col justify-between gap-4 border-b-2 border-[#111111] pb-5 sm:flex-row sm:items-end">
+      <header className="flex flex-col justify-between gap-4 border-b-2 border-border pb-5 sm:flex-row sm:items-end">
         <div>
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#888888]">
             CCS Event Operations
@@ -598,7 +598,7 @@ export function DashboardView({ initialData }: Readonly<{ initialData: Dashboard
             officer event dashboard
           </h1>
           <p className="text-muted-foreground mt-1 text-sm font-medium">
-            Campus date: <span className="text-[#111111] font-bold">{campusDate}</span>
+            Campus date: <span className="text-foreground font-bold">{campusDate}</span>
           </p>
         </div>
 
@@ -617,7 +617,7 @@ export function DashboardView({ initialData }: Readonly<{ initialData: Dashboard
                 data-testid="event-switcher-select"
                 value={activeEvent?.eventId ?? ""}
                 onChange={(e) => setSelectedEventId(e.target.value)}
-                className="rounded-[8px] border-2 border-[#111111] bg-white px-3 py-1.5 text-xs font-bold shadow-[var(--shadow-sm)] outline-none focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)] cursor-pointer"
+                className="rounded-[8px] border-2 border-border bg-card px-3 py-1.5 text-xs font-bold shadow-[var(--shadow-sm)] outline-none focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)] cursor-pointer"
               >
                 {ledger.events.map((event) => (
                   <option key={event.eventId} value={event.eventId}>

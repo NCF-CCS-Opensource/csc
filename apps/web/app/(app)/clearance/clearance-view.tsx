@@ -64,7 +64,7 @@ export function ClearanceView({
       {!openSemester && (
         <div
           role="status"
-          className="rounded-[10px] border-2 border-[#111111] bg-white p-4 shadow-[var(--shadow-sm)]"
+          className="rounded-[10px] border-2 border-border bg-card p-4 shadow-[var(--shadow-sm)]"
         >
           <p className="text-muted-foreground text-sm font-medium">
             No open Semester — nothing to clear.
@@ -73,7 +73,7 @@ export function ClearanceView({
       )}
 
       {/* Tactile Search Form Card */}
-      <Card className="rounded-[10px] border-2 border-[#111111] bg-white p-5 shadow-[var(--shadow-md)]">
+      <Card className="rounded-[10px] border-2 border-border bg-card p-5 shadow-[var(--shadow-md)]">
         <form method="GET" className="flex flex-col sm:flex-row gap-3">
           <Input
             name="q"
@@ -81,7 +81,7 @@ export function ClearanceView({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search name, email, or student ID"
             aria-label="Search name, email, or student ID"
-            className="flex-1 border-2 border-[#111111] rounded-[8px] bg-white focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
+            className="flex-1 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
           />
           <Button type="submit" variant="default" className="shrink-0 font-bold">
             <Search className="size-4 mr-1.5" />
@@ -91,18 +91,18 @@ export function ClearanceView({
       </Card>
 
       {/* Verification Ledger Table Card */}
-      <Card className="rounded-[10px] border-2 border-[#111111] bg-white shadow-[var(--shadow-md)] overflow-hidden">
-        <CardHeader className="border-b-2 border-[#111111] bg-[var(--bg-page)] px-6 py-4 flex flex-row items-center justify-between">
+      <Card className="rounded-[10px] border-2 border-border bg-card shadow-[var(--shadow-md)] overflow-hidden">
+        <CardHeader className="border-b-2 border-border bg-[var(--bg-page)] px-6 py-4 flex flex-row items-center justify-between">
           <div>
             <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#888888]">
               LEDGER VERIFICATION
             </span>
-            <CardTitle className="font-heading text-lg font-bold text-[#111111]">
+            <CardTitle className="font-heading text-lg font-bold text-foreground">
               Results
             </CardTitle>
           </div>
           {filteredResults.length > 0 && (
-            <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full border border-[#111111] bg-white text-[#111111] shadow-[var(--shadow-sm)]">
+            <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full border border-border bg-card text-foreground shadow-[var(--shadow-sm)]">
               {filteredResults.length} student{filteredResults.length === 1 ? "" : "s"}
             </span>
           )}
@@ -113,18 +113,18 @@ export function ClearanceView({
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111]">
+                <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Student
                     </TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Student ID
                     </TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Outstanding Balance
                     </TableHead>
-                    <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                    <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Clearance Standing
                     </TableHead>
                   </TableRow>
@@ -136,7 +136,7 @@ export function ClearanceView({
                       <TableRow
                         key={student.id}
                         data-testid={`clearance-row-${student.id}`}
-                        className="border-b border-[#111111]/20 hover:bg-[var(--bg-page)]/40 transition-colors"
+                        className="border-b border-border/20 hover:bg-[var(--bg-page)]/40 transition-colors"
                       >
                         <TableCell className="font-medium text-foreground py-3">
                           <div className="font-bold">{student.name}</div>
@@ -145,7 +145,7 @@ export function ClearanceView({
                           </div>
                         </TableCell>
                         <TableCell className="py-3">
-                          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-[6px] border border-[#111111] bg-[var(--bg-page)] text-[#111111]">
+                          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-[6px] border border-border bg-[var(--bg-page)] text-foreground">
                             {student.studentId}
                           </span>
                         </TableCell>

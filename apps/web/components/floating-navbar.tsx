@@ -31,21 +31,21 @@ export function FloatingNavbar({
     cn(
       "flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-bold whitespace-nowrap transition-colors",
       active
-        ? "border-[#111111] bg-[var(--color-yellow)] text-foreground"
-        : "border-transparent text-muted-foreground hover:border-[#111111] hover:bg-[var(--bg-page)]"
+        ? "border-border bg-[var(--color-yellow)] text-foreground"
+        : "border-transparent text-muted-foreground hover:border-border hover:bg-[var(--bg-page)]"
     );
 
   return (
     <header className="sticky top-4 z-40 mx-4 sm:mx-6">
       <nav
         aria-label="Primary"
-        className="flex items-center justify-between gap-4 rounded-[10px] border-2 border-[#111111] bg-[var(--bg-surface)] px-4 py-2.5 shadow-[var(--shadow-md)]"
+        className="flex items-center justify-between gap-4 rounded-[10px] border-2 border-border bg-[var(--bg-surface)] px-4 py-2.5 shadow-[var(--shadow-md)]"
       >
         <Link
           href={brandHref}
           className="flex shrink-0 items-center gap-2 font-bold tracking-tight"
         >
-          <span className="flex size-8 items-center justify-center rounded-full border-2 border-[#111111] bg-[var(--color-yellow)]">
+          <span className="flex size-8 items-center justify-center rounded-full border-2 border-border bg-[var(--color-yellow)]">
             <ScanLine className="size-4" aria-hidden />
           </span>
           <span className="hidden sm:inline">CCS Attendance</span>
@@ -77,7 +77,7 @@ export function FloatingNavbar({
               <button
                 type="button"
                 aria-label="More navigation"
-                className="flex size-9 items-center justify-center rounded-full border-2 border-[#111111] 2xl:hidden"
+                className="flex size-9 items-center justify-center rounded-full border-2 border-border 2xl:hidden"
               >
                 <Menu className="size-4" aria-hidden />
               </button>

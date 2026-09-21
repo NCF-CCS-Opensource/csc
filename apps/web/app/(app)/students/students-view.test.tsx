@@ -190,13 +190,13 @@ describe("Neobrutalist table styling and search filtering (Issue #206)", () => {
     const thead = container.querySelector("thead");
     expect(thead).toBeInTheDocument();
     expect(thead?.className).toMatch(/bg-\[var\(--bg-page\)\]|bg-\[#FAFADF\]/);
-    expect(thead?.className).toMatch(/border-b-2.*border-\[#111111\]/);
+    expect(thead?.className).toMatch(/border-b-2.*border-border/);
 
     // 1px row dividers
     const rows = container.querySelectorAll("tbody tr");
     expect(rows.length).toBe(3);
     rows.forEach((row) => {
-      expect(row.className).toMatch(/border-b.*border-\[#111111\]\/20/);
+      expect(row.className).toMatch(/border-b.*border-border\/20/);
     });
   });
 

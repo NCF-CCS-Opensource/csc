@@ -224,10 +224,10 @@ describe("BentoCell primitive", () => {
 
       const cell = screen.getByTestId("styled-cell")
       // White surface
-      expect(cell.className).toContain("bg-white")
+      expect(cell.className).toContain("bg-card")
       // 2px border and #111111 border token
       expect(cell.className).toContain("border-2")
-      expect(cell.className).toContain("border-[#111111]")
+      expect(cell.className).toContain("border-border")
       // 10-12px border radius
       expect(cell.className).toContain("rounded-[10px]")
     })
@@ -242,7 +242,7 @@ describe("BentoCell primitive", () => {
       const cell = screen.getByTestId("hero-cell")
       expect(cell).toHaveAttribute("data-elevation", "hero")
       expect(cell.className).toContain("shadow-[var(--shadow-lg)]")
-      expect(cell.className).toContain("shadow-[6px_6px_0px_0px_#111111]")
+      expect(cell.className).toContain("shadow-[var(--shadow-lg)]")
     })
 
     it("elevates standard cells with 4px shadow by default", () => {
@@ -255,7 +255,7 @@ describe("BentoCell primitive", () => {
       const cell = screen.getByTestId("standard-cell")
       expect(cell).toHaveAttribute("data-elevation", "standard")
       expect(cell.className).toContain("shadow-[var(--shadow-md)]")
-      expect(cell.className).toContain("shadow-[4px_4px_0px_0px_#111111]")
+      expect(cell.className).toContain("shadow-[var(--shadow-md)]")
     })
 
     it("renders flat supporting cards with border only (shadow-none) when elevation is flat", () => {
@@ -269,7 +269,7 @@ describe("BentoCell primitive", () => {
       expect(cell).toHaveAttribute("data-elevation", "flat")
       expect(cell.className).toContain("shadow-none")
       expect(cell.className).toContain("border-2")
-      expect(cell.className).toContain("border-[#111111]")
+      expect(cell.className).toContain("border-border")
     })
 
     it("allows explicit elevation override regardless of cell span", () => {

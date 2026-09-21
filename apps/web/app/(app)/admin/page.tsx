@@ -84,7 +84,7 @@ export default async function AdminPage({
       {error && (
         <div
           role="alert"
-          className="rounded-[10px] border-2 border-[#111111] bg-red-50 p-4 text-sm text-red-800 shadow-[var(--shadow-sm)] dark:bg-red-950/30 dark:text-red-300"
+          className="rounded-[10px] border-2 border-border bg-red-50 p-4 text-sm text-red-800 shadow-[var(--shadow-sm)] dark:bg-red-950/30 dark:text-red-300"
         >
           {error}
         </div>
@@ -102,14 +102,14 @@ export default async function AdminPage({
           data-testid="semester-lifecycle-cell"
           className="flex flex-col gap-6"
         >
-          <div className="rounded-[10px] border-2 border-[#111111] overflow-hidden bg-white shadow-[var(--shadow-sm)]">
+          <div className="rounded-[10px] border-2 border-border overflow-hidden bg-card shadow-[var(--shadow-sm)]">
             <Table>
-              <TableHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111]">
+              <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                  <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                     Date Boundaries (Start — End)
                   </TableHead>
-                  <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                  <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                     Lifecycle Status & Actions
                   </TableHead>
                 </TableRow>
@@ -118,7 +118,7 @@ export default async function AdminPage({
                 {allSemesters.map((semester) => (
                   <TableRow
                     key={semester.id}
-                    className="border-b border-[#111111]/20 hover:bg-[var(--bg-page)]/40 transition-colors"
+                    className="border-b border-border/20 hover:bg-[var(--bg-page)]/40 transition-colors"
                   >
                     <TableCell className="p-3">
                       <form
@@ -136,7 +136,7 @@ export default async function AdminPage({
                               name="startDate"
                               defaultValue={semester.startDate}
                               aria-label="Start date"
-                              className="w-36 text-xs border-2 border-[#111111] rounded-[8px] bg-white focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
+                              className="w-36 text-xs border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
                             />
                           </div>
                           <span className="text-muted-foreground text-xs font-bold mt-4">
@@ -151,7 +151,7 @@ export default async function AdminPage({
                               name="endDate"
                               defaultValue={semester.endDate}
                               aria-label="End date"
-                              className="w-36 text-xs border-2 border-[#111111] rounded-[8px] bg-white focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
+                              className="w-36 text-xs border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
                             />
                           </div>
                         </div>
@@ -204,13 +204,13 @@ export default async function AdminPage({
           </div>
 
           {/* Initialize New Semester Form */}
-          <div className="rounded-[10px] border-2 border-[#111111] bg-[var(--bg-page)]/50 p-4">
-            <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111] block mb-3">
+          <div className="rounded-[10px] border-2 border-border bg-[var(--bg-page)]/50 p-4">
+            <span className="text-xs font-bold uppercase tracking-[0.08em] text-foreground block mb-3">
               Initialize New Semester
             </span>
             <form action={createSemester} className="flex flex-wrap items-end gap-3">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="startDate" className="text-xs font-bold text-[#111111]">
+                <Label htmlFor="startDate" className="text-xs font-bold text-foreground">
                   Start Date
                 </Label>
                 <Input
@@ -218,11 +218,11 @@ export default async function AdminPage({
                   type="date"
                   name="startDate"
                   required
-                  className="w-40 border-2 border-[#111111] rounded-[8px] bg-white focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
+                  className="w-40 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="endDate" className="text-xs font-bold text-[#111111]">
+                <Label htmlFor="endDate" className="text-xs font-bold text-foreground">
                   End Date
                 </Label>
                 <Input
@@ -230,7 +230,7 @@ export default async function AdminPage({
                   type="date"
                   name="endDate"
                   required
-                  className="w-40 border-2 border-[#111111] rounded-[8px] bg-white focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
+                  className="w-40 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
                 />
               </div>
               <Button type="submit" variant="default" className="font-bold">
@@ -250,14 +250,14 @@ export default async function AdminPage({
           data-testid="academic-rosters-cell"
           className="flex flex-col justify-between gap-4"
         >
-          <div className="rounded-[10px] border-2 border-[#111111] overflow-hidden bg-white shadow-[var(--shadow-sm)]">
+          <div className="rounded-[10px] border-2 border-border overflow-hidden bg-card shadow-[var(--shadow-sm)]">
             <Table>
-              <TableHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111]">
+              <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                  <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                     Program Name
                   </TableHead>
-                  <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                  <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -266,7 +266,7 @@ export default async function AdminPage({
                 {allPrograms.map((program) => (
                   <TableRow
                     key={program.id}
-                    className="border-b border-[#111111]/20 hover:bg-[var(--bg-page)]/40 transition-colors"
+                    className="border-b border-border/20 hover:bg-[var(--bg-page)]/40 transition-colors"
                   >
                     <TableCell className="font-medium text-foreground py-3">
                       {program.name}
@@ -296,7 +296,7 @@ export default async function AdminPage({
               placeholder="Program name"
               required
               aria-label="New program name"
-              className="flex-1 border-2 border-[#111111] rounded-[8px] bg-white focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
+              className="flex-1 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
             />
             <Button type="submit" variant="default" className="font-bold">
               Add Program
@@ -320,21 +320,21 @@ export default async function AdminPage({
               defaultValue={q ?? ""}
               placeholder="Search name, email, or student ID"
               aria-label="Search student to promote"
-              className="flex-1 border-2 border-[#111111] rounded-[8px] bg-white focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
+              className="flex-1 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
             />
             <Button type="submit" variant="default" className="font-bold">
               Search
             </Button>
           </form>
           {searchResults.length > 0 && (
-            <div className="rounded-[10px] border-2 border-[#111111] overflow-hidden bg-white shadow-[var(--shadow-sm)]">
+            <div className="rounded-[10px] border-2 border-border overflow-hidden bg-card shadow-[var(--shadow-sm)]">
               <Table>
-                <TableHeader className="bg-[var(--bg-page)] border-b-2 border-[#111111]">
+                <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Candidate
                     </TableHead>
-                    <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-[#111111]">
+                    <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Action
                     </TableHead>
                   </TableRow>
@@ -343,7 +343,7 @@ export default async function AdminPage({
                   {searchResults.map((student) => (
                     <TableRow
                       key={student.id}
-                      className="border-b border-[#111111]/20 hover:bg-[var(--bg-page)]/40 transition-colors"
+                      className="border-b border-border/20 hover:bg-[var(--bg-page)]/40 transition-colors"
                     >
                       <TableCell className="py-3">
                         <div className="font-bold text-foreground">{student.name}</div>
