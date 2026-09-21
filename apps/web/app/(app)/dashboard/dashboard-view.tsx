@@ -23,6 +23,30 @@ import { dashboardSnapshot, type DashboardSnapshot } from "./actions";
 import { dashboardQueryKey } from "./query-key";
 import { RefreshButton } from "./refresh-button";
 
+function getEventStatusBadgeVariant(status: string): "present" | "incomplete" | "outline" {
+  if (status === "today") return "present";
+  if (status === "upcoming") return "incomplete";
+  return "outline";
+}
+
+function getEventStatusLabel(status: string): string {
+  if (status === "today") return "Live Check-in Open";
+  if (status === "upcoming") return "Scheduled Upcoming";
+  return "Past Event";
+}
+
+function getScanBadgeVariant(status: string): "present" | "incomplete" | "absent" {
+  if (status === "present") return "present";
+  if (status === "incomplete") return "incomplete";
+  return "absent";
+}
+
+function getEventRowBadgeVariant(status: string): "present" | "incomplete" | "secondary" {
+  if (status === "today") return "present";
+  if (status === "upcoming") return "incomplete";
+  return "secondary";
+}
+
 export function DashboardView({ initialData }: { initialData: DashboardSnapshot }) {
   // Seeded from the server shell, so a cold visit paints rendered HTML and a
   // revisit paints from cache while a background refetch replaces it.
@@ -151,21 +175,11 @@ export function DashboardView({ initialData }: { initialData: DashboardSnapshot 
                     </div>
 
                     <Badge
-                      variant={
-                        activeEvent.status === "today"
-                          ? "present"
-                          : activeEvent.status === "upcoming"
-                            ? "incomplete"
-                            : "outline"
-                      }
+                      variant={getEventStatusBadgeVariant(activeEvent.status)}
                       data-testid="active-event-status-badge"
                       className="shadow-[var(--shadow-sm)]"
                     >
-                      {activeEvent.status === "today"
-                        ? "Live Check-in Open"
-                        : activeEvent.status === "upcoming"
-                          ? "Scheduled Upcoming"
-                          : "Past Event"}
+                      {getEventStatusLabel(activeEvent.status)}
                     </Badge>
                   </div>
 
@@ -275,15 +289,7 @@ export function DashboardView({ initialData }: { initialData: DashboardSnapshot 
                         </span>
                       </div>
                       <Badge
-                        variant={
-                          scan.status === "present"
-                            ? "present"
-                            : scan.status === "incomplete"
-                              ? "incomplete"
-                              : scan.status === "absent"
-                                ? "absent"
-                                : "absent"
-                        }
+                        variant={getScanBadgeVariant(scan.status)}
                         data-testid={`scan-status-badge-${scan.id}`}
                         className={cn(
                           "shadow-[var(--shadow-sm)]",
@@ -492,13 +498,7 @@ export function DashboardView({ initialData }: { initialData: DashboardSnapshot 
                         </TableCell>
                         <TableCell>
                           <Badge
-                            variant={
-                              event.status === "today"
-                                ? "present"
-                                : event.status === "upcoming"
-                                  ? "incomplete"
-                                  : "secondary"
-                            }
+                            variant={getEventRowBadgeVariant(event.status)}
                             className="shadow-[var(--shadow-sm)]"
                           >
                             {event.status[0].toUpperCase() + event.status.slice(1)}

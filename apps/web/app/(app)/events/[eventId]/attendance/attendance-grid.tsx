@@ -67,9 +67,8 @@ function ScanCell({ cell, eventId }: { cell: EventGridCell; eventId: string }) {
   });
 
   return (
-    <div
-      className="flex items-center gap-1.5"
-      role="group"
+    <fieldset
+      className="flex items-center gap-1.5 border-0 p-0 m-0"
       aria-label={`Attendance status for ${cell.label}`}
     >
       <Button
@@ -113,11 +112,11 @@ function ScanCell({ cell, eventId }: { cell: EventGridCell; eventId: string }) {
       {save.isPending ? (
         <span className="text-muted-foreground text-xs animate-pulse">…</span>
       ) : save.isError ? (
-        <span className="text-xs text-red-600 dark:text-red-400 font-bold" role="status">
+        <output className="text-xs text-red-600 dark:text-red-400 font-bold">
           Save failed
-        </span>
+        </output>
       ) : null}
-    </div>
+    </fieldset>
   );
 }
 

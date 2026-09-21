@@ -246,9 +246,9 @@
     "semantic_hash": ""
   },
   "apps/web/app/(app)/dashboard/dashboard-view.tsx": {
-    "mtime": 1789963999.796074,
-    "seen": 1789964174.1915236,
-    "ast_hash": "d46745caf2d8763698bbaca0a8dc203c",
+    "mtime": 1789964477.3198607,
+    "seen": 1789964519.867953,
+    "ast_hash": "76fbf99461c021fa716c0b7a913a8848",
     "semantic_hash": ""
   },
   "apps/web/app/(app)/dashboard/page.tsx": {
@@ -276,9 +276,9 @@
     "semantic_hash": ""
   },
   "apps/web/app/(app)/events/[eventId]/attendance/attendance-grid.tsx": {
-    "mtime": 1789964021.1598816,
-    "seen": 1789964174.19167,
-    "ast_hash": "f890360b8c2a3eacb6f1f8032527e77e",
+    "mtime": 1789964486.8409626,
+    "seen": 1789964519.868173,
+    "ast_hash": "54a8afe5191ef1fdc21e9a6669d1db04",
     "semantic_hash": ""
   },
   "apps/web/app/(app)/events/[eventId]/attendance/page.tsx": {
