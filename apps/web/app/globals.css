@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-space-grotesk);
+  --font-display: var(--font-sans);
   --font-heading: var(--font-sans);
 
   --color-bg-page: var(--bg-page);

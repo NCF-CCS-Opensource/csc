@@ -546,15 +546,15 @@
     "semantic_hash": ""
   },
   "apps/web/components/ui/badge.tsx": {
-    "mtime": 1789960906.968582,
-    "seen": 1789961316.2813492,
-    "ast_hash": "d97ee65cc7d2d799a43751b979be390e",
+    "mtime": 1789961537.4883907,
+    "seen": 1789961591.6270115,
+    "ast_hash": "7f2841c9602604b4fef6595ede9df759",
     "semantic_hash": ""
   },
   "apps/web/components/ui/button.tsx": {
-    "mtime": 1789960886.763617,
-    "seen": 1789961316.2813523,
-    "ast_hash": "d2c8cd4795500d08fcd5dd9d3f667cb8",
+    "mtime": 1789961533.071411,
+    "seen": 1789961591.6270163,
+    "ast_hash": "349c08907113110a461a575fbc82abee",
     "semantic_hash": ""
   },
   "apps/web/components/ui/card.tsx": {
@@ -2142,15 +2142,15 @@
     "semantic_hash": ""
   },
   "apps/web/components/ui/badge.test.tsx": {
-    "mtime": 1789960898.3015974,
-    "seen": 1789961316.2813473,
-    "ast_hash": "c778a886254eae73bfc50bdcbf8c8a62",
+    "mtime": 1789961564.6772654,
+    "seen": 1789961591.6270072,
+    "ast_hash": "5dadd141f84c075f6093b9a8303e0ff6",
     "semantic_hash": ""
   },
   "apps/web/components/ui/button.test.tsx": {
-    "mtime": 1789960857.3976624,
-    "seen": 1789961316.2813506,
-    "ast_hash": "4f9e4134cca7bbdb006ecdfd9382f812",
+    "mtime": 1789961560.7302837,
+    "seen": 1789961591.627014,
+    "ast_hash": "84bf837e178bdf15f99686906128f99c",
     "semantic_hash": ""
   },
   "DESIGN/bento/DESIGN.md": {

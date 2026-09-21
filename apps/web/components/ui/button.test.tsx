@@ -49,24 +49,30 @@ describe("Button component", () => {
   });
 
   it("renders primary button with 2px border, hard shadow, and press-down tactile classes", () => {
-    render(<Button variant="default">Primary Action</Button>);
-    const button = screen.getByRole("button", { name: /primary action/i });
+    const { rerender } = render(<Button variant="default">Primary Default</Button>);
+    let button = screen.getByRole("button", { name: /primary default/i });
     expect(button.className).toContain("border-2");
-    expect(button.className).toMatch(/border-\[#111111\]|border-border/);
-    expect(button.className).toMatch(/shadow-\[4px_4px_0px_0px_#111111\]|shadow-neo-md/);
+    expect(button.className).toContain("border-border");
+    expect(button.className).toContain("shadow-[var(--shadow-md)]");
     expect(button.className).toContain("hover:translate-x-[2px]");
     expect(button.className).toContain("hover:translate-y-[2px]");
     expect(button.className).toContain("active:translate-x-[4px]");
     expect(button.className).toContain("active:translate-y-[4px]");
+
+    rerender(<Button variant="primary">Explicit Primary</Button>);
+    button = screen.getByRole("button", { name: /explicit primary/i });
+    expect(button.className).toContain("border-2");
+    expect(button.className).toContain("border-border");
+    expect(button.className).toContain("shadow-[var(--shadow-md)]");
   });
 
   it("renders ghost button with 2px border, hard shadow, and cream hover fill", () => {
     render(<Button variant="ghost">Ghost Action</Button>);
     const button = screen.getByRole("button", { name: /ghost action/i });
     expect(button.className).toContain("border-2");
-    expect(button.className).toMatch(/border-\[#111111\]|border-border/);
-    expect(button.className).toMatch(/shadow-\[4px_4px_0px_0px_#111111\]|shadow-neo-md/);
-    expect(button.className).toContain("hover:bg-[#FAFADF]");
+    expect(button.className).toContain("border-border");
+    expect(button.className).toContain("shadow-[var(--shadow-md)]");
+    expect(button.className).toContain("hover:bg-[var(--bg-page)]");
     expect(button.className).toContain("hover:translate-x-[2px]");
     expect(button.className).toContain("hover:translate-y-[2px]");
     expect(button.className).toContain("active:translate-x-[4px]");
@@ -78,11 +84,18 @@ describe("Button component", () => {
     const button = screen.getByRole("button", { name: /pill cta/i });
     expect(button.className).toContain("rounded-full");
     expect(button.className).toContain("border-2");
-    expect(button.className).toMatch(/border-\[#111111\]|border-border/);
-    expect(button.className).toMatch(/shadow-\[4px_4px_0px_0px_#111111\]|shadow-neo-md/);
+    expect(button.className).toContain("border-border");
+    expect(button.className).toContain("shadow-[var(--shadow-md)]");
     expect(button.className).toContain("hover:translate-x-[2px]");
     expect(button.className).toContain("hover:translate-y-[2px]");
     expect(button.className).toContain("active:translate-x-[4px]");
     expect(button.className).toContain("active:translate-y-[4px]");
+  });
+
+  it("renders link button without hard shadow or translate displacement", () => {
+    render(<Button variant="link" disabled>Link</Button>);
+    const button = screen.getByRole("button", { name: /link/i });
+    expect(button.className).toContain("shadow-none");
+    expect(button.className).not.toContain("disabled:shadow-");
   });
 });

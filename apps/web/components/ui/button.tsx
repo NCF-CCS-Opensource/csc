@@ -5,23 +5,25 @@ import { Slot } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center font-bold whitespace-nowrap text-sm outline-none select-none transition-all duration-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-[4px_4px_0px_0px_#111111] aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center font-bold whitespace-nowrap text-sm outline-none select-none transition-all duration-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:translate-x-0 disabled:translate-y-0 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default:
-          "rounded-[10px] bg-[#E8635A] text-white border-2 border-[#111111] shadow-[4px_4px_0px_0px_#111111] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#111111] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none",
+          "rounded-[10px] bg-primary text-white border-2 border-border shadow-[var(--shadow-md)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[var(--shadow-hover)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:shadow-[var(--shadow-md)]",
+        primary:
+          "rounded-[10px] bg-primary text-white border-2 border-border shadow-[var(--shadow-md)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[var(--shadow-hover)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:shadow-[var(--shadow-md)]",
         ghost:
-          "rounded-[10px] bg-transparent text-[#111111] border-2 border-[#111111] shadow-[4px_4px_0px_0px_#111111] hover:bg-[#FAFADF] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#111111] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none",
+          "rounded-[10px] bg-transparent text-foreground border-2 border-border shadow-[var(--shadow-md)] hover:bg-[var(--bg-page)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[var(--shadow-hover)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:shadow-[var(--shadow-md)]",
         pill:
-          "rounded-full bg-[#E8635A] text-white border-2 border-[#111111] shadow-[4px_4px_0px_0px_#111111] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#111111] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none",
+          "rounded-full bg-primary text-white border-2 border-border shadow-[var(--shadow-md)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[var(--shadow-hover)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:shadow-[var(--shadow-md)]",
         secondary:
-          "rounded-[10px] bg-[#7B6CF6] text-white border-2 border-[#111111] shadow-[4px_4px_0px_0px_#111111] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#111111] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none",
+          "rounded-[10px] bg-secondary text-white border-2 border-border shadow-[var(--shadow-md)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[var(--shadow-hover)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:shadow-[var(--shadow-md)]",
         outline:
-          "rounded-[10px] bg-white text-[#111111] border-2 border-[#111111] shadow-[4px_4px_0px_0px_#111111] hover:bg-[#FAFADF] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#111111] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none",
+          "rounded-[10px] bg-card text-foreground border-2 border-border shadow-[var(--shadow-md)] hover:bg-[var(--bg-page)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[var(--shadow-hover)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:shadow-[var(--shadow-md)]",
         destructive:
-          "rounded-[10px] bg-[#E8635A] text-white border-2 border-[#111111] shadow-[4px_4px_0px_0px_#111111] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#111111] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none",
-        link: "text-[#111111] underline-offset-4 hover:underline border-0 shadow-none hover:translate-x-0 hover:translate-y-0 active:translate-x-0 active:translate-y-0",
+          "rounded-[10px] bg-destructive text-white border-2 border-border shadow-[var(--shadow-md)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[var(--shadow-hover)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:shadow-[var(--shadow-md)]",
+        link: "text-foreground underline-offset-4 hover:underline border-0 shadow-none hover:translate-x-0 hover:translate-y-0 active:translate-x-0 active:translate-y-0",
       },
       size: {
         default:

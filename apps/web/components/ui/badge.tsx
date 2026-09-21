@@ -5,19 +5,19 @@ import { Slot } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "group/badge inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1.5 rounded-full border-2 border-[#111111] px-3 py-0.5 text-xs font-bold whitespace-nowrap transition-all select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&>svg]:pointer-events-none [&>svg]:size-3!",
+  "group/badge inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1.5 rounded-full border-2 border-border px-3 py-0.5 text-xs font-bold whitespace-nowrap transition-all select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&>svg]:pointer-events-none [&>svg]:size-3!",
   {
     variants: {
       variant: {
-        default: "bg-[#FFE566] text-[#111111]",
-        present: "bg-[#4ECDC4] text-[#111111]",
-        incomplete: "bg-[#FFE566] text-[#111111]",
-        absent: "bg-[#E8635A] text-white",
-        cleared: "bg-[#C4B5FD] text-[#111111]",
-        secondary: "bg-[#7B6CF6] text-white",
-        destructive: "bg-[#E8635A] text-white",
-        outline: "bg-white text-[#111111]",
-        ghost: "bg-transparent text-[#111111] border-transparent",
+        default: "bg-[var(--color-yellow)] text-foreground",
+        present: "bg-[var(--color-teal)] text-foreground",
+        incomplete: "bg-[var(--color-yellow)] text-foreground",
+        absent: "bg-[var(--color-coral)] text-white",
+        cleared: "bg-[var(--color-lavender)] text-foreground",
+        secondary: "bg-[var(--color-secondary)] text-white",
+        destructive: "bg-[var(--color-coral)] text-white",
+        outline: "bg-card text-foreground",
+        ghost: "bg-transparent text-foreground border-transparent",
       },
     },
     defaultVariants: {
@@ -29,6 +29,7 @@ const badgeVariants = cva(
 function Badge({
   className,
   variant = "default",
+  role = "status",
   asChild = false,
   ...props
 }: React.ComponentProps<"span"> &
@@ -39,6 +40,7 @@ function Badge({
     <Comp
       data-slot="badge"
       data-variant={variant}
+      role={role}
       className={cn(badgeVariants({ variant }), className)}
       {...props}
     />
