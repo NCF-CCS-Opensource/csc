@@ -102,12 +102,13 @@ function AuthenticatedApp({
       })}
     >
       <Tab.Screen name="Scanner">
-        {() => (
+        {({ navigation }) => (
           <BoothScreen
             officerId={officerId}
             pendingCount={pendingCount}
             queueRevision={queueRevision}
             onQueueChanged={refreshQueue}
+            onNavigateToPending={() => navigation.navigate("Pending")}
           />
         )}
       </Tab.Screen>
@@ -128,7 +129,13 @@ function AuthenticatedApp({
       <Tab.Screen name="Events" component={EventsScreen} />
       <Tab.Screen name="Rejections" component={RejectionsScreen} />
       <Tab.Screen name="Settings">
-        {() => <SettingsScreen officerId={officerId} onQueueChanged={refreshQueue} />}
+        {({ navigation }) => (
+          <SettingsScreen
+            officerId={officerId}
+            onQueueChanged={refreshQueue}
+            onNavigateToPending={() => navigation.navigate("Pending")}
+          />
+        )}
       </Tab.Screen>
     </Tab.Navigator>
   );

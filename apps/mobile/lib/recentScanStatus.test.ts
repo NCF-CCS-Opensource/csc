@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RecentScan } from "./scanQueue";
 import {
   isAlreadyScanned,
+  isNeedsReviewActionable,
   recentScanOutcomeLabel,
 } from "./recentScanStatus";
 
@@ -75,5 +76,43 @@ describe("recentScanOutcomeLabel", () => {
         alreadyScanned: true,
       }),
     ).toBe("! Needs Review · Discarded");
+  });
+});
+
+describe("isNeedsReviewActionable", () => {
+  it("is true for a needs_review scan that has not been discarded", () => {
+    expect(
+      isNeedsReviewActionable({
+        deliveryState: "needs_review",
+        discarded: false,
+      }),
+    ).toBe(true);
+    expect(
+      isNeedsReviewActionable({
+        deliveryState: "needs_review",
+      }),
+    ).toBe(true);
+  });
+
+  it("is false if the needs_review scan was already discarded", () => {
+    expect(
+      isNeedsReviewActionable({
+        deliveryState: "needs_review",
+        discarded: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("is false for pending or delivered scans", () => {
+    expect(
+      isNeedsReviewActionable({
+        deliveryState: "pending",
+      }),
+    ).toBe(false);
+    expect(
+      isNeedsReviewActionable({
+        deliveryState: "delivered",
+      }),
+    ).toBe(false);
   });
 });

@@ -21,3 +21,10 @@ export function recentScanOutcomeLabel(scan: ScanOutcome): string {
   if (isAlreadyScanned(scan)) return "Already scanned";
   return scan.decision === "accepted" ? "✓ Accepted" : "✕ Rejected";
 }
+
+export function isNeedsReviewActionable(
+  scan: Pick<RecentScan, "deliveryState"> & { discarded?: boolean },
+): boolean {
+  return scan.deliveryState === "needs_review" && !scan.discarded;
+}
+
