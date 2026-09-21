@@ -1,10 +1,7 @@
 "use server";
 
-import { students } from "@attendance/db";
-import { asc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireOfficerOrGovernor } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { apiPost, ApiError } from "@/lib/api-client";
 import type { ValidationError } from "@/lib/onboarding";
 import type { Role } from "@/lib/roles";
@@ -25,23 +22,12 @@ export type StudentsSnapshot = {
 // The Students roster's one read, called by the server shell for the first
 // paint and by the client cache's queryFn on every revisit (ADR 0013). No
 // pagination: under 600 rows, filtered entirely client-side (spec #117).
-// The Program list moved to the API (#162); the Student list itself has no
-// API endpoint yet and still reads the database directly.
+// Both the Program list (#162) and the Student list (#186) are now API-backed.
 export async function studentsSnapshot(): Promise<StudentsSnapshot> {
   await requireOfficerOrGovernor();
 
-  const [allStudents, { programs }] = await Promise.all([
-    db
-      .select({
-        id: students.id,
-        name: students.name,
-        email: students.email,
-        studentId: students.studentId,
-        program: students.program,
-        role: students.role,
-      })
-      .from(students)
-      .orderBy(asc(students.name)),
+  const [{ students: allStudents }, { programs }] = await Promise.all([
+    apiPost<{ students: StudentsSnapshot["students"] }>("student/list"),
     apiPost<{ programs: string[] }>("program/list"),
   ]);
 

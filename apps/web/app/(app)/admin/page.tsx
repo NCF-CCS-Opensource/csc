@@ -1,6 +1,10 @@
-import { programs, semesters, students } from "@attendance/db";
-import { asc, desc, ilike, or } from "drizzle-orm";
 import Link from "next/link";
+import type {
+  ProgramListDetailedResponse,
+  SemesterListResponse,
+  StudentListResponse,
+  StudentSummary,
+} from "@attendance/contracts";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireGovernor } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { apiPost } from "@/lib/api-client";
 import {
   addProgram,
   closeSemester,
@@ -27,11 +31,6 @@ import {
   removeProgram,
 } from "./actions";
 
-// ponytail-gap: none of this page's three reads have a usable API
-// equivalent yet — semester has no "list all" (only current), program/list
-// returns names only (no id, needed for the remove form), and there's no
-// student-search endpoint — so it stays on direct DB access. See the PR
-// description's Known Gaps section.
 export default async function AdminPage({
   searchParams,
 }: {
@@ -40,23 +39,24 @@ export default async function AdminPage({
   await requireGovernor();
   const { error, q } = await searchParams;
 
-  const [allSemesters, allPrograms, searchResults] = await Promise.all([
-    db.select().from(semesters).orderBy(desc(semesters.createdAt)),
-    db.select().from(programs).orderBy(asc(programs.name)),
-    q
-      ? db
-          .select()
-          .from(students)
-          .where(
-            or(
-              ilike(students.name, `%${q}%`),
-              ilike(students.email, `%${q}%`),
-              ilike(students.studentId, `%${q}%`),
-            ),
-          )
-          .limit(20)
-      : Promise.resolve([]),
-  ]);
+  const [{ semesters: allSemesters }, { programs: allPrograms }, { students: allStudents }] =
+    await Promise.all([
+      apiPost<SemesterListResponse>("semester/list"),
+      apiPost<ProgramListDetailedResponse>("program/list-detailed"),
+      apiPost<StudentListResponse>("student/list"),
+    ]);
+
+  const needle = q?.toLowerCase() ?? "";
+  const searchResults: StudentSummary[] = q
+    ? allStudents
+        .filter(
+          (student) =>
+            student.name.toLowerCase().includes(needle) ||
+            student.email.toLowerCase().includes(needle) ||
+            student.studentId.toLowerCase().includes(needle),
+        )
+        .slice(0, 20)
+    : [];
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
