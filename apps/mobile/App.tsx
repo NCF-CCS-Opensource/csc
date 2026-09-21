@@ -291,6 +291,10 @@ function BoothApp() {
     clerk.load().catch(() => {});
   }, []);
 
+  const retryAdmission = useCallback(() => {
+    setAdmissionAttempt((attempt) => attempt + 1);
+  }, []);
+
   const officerId = identity?.authUserId;
 
   useEffect(() => {
@@ -319,6 +323,7 @@ function BoothApp() {
       identityResolved={identity !== undefined}
       authTimedOut={authTimedOut}
       onRetryAuth={retryAuth}
+      onRetryAdmission={retryAdmission}
       officerId={officerId}
       admission={admission}
       pendingCount={pendingCount}
@@ -348,61 +353,69 @@ function AppShell({
   identityResolved,
   authTimedOut,
   onRetryAuth,
+  onRetryAdmission,
   officerId,
   admission,
   pendingCount,
   unresolvedQueueCount,
   queueRevision,
   refreshQueue,
-}: {
+}: Readonly<{
   identityResolved: boolean;
   authTimedOut: boolean;
   onRetryAuth: () => void;
+  onRetryAdmission: () => void;
   officerId: string | undefined;
   admission: MobileAdmission;
   pendingCount: number;
   unresolvedQueueCount: number;
   queueRevision: number;
   refreshQueue: (officerId: string) => void;
-}) {
+}>) {
   const { colors } = useTheme();
-  const { signOut } = useAuth();
-  return (
-    <View style={[styles.container, { backgroundColor: colors.neoBgPage }]}>
-      {!identityResolved && authTimedOut ? (
-        <View style={styles.accessState}>
-          <Text style={[styles.accessTitle, { color: colors.text }]}>
-            Taking longer than expected
-          </Text>
-          <Text style={[styles.accessMessage, { color: colors.textMuted }]}>
-            Check your connection, then try again.
-          </Text>
-          <TouchableOpacity
-            accessibilityRole="button"
-            style={[styles.signOutButton, { backgroundColor: colors.primary }]}
-            onPress={onRetryAuth}
-          >
-            <Text style={{ color: colors.primaryText, fontWeight: "600" }}>Try again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : !identityResolved ? (
+  const { isLoaded, isSignedIn, signOut } = useAuth();
+
+  // 1. Not loaded yet
+  if (!isLoaded) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.neoBgPage }]}>
         <ActivityIndicator style={styles.accessState} color={colors.primary} />
-      ) : !officerId && !admission ? (
+      </View>
+    );
+  }
+
+  // 2. Not signed in to Clerk: always show LoginScreen
+  if (!isSignedIn) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.neoBgPage }]}>
         <LoginScreen />
-      ) : admission?.allowed && officerId ? (
+        <StatusBar style={colors.mode === "dark" ? "light" : "dark"} />
+      </View>
+    );
+  }
+
+  // 3. Authenticated Officer: show app
+  if (admission?.allowed && Boolean(officerId)) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.neoBgPage }]}>
         <NavigationContainer theme={navTheme(colors)}>
           <AuthenticatedApp
-            officerId={officerId}
+            officerId={officerId!}
             pendingCount={pendingCount}
             unresolvedQueueCount={unresolvedQueueCount}
             queueRevision={queueRevision}
-            refreshQueue={() => refreshQueue(officerId)}
+            refreshQueue={() => refreshQueue(officerId!)}
           />
         </NavigationContainer>
-      ) : !admission || admission.allowed ? (
-        // Admitted but the offline Officer stamp has not loaded yet.
-        <ActivityIndicator style={styles.accessState} color={colors.primary} />
-      ) : (
+        <StatusBar style={colors.mode === "dark" ? "light" : "dark"} />
+      </View>
+    );
+  }
+
+  // 4. Admission denied or connection failure: offer retry and sign out
+  if (admission && !admission.allowed) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.neoBgPage }]}>
         <View style={styles.accessState}>
           <Text style={[styles.accessTitle, { color: colors.text }]}>
             Mobile access unavailable
@@ -412,6 +425,13 @@ function AppShell({
               ? `${admission.message}. Connect to deliver ${pendingCount} queued decision${pendingCount === 1 ? "" : "s"} before signing out.`
               : admission.message}
           </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={[styles.signOutButton, { backgroundColor: colors.neoPrimary, marginBottom: 12 }]}
+            onPress={onRetryAdmission}
+          >
+            <Text style={{ color: "#FFFFFF", fontWeight: "600" }}>Retry verification</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             accessibilityRole="button"
             disabled={pendingCount > 0}
@@ -428,6 +448,44 @@ function AppShell({
               Sign out
             </Text>
           </TouchableOpacity>
+        </View>
+        <StatusBar style={colors.mode === "dark" ? "light" : "dark"} />
+      </View>
+    );
+  }
+
+  // 5. Resolving identity in progress or timeout fallback
+  return (
+    <View style={[styles.container, { backgroundColor: colors.neoBgPage }]}>
+      {!identityResolved && authTimedOut ? (
+        <View style={styles.accessState}>
+          <Text style={[styles.accessTitle, { color: colors.text }]}>
+            Taking longer than expected
+          </Text>
+          <Text style={[styles.accessMessage, { color: colors.textMuted }]}>
+            Check your connection, then try again.
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={[styles.signOutButton, { backgroundColor: colors.primary, marginBottom: 12 }]}
+            onPress={onRetryAuth}
+          >
+            <Text style={{ color: colors.primaryText, fontWeight: "600" }}>Try again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={[styles.signOutButton, { backgroundColor: colors.mode === "dark" ? "#222" : "#eee" }]}
+            onPress={() => endOfficerSession(signOut)}
+          >
+            <Text style={{ color: colors.text, fontWeight: "600" }}>Sign out</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.accessState}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.accessMessage, { color: colors.textMuted, marginTop: 14 }]}>
+            Verifying booth access...
+          </Text>
         </View>
       )}
       <StatusBar style={colors.mode === "dark" ? "light" : "dark"} />
