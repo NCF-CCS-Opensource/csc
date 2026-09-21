@@ -473,11 +473,11 @@ function RecentScanRow({
       ];
   const statusStyle = scan.discarded
     ? styles.failedLabel
-    : scan.deliveryState === "delivered"
-      ? styles.syncedLabel
-      : scan.deliveryState === "needs_review"
-        ? styles.failedLabel
-        : styles.pendingLabel;
+    : {
+        pending: styles.pendingLabel,
+        delivered: styles.syncedLabel,
+        needs_review: styles.failedLabel,
+      }[scan.deliveryState];
   const mode = BOOTH_MODES.find(({ value }) => value === scan.mode)?.label ?? scan.mode;
 
   const canReview = isNeedsReviewActionable(scan);

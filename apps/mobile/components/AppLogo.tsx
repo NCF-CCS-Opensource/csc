@@ -208,10 +208,10 @@ export function AppLogo({
   return (
     <View style={styles.container}>
       <AppLogoMark size={size} />
-      {Boolean(title || subtitle) ? (
+      {(title || subtitle) ? (
         <View style={styles.textBlock}>
-          {Boolean(title) ? <Text style={styles.title}>{title}</Text> : null}
-          {Boolean(subtitle) ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          {title ? <Text style={styles.title}>{title}</Text> : null}
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
       ) : null}
     </View>

@@ -41,11 +41,11 @@ export function PendingScreen({
   officerId,
   queueRevision,
   onQueueChanged,
-}: {
+}: Readonly<{
   officerId: string;
   queueRevision: number;
   onQueueChanged: () => void;
-}) {
+}>) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [needsReview, setNeedsReview] = useState<QueuedScan[]>([]);
@@ -121,6 +121,11 @@ export function PendingScreen({
   }, [onQueueChanged, load]);
 
   const online = status === "online";
+  const connectionLabel = status === "unknown"
+    ? "Checking connection…"
+    : online
+      ? "Online"
+      : "Offline — scans stay queued";
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -143,11 +148,7 @@ export function PendingScreen({
             { color: online ? colors.success : colors.warning },
           ]}
         >
-          {status === "unknown"
-            ? "Checking connection…"
-            : online
-              ? "Online"
-              : "Offline — scans stay queued"}
+          {connectionLabel}
         </Text>
       </View>
 
@@ -240,7 +241,10 @@ export function PendingScreen({
   );
 }
 
-function ScanCardHeader({ scan, styles }: { scan: QueuedScan; styles: Styles }) {
+function ScanCardHeader({
+  scan,
+  styles,
+}: Readonly<{ scan: QueuedScan; styles: Styles }>) {
   return (
     <>
       <Text style={styles.cardTitle}>
@@ -257,13 +261,13 @@ function NeedsReviewCard({
   colors,
   onRetry,
   onDiscard,
-}: {
+}: Readonly<{
   scan: QueuedScan;
   styles: Styles;
   colors: ThemeColors;
   onRetry: (id: string) => void;
   onDiscard: (id: string) => void;
-}) {
+}>) {
   return (
     <View style={styles.card}>
       <ScanCardHeader scan={scan} styles={styles} />
@@ -290,7 +294,10 @@ function NeedsReviewCard({
   );
 }
 
-function PendingCard({ scan, styles }: { scan: QueuedScan; styles: Styles }) {
+function PendingCard({
+  scan,
+  styles,
+}: Readonly<{ scan: QueuedScan; styles: Styles }>) {
   return (
     <View style={styles.card}>
       <ScanCardHeader scan={scan} styles={styles} />
@@ -299,7 +306,10 @@ function PendingCard({ scan, styles }: { scan: QueuedScan; styles: Styles }) {
   );
 }
 
-function LegacyCard({ scan, styles }: { scan: QueuedScan; styles: Styles }) {
+function LegacyCard({
+  scan,
+  styles,
+}: Readonly<{ scan: QueuedScan; styles: Styles }>) {
   return (
     <View style={styles.card}>
       <ScanCardHeader scan={scan} styles={styles} />
@@ -311,11 +321,11 @@ function DeliveredCard({
   scan,
   styles,
   colors,
-}: {
+}: Readonly<{
   scan: RecentScan;
   styles: Styles;
   colors: ThemeColors;
-}) {
+}>) {
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{scan.studentName}</Text>
