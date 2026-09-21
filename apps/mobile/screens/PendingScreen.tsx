@@ -221,9 +221,14 @@ export function PendingScreen({
             {legacy.length} scan{legacy.length === 1 ? "" : "s"} from the
             previous storage format cannot be safely attributed or delivered.
           </Text>
+          {legacy.map((scan) => (
+            <View key={scan.id} style={styles.separator}>
+              <LegacyCard scan={scan} styles={styles} />
+            </View>
+          ))}
           <TouchableOpacity
             accessibilityRole="button"
-            style={styles.discardLegacyButton}
+            style={[styles.discardLegacyButton, styles.separator]}
             onPress={discardLegacy}
           >
             <Trash2 size={14} color={colors.danger} strokeWidth={2} />
@@ -232,6 +237,17 @@ export function PendingScreen({
         </View>
       )}
     </ScrollView>
+  );
+}
+
+function ScanCardHeader({ scan, styles }: { scan: QueuedScan; styles: Styles }) {
+  return (
+    <>
+      <Text style={styles.cardTitle}>
+        {scan.type === "approve" ? "Approve" : "Reject"} scan
+      </Text>
+      <Text style={styles.cardMeta}>{formatMeta(scan.mode, scan.decisionAt)}</Text>
+    </>
   );
 }
 
@@ -250,10 +266,7 @@ function NeedsReviewCard({
 }) {
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>
-        {scan.type === "approve" ? "Approve" : "Reject"} scan
-      </Text>
-      <Text style={styles.cardMeta}>{formatMeta(scan.mode, scan.decisionAt)}</Text>
+      <ScanCardHeader scan={scan} styles={styles} />
       {scan.error ? <Text style={styles.cardError}>{scan.error}</Text> : null}
       <View style={styles.cardActions}>
         <TouchableOpacity
@@ -280,11 +293,16 @@ function NeedsReviewCard({
 function PendingCard({ scan, styles }: { scan: QueuedScan; styles: Styles }) {
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>
-        {scan.type === "approve" ? "Approve" : "Reject"} scan
-      </Text>
-      <Text style={styles.cardMeta}>{formatMeta(scan.mode, scan.decisionAt)}</Text>
+      <ScanCardHeader scan={scan} styles={styles} />
       <Text style={styles.cardStatus}>Waiting to sync</Text>
+    </View>
+  );
+}
+
+function LegacyCard({ scan, styles }: { scan: QueuedScan; styles: Styles }) {
+  return (
+    <View style={styles.card}>
+      <ScanCardHeader scan={scan} styles={styles} />
     </View>
   );
 }
