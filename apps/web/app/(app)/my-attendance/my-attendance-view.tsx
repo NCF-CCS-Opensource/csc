@@ -419,14 +419,7 @@ export function MyAttendanceView({
                       </TableBody>
                     </Table>
                   </div>
-                  <Pagination
-                    page={historyPagination.page}
-                    pageSize={historyPagination.pageSize}
-                    totalItems={filteredHistory.length}
-                    totalPages={historyPagination.totalPages}
-                    onPageChange={historyPagination.setPage}
-                    onPageSizeChange={historyPagination.setPageSize}
-                  />
+                  <Pagination pagination={historyPagination} />
                 </>
               )}
             </div>
