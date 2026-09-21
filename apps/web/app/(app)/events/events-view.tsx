@@ -205,9 +205,31 @@ function EventActions({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // The edit form's Save doesn't mutate directly (#222) — it captures the
+  // typed values and opens a second confirmation on top naming the change,
+  // leaving the edit dialog open underneath so Cancel returns to the form
+  // with nothing lost.
+  const [pendingUpdate, setPendingUpdate] = useState<FormData | null>(null);
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: eventsQueryKey });
+  }
+
+  function summarizeEventChanges(formData: FormData): string {
+    const changes: string[] = [];
+    const name = formData.get("name");
+    if (typeof name === "string" && name !== event.name) changes.push(`Name → ${name}`);
+    const date = formData.get("date");
+    if (typeof date === "string" && date !== event.date) changes.push(`Date → ${date}`);
+    const type = formData.get("type");
+    if (typeof type === "string" && type !== event.type) {
+      changes.push(`Type → ${type === "whole_day" ? "Whole-day" : "Half-day"}`);
+    }
+    const penalty = formData.get("halfDayPenaltyAmount");
+    if (typeof penalty === "string" && penalty !== String(event.halfDayPenaltyAmount)) {
+      changes.push(`Half-day penalty → ₱${penalty}`);
+    }
+    return changes.length > 0 ? `Updates: ${changes.join(", ")}.` : "No changes to apply.";
   }
 
   return (
@@ -231,16 +253,8 @@ function EventActions({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              startTransition(async () => {
-                const result = await updateEvent(event.id, formData);
-                if (result.error) {
-                  setError(result.error);
-                  return;
-                }
-                setEditOpen(false);
-                await refresh();
-              });
+              setError(null);
+              setPendingUpdate(new FormData(e.currentTarget));
             }}
             className="flex flex-col gap-3"
           >
@@ -293,6 +307,45 @@ function EventActions({
               </Button>
             </AlertDialogFooter>
           </form>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={pendingUpdate !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingUpdate(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save changes to {event.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingUpdate && summarizeEventChanges(pendingUpdate)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {error && <p className="text-destructive text-sm">{error}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <Button
+              disabled={pending}
+              onClick={() => {
+                const formData = pendingUpdate;
+                if (!formData) return;
+                startTransition(async () => {
+                  const result = await updateEvent(event.id, formData);
+                  if (result.error) {
+                    setError(result.error);
+                    return;
+                  }
+                  setPendingUpdate(null);
+                  setEditOpen(false);
+                  await refresh();
+                });
+              }}
+            >
+              {pending ? "Saving…" : "Confirm"}
+            </Button>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
