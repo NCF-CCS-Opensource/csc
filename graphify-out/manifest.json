@@ -2214,9 +2214,9 @@
     "semantic_hash": ""
   },
   "apps/mobile/components/AppLogo.tsx": {
-    "mtime": 1789986535.3902113,
-    "seen": 1789986707.189866,
-    "ast_hash": "1a6093d33deee06dccdbb0e32870f575",
+    "mtime": 1789987012.4310174,
+    "seen": 1789987043.0483673,
+    "ast_hash": "e0dcd3698039b76077fe202a819d6db9",
     "semantic_hash": ""
   },
   "apps/web/components/app-logo.test.tsx": {
@@ -2226,9 +2226,9 @@
     "semantic_hash": ""
   },
   "apps/web/components/app-logo.tsx": {
-    "mtime": 1789986680.942915,
-    "seen": 1789986707.1916401,
-    "ast_hash": "a46269c1f7d4180e70d479eb5af3f210",
+    "mtime": 1789987021.2599864,
+    "seen": 1789987043.0502248,
+    "ast_hash": "6770b53c148bcafe89a8ba36401c3253",
     "semantic_hash": ""
   },
   "apps/web/app/apple-icon.png": {

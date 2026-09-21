@@ -34,7 +34,7 @@ export function AppLogoMark({
   className,
   shadow = true,
   ...props
-}: AppLogoMarkProps) {
+}: Readonly<AppLogoMarkProps>) {
   const pixelSize = typeof size === "number" ? size : SIZE_MAP[size].px;
   const sizeClass = typeof size === "number" ? "" : SIZE_MAP[size].className;
 
@@ -209,7 +209,7 @@ export function AppLogo({
   showTagline = false,
   className,
   wordmarkClassName,
-}: AppLogoProps) {
+}: Readonly<AppLogoProps>) {
   return (
     <div className={cn("inline-flex items-center gap-2.5", className)}>
       <AppLogoMark size={size} />

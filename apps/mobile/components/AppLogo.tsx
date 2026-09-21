@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { useTheme } from "../lib/theme-context";
-import { neoShadow, type ThemeColors } from "../lib/theme";
+import type { ThemeColors } from "../lib/theme";
 
 export type LogoSize = "sm" | "md" | "lg" | "xl";
 
@@ -30,7 +30,10 @@ export interface AppLogoMarkProps {
  * - Center matrix synchronization node
  * - Hard neobrutalist zero-blur offset shadow
  */
-export function AppLogoMark({ size = "md", shadow = true }: AppLogoMarkProps) {
+export function AppLogoMark({
+  size = "md",
+  shadow = true,
+}: Readonly<AppLogoMarkProps>) {
   const { colors } = useTheme();
   const px = typeof size === "number" ? size : SIZE_PX[size];
 
@@ -198,19 +201,19 @@ export function AppLogo({
   title = "AttendKita",
   subtitle = "CCS Attendance System",
   layout = "vertical",
-}: AppLogoProps) {
+}: Readonly<AppLogoProps>) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors, layout), [colors, layout]);
 
   return (
     <View style={styles.container}>
       <AppLogoMark size={size} />
-      {(title || subtitle) && (
+      {Boolean(title || subtitle) ? (
         <View style={styles.textBlock}>
-          {title ? <Text style={styles.title}>{title}</Text> : null}
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          {Boolean(title) ? <Text style={styles.title}>{title}</Text> : null}
+          {Boolean(subtitle) ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
