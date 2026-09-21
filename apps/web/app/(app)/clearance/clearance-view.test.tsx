@@ -152,41 +152,52 @@ describe("Clearance ledger pagination (Issue #220)", () => {
 
   const paginatedResults = makeResults(21);
 
+  function expectRows(visible: string[], hidden: string[]) {
+    for (const name of visible) {
+      expect(screen.getByText(name)).toBeInTheDocument();
+    }
+    for (const name of hidden) {
+      expect(screen.queryByText(name)).not.toBeInTheDocument();
+    }
+  }
+
   it("shows the full student list on load, no search required first", () => {
     renderClearance(paginatedResults);
 
-    expect(screen.getByText("Student 1")).toBeInTheDocument();
-    expect(screen.getByText("Student 20")).toBeInTheDocument();
-    expect(screen.queryByText("Student 21")).not.toBeInTheDocument();
+    expectRows(["Student 1", "Student 20"], ["Student 21"]);
     expect(screen.getByText("21 total")).toBeInTheDocument();
   });
 
-  it("defaults to 20 rows and changes pages and page sizes without reloading", () => {
+  it("defaults to 20 rows, flips pages, and can switch to 15 rows per page", () => {
     renderClearance(paginatedResults);
 
     expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+    expectRows(["Student 1", "Student 20"], ["Student 21"]);
 
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-    expect(screen.getByText("Student 21")).toBeInTheDocument();
-    expect(screen.queryByText("Student 1")).not.toBeInTheDocument();
+    expectRows(["Student 21"], ["Student 1"]);
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
     fireEvent.click(screen.getByRole("combobox", { name: "Rows per page" }));
-    fireEvent.click(screen.getByRole("option", { name: "10 per page" }));
-    expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
-    expect(screen.getByText("Student 10")).toBeInTheDocument();
-    expect(screen.queryByText("Student 11")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("option", { name: "15 per page" }));
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+    expectRows(["Student 1", "Student 15"], ["Student 16"]);
   });
 
-  it("search narrows the paginated list and resets to page 1", () => {
+  it("searching by student ID resets to page 1 of the narrowed results", () => {
     renderClearance(paginatedResults);
 
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("Student 21")).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole("textbox", { name: /search name, email, or student id/i }), {
-      target: { value: "Student 1" },
+      target: { value: "24-002" },
     });
 
+    expect(screen.queryByText("Student 21")).not.toBeInTheDocument();
+    expectRows(["Student 2"], ["Student 1", "Student 20"]);
+    expect(screen.getByText("1 total")).toBeInTheDocument();
     expect(screen.getByText("Page 1 of 1")).toBeInTheDocument();
-    expect(screen.getByText("Student 1")).toBeInTheDocument();
   });
 });
