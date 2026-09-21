@@ -1,5 +1,3 @@
-import { students } from "@attendance/db";
-import { ilike, or } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,13 +11,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireOfficerOrGovernor } from "@/lib/auth";
-import { db } from "@/lib/db";
-import type { SemesterResponse, StudentLedgerResponse } from "@attendance/contracts";
-import { apiFetch } from "@/lib/api-client";
+import type {
+  SemesterResponse,
+  StudentLedgerResponse,
+  StudentListResponse,
+} from "@attendance/contracts";
+import { apiFetch, apiPost } from "@/lib/api-client";
 
-// ponytail-gap: no student-search endpoint exists on the API yet — the
-// search query below stays on direct DB access (see PR description's Known
-// Gaps). semester/current does exist, so that read is proxied.
 function findOpenSemester(): Promise<SemesterResponse | null> {
   return apiFetch<SemesterResponse | null>("/v1/api/semester/current");
 }
@@ -34,22 +32,22 @@ export default async function ClearancePage({
   await requireOfficerOrGovernor();
   const { q } = await searchParams;
 
-  const [openSemester, matches] = await Promise.all([
+  const [openSemester, allStudents] = await Promise.all([
     findOpenSemester(),
     q
-      ? db
-          .select()
-          .from(students)
-          .where(
-            or(
-              ilike(students.name, `%${q}%`),
-              ilike(students.email, `%${q}%`),
-              ilike(students.studentId, `%${q}%`),
-            ),
-          )
-          .limit(20)
+      ? apiPost<StudentListResponse>("student/list").then(({ students }) => students)
       : Promise.resolve([]),
   ]);
+
+  const needle = q?.toLowerCase() ?? "";
+  const matches = allStudents
+    .filter(
+      (student) =>
+        student.name.toLowerCase().includes(needle) ||
+        student.email.toLowerCase().includes(needle) ||
+        student.studentId.toLowerCase().includes(needle),
+    )
+    .slice(0, 20);
 
   const results = await Promise.all(
     matches.map(async (student) => ({

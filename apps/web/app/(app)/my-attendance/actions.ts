@@ -31,12 +31,12 @@ export async function myAttendanceSnapshot(): Promise<MyAttendanceSnapshot> {
     findOpenSemester(),
   ]);
 
-  // ponytail-gap: IdentityResponse carries no `program`, and there's no
-  // API-side "payment history" read yet (ledger/mine only totals + sessions).
-  // Both stay on a direct DB lookup by authUserId until those land (see PR
-  // description's Known Gaps) — everything else here is proxied.
-  const [record, ledger, paymentHistory] = await Promise.all([
-    db.query.students.findFirst({ where: eq(students.authUserId, identity.authUserId) }),
+  // ponytail-gap: there's no API-side "payment history" read yet (ledger/mine
+  // only totals + sessions), so that stays on a direct DB lookup by
+  // authUserId (separate gap from #190 — no student/identity change closes
+  // this one). identity.program (closed by #190/#185) covers the program
+  // field, so the Student-row lookup that used to exist here is gone.
+  const [ledger, paymentHistory] = await Promise.all([
     openSemester
       ? apiFetch<StudentLedgerResponse>("/v1/api/ledger/mine", { semesterId: openSemester.id })
       : Promise.resolve({ total: 0, outstanding: 0, sessions: [] }),
@@ -53,7 +53,7 @@ export async function myAttendanceSnapshot(): Promise<MyAttendanceSnapshot> {
     student: {
       name: identity.name,
       email: identity.email,
-      program: record!.program,
+      program: identity.program,
       studentId: identity.studentId,
     },
     hasOpenSemester: openSemester !== null,
