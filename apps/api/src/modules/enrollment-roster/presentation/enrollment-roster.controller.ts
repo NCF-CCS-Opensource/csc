@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Inject,
   NotFoundException,
   Post,
   UseGuards,
@@ -19,7 +20,7 @@ import { presentIdentity } from "../../student/presentation/identity.presenter";
 @Controller("enrollment-roster")
 @UseGuards(TokenAuthGuard)
 export class EnrollmentRosterController {
-  constructor(private readonly claimRoster: ClaimRosterUseCase) {}
+  constructor(@Inject(ClaimRosterUseCase) private readonly claimRoster: ClaimRosterUseCase) {}
 
   @Post("claim")
   async claim(

@@ -36,9 +36,13 @@ export async function apiFetch<T>(path: string, body: unknown = {}): Promise<T> 
     cache: "no-store",
   });
 
-  const data = await response.json().catch(() => ({}));
+  // Nest's Express adapter sends an empty body (not JSON "null") for a
+  // handler that resolves to null — response.json() would throw on that,
+  // so an empty body is parsed as null rather than falling back to {}.
+  const rawText = await response.text();
+  const data = rawText ? JSON.parse(rawText) : null;
   if (!response.ok) {
-    throw new ApiError(data.message ?? `Request failed (${response.status})`, response.status);
+    throw new ApiError(data?.message ?? `Request failed (${response.status})`, response.status);
   }
   return data as T;
 }

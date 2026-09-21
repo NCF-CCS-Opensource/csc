@@ -62,7 +62,7 @@ export class SemesterController {
   }
 
   @Post("current")
-  @RequireCapability("manage_operations")
+  @RequireCapability("view_own_attendance")
   async current(): Promise<SemesterResponse | null> {
     const semester = await this.getOpenSemester.execute();
     return semester ? presentSemester(semester) : null;

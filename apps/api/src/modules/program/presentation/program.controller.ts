@@ -1,4 +1,4 @@
-import { Body, ConflictException, Controller, Post, UseGuards } from "@nestjs/common";
+import { Body, ConflictException, Controller, Inject, Post, UseGuards } from "@nestjs/common";
 import type {
   CreateProgramRequest,
   DeleteProgramRequest,
@@ -24,10 +24,11 @@ import { DuplicateProgramError, ProgramInUseError } from "../domain/program-repo
 @UseGuards(AuthGuard, CapabilityGuard)
 export class ProgramController {
   constructor(
-    private readonly listPrograms: ListProgramsUseCase,
+    @Inject(ListProgramsUseCase) private readonly listPrograms: ListProgramsUseCase,
+    @Inject(ListProgramsDetailedUseCase)
     private readonly listProgramsDetailed: ListProgramsDetailedUseCase,
-    private readonly createProgram: CreateProgramUseCase,
-    private readonly deleteProgram: DeleteProgramUseCase,
+    @Inject(CreateProgramUseCase) private readonly createProgram: CreateProgramUseCase,
+    @Inject(DeleteProgramUseCase) private readonly deleteProgram: DeleteProgramUseCase,
   ) {}
 
   @Post("list")
