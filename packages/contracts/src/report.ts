@@ -1,4 +1,4 @@
-import type { EventType } from "./event";
+import type { EventType } from "./event.ts";
 
 export type Half = "am" | "pm";
 export type SessionStatus = "present" | "incomplete" | "absent";

@@ -1,4 +1,4 @@
-import type { Role } from "./identity";
+import type { Role } from "./identity.ts";
 
 // Student correction (ADR-0019): an Officer or Governor corrects a
 // Student's Student ID and Program. Name, email and role never pass
