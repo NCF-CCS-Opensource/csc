@@ -23,23 +23,11 @@ export default async function ClearancePage({
 
   const [openSemester, allStudents] = await Promise.all([
     findOpenSemester(),
-    q
-      ? apiPost<StudentListResponse>("student/list").then(({ students }) => students)
-      : Promise.resolve([]),
+    apiPost<StudentListResponse>("student/list").then(({ students }) => students),
   ]);
 
-  const needle = q?.toLowerCase() ?? "";
-  const matches = allStudents
-    .filter(
-      (student) =>
-        student.name.toLowerCase().includes(needle) ||
-        student.email.toLowerCase().includes(needle) ||
-        student.studentId.toLowerCase().includes(needle),
-    )
-    .slice(0, 20);
-
   const results = await Promise.all(
-    matches.map(async (student) => ({
+    allStudents.map(async (student) => ({
       student,
       outstanding: openSemester
         ? (

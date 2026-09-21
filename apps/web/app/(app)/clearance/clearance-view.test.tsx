@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
+// Radix Select scrolls the highlighted option into view on open; jsdom has no
+// scrollIntoView, so stub it or the Rows-per-page interaction throws.
+Element.prototype.scrollIntoView ??= () => {};
+
 import { ClearanceView, type ClearanceItem } from "./clearance-view";
 import type { SemesterResponse } from "@attendance/contracts";
 
@@ -120,7 +124,7 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
     expect(screen.getByText("No results yet.")).toBeInTheDocument();
   });
 
-  it("renders tactile search input with Coral focus offset and search button", () => {
+  it("renders tactile search input with Coral focus offset (live client-side search)", () => {
     render(
       <ClearanceView
         openSemester={mockSemester}
@@ -135,9 +139,7 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
     expect(searchInput.className).toMatch(/focus-visible:ring-\[var\(--color-coral\)\]/);
     expect(searchInput.className).toMatch(/focus-visible:border-\[var\(--color-coral\)\]/);
 
-    const searchBtn = screen.getByRole("button", { name: /search/i });
-    expect(searchBtn).toBeInTheDocument();
-    expect(searchBtn.className).toMatch(/border-2/);
+    expect(screen.queryByRole("button", { name: /search/i })).not.toBeInTheDocument();
   });
 
   it("displays no open semester notice when openSemester is null", () => {
@@ -150,5 +152,61 @@ describe("ClearanceView Ledger Verification (Issue #206)", () => {
     );
 
     expect(screen.getByText(/no open semester — nothing to clear/i)).toBeInTheDocument();
+  });
+});
+
+describe("Clearance ledger pagination (Issue #220)", () => {
+  function makeResults(count: number): ClearanceItem[] {
+    return Array.from({ length: count }, (_, index) => ({
+      student: {
+        id: `s${index + 1}`,
+        name: `Student ${index + 1}`,
+        email: `student${index + 1}@example.edu`,
+        studentId: `24-${String(index + 1).padStart(3, "0")}`,
+        program: "Computer Science",
+        role: "student" as const,
+      },
+      outstanding: 0,
+    }));
+  }
+
+  const paginatedResults = makeResults(21);
+
+  it("shows the full student list on load, no search required first", () => {
+    render(<ClearanceView openSemester={mockSemester} initialResults={paginatedResults} />);
+
+    expect(screen.getByText("Student 1")).toBeInTheDocument();
+    expect(screen.getByText("Student 20")).toBeInTheDocument();
+    expect(screen.queryByText("Student 21")).not.toBeInTheDocument();
+    expect(screen.getByText("21 total")).toBeInTheDocument();
+  });
+
+  it("defaults to 20 rows and changes pages and page sizes without reloading", () => {
+    render(<ClearanceView openSemester={mockSemester} initialResults={paginatedResults} />);
+
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("Student 21")).toBeInTheDocument();
+    expect(screen.queryByText("Student 1")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Rows per page" }));
+    fireEvent.click(screen.getByRole("option", { name: "10 per page" }));
+    expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
+    expect(screen.getByText("Student 10")).toBeInTheDocument();
+    expect(screen.queryByText("Student 11")).not.toBeInTheDocument();
+  });
+
+  it("search narrows the paginated list and resets to page 1", () => {
+    render(<ClearanceView openSemester={mockSemester} initialResults={paginatedResults} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+
+    fireEvent.change(screen.getByRole("textbox", { name: /search name, email, or student id/i }), {
+      target: { value: "Student 1" },
+    });
+
+    expect(screen.getByText("Page 1 of 1")).toBeInTheDocument();
+    expect(screen.getByText("Student 1")).toBeInTheDocument();
   });
 });
