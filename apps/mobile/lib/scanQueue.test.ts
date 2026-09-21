@@ -4,11 +4,13 @@ import {
   addRecentScan,
   blockingScanCount,
   claimLegacyScans,
+  deliveredScans,
   discardScan,
   enqueue,
   loadQueue,
   loadRecentScans,
   needsReviewScans,
+  pendingScans,
   queueSummary,
   retryScan,
   updateRecentScan,
@@ -245,5 +247,34 @@ describe("queueSummary", () => {
 
   it("reports zero counts for an Officer with an empty queue", async () => {
     expect(await queueSummary("officer-a")).toEqual({ needsReview: 0, pending: 0 });
+  });
+});
+
+describe("pendingScans", () => {
+  it("lists only in-flight deliveries for the signed-in Officer", async () => {
+    await enqueue(queued("1"));
+    await enqueue({ ...queued("2"), deliveryState: "needs_review", error: "Bad request" });
+    await enqueue(queued("3", "officer-b"));
+
+    expect(await pendingScans("officer-a")).toEqual([queued("1")]);
+  });
+
+  it("reports empty for an Officer with no pending deliveries", async () => {
+    expect(await pendingScans("officer-a")).toEqual([]);
+  });
+});
+
+describe("deliveredScans", () => {
+  it("lists only delivered entries from recent history", async () => {
+    await addRecentScan({ ...recent("1"), deliveryState: "delivered" });
+    await addRecentScan({ ...recent("2"), deliveryState: "needs_review", error: "Bad request" });
+
+    expect(await deliveredScans("officer-a")).toEqual([
+      { ...recent("1"), deliveryState: "delivered" },
+    ]);
+  });
+
+  it("reports empty when nothing has delivered yet", async () => {
+    expect(await deliveredScans("officer-a")).toEqual([]);
   });
 });
