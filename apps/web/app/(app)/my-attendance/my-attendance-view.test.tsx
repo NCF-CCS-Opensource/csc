@@ -234,6 +234,7 @@ describe("MyAttendanceView Bento Layout (Issue #204)", () => {
     const qrCell = screen.getByTestId("qr-card-cell");
     expect(qrCell).toBeInTheDocument();
     expect(qrCell).toHaveAttribute("data-slot", "bento-cell");
+    expect(qrCell).toHaveAttribute("data-span", "wide");
 
     // High-contrast container with distinct borders for fast camera scanning
     const qrContainer = screen.getByTestId("qr-code-container");
@@ -251,11 +252,12 @@ describe("MyAttendanceView Bento Layout (Issue #204)", () => {
     expect(within(qrCell).getByText(/24-00123/)).toBeInTheDocument();
     expect(within(qrCell).getByText("BS Computer Science")).toBeInTheDocument();
 
-    // Download QR Card CTA button
+    // Download QR Card CTA button using pill variant
     const downloadLink = screen.getByRole("link", { name: /download qr card/i });
     expect(downloadLink).toBeInTheDocument();
     expect(downloadLink).toHaveAttribute("href", "/qr/card");
     expect(downloadLink).toHaveAttribute("download", "qr-card.pdf");
+    expect(downloadLink.className).toMatch(/rounded-full/);
   });
 
   it("renders payment history and mobile responsive collapse classes", () => {
@@ -270,8 +272,15 @@ describe("MyAttendanceView Bento Layout (Issue #204)", () => {
     // Mobile responsive collapse assertions on grid and cells (<520px collapses to 1 col)
     const heroCell = screen.getByTestId("ledger-hero-cell");
     expect(heroCell.className).toMatch(/max-\[520px\]:col-span-1/);
+    expect(heroCell.className).toMatch(/max-\[520px\]:row-span-1/);
+
+    const qrCell = screen.getByTestId("qr-card-cell");
+    expect(qrCell.className).toMatch(/max-\[520px\]:col-span-1/);
 
     const historyCell = screen.getByTestId("attendance-history-cell");
     expect(historyCell.className).toMatch(/max-\[520px\]:col-span-1/);
+
+    const paymentHistoryCell = screen.getByTestId("payment-history-cell");
+    expect(paymentHistoryCell.className).toMatch(/max-\[520px\]:col-span-1/);
   });
 });
