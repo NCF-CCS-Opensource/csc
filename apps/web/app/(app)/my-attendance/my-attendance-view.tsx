@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, Download, ShieldCheck, Wallet } from "lucide-react";
 
@@ -10,6 +11,16 @@ import {
   BentoGrid,
 } from "@/components/ui/bento-grid";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Pagination, usePagination } from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -20,6 +31,10 @@ import {
 } from "@/components/ui/table";
 import { myAttendanceSnapshot, type MyAttendanceSnapshot } from "./actions";
 import { myAttendanceQueryKey } from "./query-key";
+
+const ALL_STATUSES = "__all__";
+
+type AttendanceStatus = MyAttendanceSnapshot["ledger"]["sessions"][number]["status"];
 
 export interface MyAttendanceViewProps {
   initialData: MyAttendanceSnapshot;
@@ -37,6 +52,22 @@ export function MyAttendanceView({
   });
   const { student, hasOpenSemester, ledger, paymentHistory } = data;
   const { total: totalPenalty, outstanding, sessions: attendanceHistory } = ledger;
+
+  const [statusFilter, setStatusFilter] = useState<AttendanceStatus | typeof ALL_STATUSES>(
+    ALL_STATUSES
+  );
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const filteredHistory = useMemo(() => {
+    return attendanceHistory.filter((row) => {
+      const matchesStatus = statusFilter === ALL_STATUSES || row.status === statusFilter;
+      const matchesFrom = dateFrom === "" || row.eventDate >= dateFrom;
+      const matchesTo = dateTo === "" || row.eventDate <= dateTo;
+      return matchesStatus && matchesFrom && matchesTo;
+    });
+  }, [attendanceHistory, statusFilter, dateFrom, dateTo]);
+  const historyPagination = usePagination(filteredHistory);
 
   const isCleared = hasOpenSemester && outstanding === 0;
 
@@ -278,49 +309,126 @@ export function MyAttendanceView({
               No attendance recorded yet.
             </p>
           ) : (
-            <div className="rounded-[12px] border-2 border-border overflow-hidden bg-card mt-2">
-              <Table>
-                <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
-                  <TableRow>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
-                      Event
-                    </TableHead>
-                    <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
-                      Status
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {attendanceHistory.map((row) => (
-                    <TableRow
-                      key={`${row.eventId}:${row.half}`}
-                      className="border-b border-border hover:bg-[var(--bg-page)]/50 transition-colors"
+            <div className="flex flex-col gap-4 mt-2">
+              <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                <div className="flex flex-col gap-1.5 sm:w-48">
+                  <Label htmlFor="attendance-status-filter">Status</Label>
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(value) => {
+                      setStatusFilter(value as AttendanceStatus | typeof ALL_STATUSES);
+                      historyPagination.setPage(1);
+                    }}
+                  >
+                    <SelectTrigger
+                      id="attendance-status-filter"
+                      aria-label="Filter by status"
+                      className="border-2 border-border rounded-[8px] bg-card shadow-[var(--shadow-sm)]"
                     >
-                      <TableCell className="font-medium text-sm text-foreground">
-                        {row.eventName}{" "}
-                        <span className="text-xs font-mono text-muted-foreground font-semibold">
-                          ({row.half.toUpperCase()})
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge
-                          variant={
-                            row.status === "present"
-                              ? "present"
-                              : row.status === "incomplete"
-                                ? "incomplete"
-                                : "absent"
-                          }
-                          data-testid={`status-badge-${row.eventId}-${row.half}`}
-                          className="shadow-[var(--shadow-sm)]"
-                        >
-                          {row.status[0].toUpperCase() + row.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_STATUSES}>All Statuses</SelectItem>
+                      <SelectItem value="present">Present</SelectItem>
+                      <SelectItem value="incomplete">Incomplete</SelectItem>
+                      <SelectItem value="absent">Absent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="attendance-date-from">From</Label>
+                  <Input
+                    id="attendance-date-from"
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => {
+                      setDateFrom(e.target.value);
+                      historyPagination.setPage(1);
+                    }}
+                    className="border-2 border-border rounded-[8px] bg-card shadow-[var(--shadow-sm)]"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="attendance-date-to">To</Label>
+                  <Input
+                    id="attendance-date-to"
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => {
+                      setDateTo(e.target.value);
+                      historyPagination.setPage(1);
+                    }}
+                    className="border-2 border-border rounded-[8px] bg-card shadow-[var(--shadow-sm)]"
+                  />
+                </div>
+              </div>
+
+              {filteredHistory.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-6">
+                  No attendance records match the selected filters.
+                </p>
+              ) : (
+                <>
+                  <div className="rounded-[12px] border-2 border-border overflow-hidden bg-card">
+                    <Table>
+                      <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
+                        <TableRow>
+                          <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
+                            Event
+                          </TableHead>
+                          <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
+                            Date
+                          </TableHead>
+                          <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
+                            Status
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {historyPagination.pageItems.map((row) => (
+                          <TableRow
+                            key={`${row.eventId}:${row.half}`}
+                            className="border-b border-border hover:bg-[var(--bg-page)]/50 transition-colors"
+                          >
+                            <TableCell className="font-medium text-sm text-foreground">
+                              {row.eventName}{" "}
+                              <span className="text-xs font-mono text-muted-foreground font-semibold">
+                                ({row.half.toUpperCase()})
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                              {row.eventDate}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge
+                                variant={
+                                  row.status === "present"
+                                    ? "present"
+                                    : row.status === "incomplete"
+                                      ? "incomplete"
+                                      : "absent"
+                                }
+                                data-testid={`status-badge-${row.eventId}-${row.half}`}
+                                className="shadow-[var(--shadow-sm)]"
+                              >
+                                {row.status[0].toUpperCase() + row.status.slice(1)}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <Pagination
+                    page={historyPagination.page}
+                    pageSize={historyPagination.pageSize}
+                    totalItems={filteredHistory.length}
+                    totalPages={historyPagination.totalPages}
+                    onPageChange={historyPagination.setPage}
+                    onPageSizeChange={historyPagination.setPageSize}
+                  />
+                </>
+              )}
             </div>
           )}
         </BentoCell>
