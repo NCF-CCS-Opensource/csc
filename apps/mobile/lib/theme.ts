@@ -53,6 +53,16 @@ export interface ThemeColors {
   neoPink: string;
 }
 
+/** Neobrutalist accent colors are identical across schemes (see DESIGN.md / apps/web's .dark block). */
+const neoAccents = {
+  neoPrimary: "#E8635A",
+  neoSecondary: "#7B6CF6",
+  neoLavender: "#C4B5FD",
+  neoTeal: "#4ECDC4",
+  neoYellow: "#FFE566",
+  neoPink: "#F9A8B8",
+};
+
 const light: ThemeColors = {
   mode: "light",
   background: "#f8f8f9",
@@ -94,12 +104,7 @@ const light: ThemeColors = {
   neoBgSurface: "#FFFFFF",
   neoBgDark: "#111111",
   neoBorder: "#111111",
-  neoPrimary: "#E8635A",
-  neoSecondary: "#7B6CF6",
-  neoLavender: "#C4B5FD",
-  neoTeal: "#4ECDC4",
-  neoYellow: "#FFE566",
-  neoPink: "#F9A8B8",
+  ...neoAccents,
 };
 
 const dark: ThemeColors = {
@@ -143,12 +148,7 @@ const dark: ThemeColors = {
   neoBgSurface: "#1E1E1E",
   neoBgDark: "#0A0A0A",
   neoBorder: "#FFFFFF",
-  neoPrimary: "#E8635A",
-  neoSecondary: "#7B6CF6",
-  neoLavender: "#C4B5FD",
-  neoTeal: "#4ECDC4",
-  neoYellow: "#FFE566",
-  neoPink: "#F9A8B8",
+  ...neoAccents,
 };
 
 /**
