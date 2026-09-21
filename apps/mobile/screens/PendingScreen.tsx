@@ -1,5 +1,5 @@
 import NetInfo from "@react-native-community/netinfo";
-import { RefreshCw, RotateCcw, Trash2, Wifi, WifiOff } from "lucide-react-native";
+import { Check, RefreshCw, RotateCcw, Trash2, Wifi, WifiOff, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -18,6 +18,7 @@ import {
   legacyScans,
   needsReviewScans,
   pendingScans,
+  redecideScan,
   retryScan,
   type QueuedScan,
   type RecentScan,
@@ -95,6 +96,15 @@ export function PendingScreen({
   const discard = useCallback(
     async (id: string) => {
       await discardScan(officerId, id);
+      onQueueChanged();
+      load();
+    },
+    [officerId, onQueueChanged, load],
+  );
+
+  const redecide = useCallback(
+    async (id: string, type: "approve" | "reject") => {
+      await redecideScan(officerId, id, type);
       onQueueChanged();
       load();
     },
@@ -181,6 +191,7 @@ export function PendingScreen({
                 colors={colors}
                 onRetry={retry}
                 onDiscard={discard}
+                onRedecide={redecide}
               />
             </View>
           ))}
@@ -261,13 +272,16 @@ function NeedsReviewCard({
   colors,
   onRetry,
   onDiscard,
+  onRedecide,
 }: Readonly<{
   scan: QueuedScan;
   styles: Styles;
   colors: ThemeColors;
   onRetry: (id: string) => void;
   onDiscard: (id: string) => void;
+  onRedecide: (id: string, type: "approve" | "reject") => void;
 }>) {
+  const otherType = scan.type === "approve" ? "reject" : "approve";
   return (
     <View style={styles.card}>
       <ScanCardHeader scan={scan} styles={styles} />
@@ -280,6 +294,20 @@ function NeedsReviewCard({
         >
           <RotateCcw size={14} color={colors.text} strokeWidth={2} />
           <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.retryButton}
+          onPress={() => onRedecide(scan.id, otherType)}
+        >
+          {otherType === "approve" ? (
+            <Check size={14} color={colors.text} strokeWidth={2} />
+          ) : (
+            <X size={14} color={colors.text} strokeWidth={2} />
+          )}
+          <Text style={styles.retryButtonText}>
+            {otherType === "approve" ? "Approve instead" : "Reject instead"}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           accessibilityRole="button"
