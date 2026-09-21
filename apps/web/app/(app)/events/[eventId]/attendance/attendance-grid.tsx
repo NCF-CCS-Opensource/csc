@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,9 +37,21 @@ import { eventGridQueryKey } from "./query-key";
 // cell paints the new value optimistically for instant feedback, and a failed
 // save rolls the cache back so the Officer sees the correction undo itself
 // rather than believing it was recorded (ADR 0013).
-function ScanCell({ cell, eventId }: { cell: EventGridCell; eventId: string }) {
+function ScanCell({
+  cell,
+  eventId,
+  studentName,
+}: {
+  cell: EventGridCell;
+  eventId: string;
+  studentName: string;
+}) {
   const queryClient = useQueryClient();
   const queryKey = eventGridQueryKey(eventId);
+  // Booth check-in is high-density and rapid (#222): a Present/Absent click
+  // asks for confirmation instead of mutating immediately, so a mis-tap
+  // doesn't silently flip a record. null = no pending confirmation.
+  const [pendingPresent, setPendingPresent] = useState<boolean | null>(null);
 
   const save = useMutation({
     mutationFn: (present: boolean) => setScanField(cell.sessionId, cell.field, present),
@@ -68,60 +80,88 @@ function ScanCell({ cell, eventId }: { cell: EventGridCell; eventId: string }) {
   });
 
   return (
-    <fieldset
-      // Present/Absent stack vertically so each session-field column stays
-      // narrow enough to fit the viewport without horizontal scrolling (ticket
-      // #221). A side-by-side pair of buttons per field made the grid wider
-      // than a desktop or tablet can show.
-      className="flex flex-col gap-1 border-0 p-0 m-0"
-      aria-label={`Attendance status for ${cell.label}`}
-    >
-      <Button
-        type="button"
-        size="xs"
-        variant={cell.present ? "default" : "ghost"}
-        data-active={cell.present}
-        aria-pressed={cell.present}
-        disabled={save.isPending}
-        onClick={() => {
-          if (!cell.present) save.mutate(true);
-        }}
-        className={cn(
-          "font-bold transition-all text-xs rounded-[6px] select-none",
-          cell.present
-            ? "bg-[var(--color-teal)] text-foreground border-2 border-border shadow-[var(--shadow-sm)] hover:bg-[var(--color-teal)]/90 hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-            : "bg-card text-muted-foreground border-2 border-border opacity-60 hover:opacity-100 hover:text-foreground hover:translate-x-[1px] hover:translate-y-[1px]"
-        )}
+    <>
+      <fieldset
+        // Present/Absent stack vertically so each session-field column stays
+        // narrow enough to fit the viewport without horizontal scrolling (ticket
+        // #221). A side-by-side pair of buttons per field made the grid wider
+        // than a desktop or tablet can show.
+        className="flex flex-col gap-1 border-0 p-0 m-0"
+        aria-label={`Attendance status for ${cell.label}`}
       >
-        Present
-      </Button>
-      <Button
-        type="button"
-        size="xs"
-        variant={!cell.present ? "destructive" : "ghost"}
-        data-active={!cell.present}
-        aria-pressed={!cell.present}
-        disabled={save.isPending}
-        onClick={() => {
-          if (cell.present) save.mutate(false);
+        <Button
+          type="button"
+          size="xs"
+          variant={cell.present ? "default" : "ghost"}
+          data-active={cell.present}
+          aria-pressed={cell.present}
+          disabled={save.isPending}
+          onClick={() => {
+            if (!cell.present) setPendingPresent(true);
+          }}
+          className={cn(
+            "font-bold transition-all text-xs rounded-[6px] select-none",
+            cell.present
+              ? "bg-[var(--color-teal)] text-foreground border-2 border-border shadow-[var(--shadow-sm)] hover:bg-[var(--color-teal)]/90 hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              : "bg-card text-muted-foreground border-2 border-border opacity-60 hover:opacity-100 hover:text-foreground hover:translate-x-[1px] hover:translate-y-[1px]"
+          )}
+        >
+          Present
+        </Button>
+        <Button
+          type="button"
+          size="xs"
+          variant={!cell.present ? "destructive" : "ghost"}
+          data-active={!cell.present}
+          aria-pressed={!cell.present}
+          disabled={save.isPending}
+          onClick={() => {
+            if (cell.present) setPendingPresent(false);
+          }}
+          className={cn(
+            "font-bold transition-all text-xs rounded-[6px] select-none",
+            !cell.present
+              ? "bg-[var(--color-coral)] text-white border-2 border-border shadow-[var(--shadow-sm)] hover:bg-[var(--color-coral)]/90 hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              : "bg-card text-muted-foreground border-2 border-border opacity-60 hover:opacity-100 hover:text-foreground hover:translate-x-[1px] hover:translate-y-[1px]"
+          )}
+        >
+          Absent
+        </Button>
+        {save.isPending ? (
+          <span className="text-muted-foreground text-xs animate-pulse">…</span>
+        ) : save.isError ? (
+          <output className="text-xs text-red-600 dark:text-red-400 font-bold">
+            Save failed
+          </output>
+        ) : null}
+      </fieldset>
+      <AlertDialog
+        open={pendingPresent !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingPresent(null);
         }}
-        className={cn(
-          "font-bold transition-all text-xs rounded-[6px] select-none",
-          !cell.present
-            ? "bg-[var(--color-coral)] text-white border-2 border-border shadow-[var(--shadow-sm)] hover:bg-[var(--color-coral)]/90 hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-            : "bg-card text-muted-foreground border-2 border-border opacity-60 hover:opacity-100 hover:text-foreground hover:translate-x-[1px] hover:translate-y-[1px]"
-        )}
       >
-        Absent
-      </Button>
-      {save.isPending ? (
-        <span className="text-muted-foreground text-xs animate-pulse">…</span>
-      ) : save.isError ? (
-        <output className="text-xs text-red-600 dark:text-red-400 font-bold">
-          Save failed
-        </output>
-      ) : null}
-    </fieldset>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Mark {studentName} {cell.label} {pendingPresent ? "Present" : "Absent"}?
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const present = pendingPresent;
+                setPendingPresent(null);
+                if (present !== null) save.mutate(present);
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -303,7 +343,7 @@ export function AttendanceGrid({
                 </TableCell>
                 {row.cells.map((cell) => (
                   <TableCell key={`${cell.sessionId}:${cell.field}`} data-label={cell.label}>
-                    <ScanCell cell={cell} eventId={eventId} />
+                    <ScanCell cell={cell} eventId={eventId} studentName={row.name} />
                   </TableCell>
                 ))}
                 <TableCell className="text-right" data-label="Payment">

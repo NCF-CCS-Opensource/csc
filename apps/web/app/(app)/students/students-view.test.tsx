@@ -39,7 +39,7 @@ const snapshot: StudentsSnapshot = {
   programs: ["Computer Science", "Information Technology"],
 };
 
-const MODAL_TITLE = "This correction invalidates Alice Reyes's printed QR Card";
+const MODAL_TITLE = "Save changes to Alice Reyes?";
 
 function renderStudents() {
   const client = new QueryClient();
@@ -110,11 +110,16 @@ describe("QR Card invalidation confirmation (spec #143)", () => {
     expect(correctStudentMock).not.toHaveBeenCalled();
   });
 
-  it("does not show the modal when the correction changes nothing", async () => {
+  it("shows the confirmation modal even when the correction changes nothing", async () => {
     openCorrection();
     save();
 
-    expect(screen.queryByText(MODAL_TITLE)).not.toBeInTheDocument();
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText(MODAL_TITLE)).toBeInTheDocument();
+    expect(within(dialog).getByText("No changes to Student ID or Program.")).toBeInTheDocument();
+    expect(correctStudentMock).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm" }));
     await waitFor(() =>
       expect(correctStudentMock).toHaveBeenCalledWith("s1", {
         studentId: "24-001",

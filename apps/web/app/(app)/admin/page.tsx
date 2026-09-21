@@ -122,6 +122,7 @@ export default async function AdminPage({
                   >
                     <TableCell className="p-3">
                       <form
+                        id={`edit-semester-${semester.id}`}
                         action={editSemester}
                         className="flex flex-wrap items-center gap-3"
                       >
@@ -155,9 +156,15 @@ export default async function AdminPage({
                             />
                           </div>
                         </div>
-                        <Button type="submit" variant="ghost" size="sm" className="mt-4 font-bold">
-                          Save
-                        </Button>
+                        <ConfirmSubmitButton
+                          formId={`edit-semester-${semester.id}`}
+                          title="Save these date boundaries?"
+                          description="Updates the Start and End dates for this Semester."
+                          confirmLabel="Save"
+                          triggerLabel="Save"
+                          triggerVariant="ghost"
+                          triggerClassName="mt-4 font-bold"
+                        />
                       </form>
                     </TableCell>
                     <TableCell className="text-right p-3">
@@ -208,7 +215,7 @@ export default async function AdminPage({
             <span className="text-xs font-bold uppercase tracking-[0.08em] text-foreground block mb-3">
               Initialize New Semester
             </span>
-            <form action={createSemester} className="flex flex-wrap items-end gap-3">
+            <form id="create-semester-form" action={createSemester} className="flex flex-wrap items-end gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="startDate" className="text-xs font-bold text-foreground">
                   Start Date
@@ -233,9 +240,16 @@ export default async function AdminPage({
                   className="w-40 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
                 />
               </div>
-              <Button type="submit" variant="default" className="font-bold">
-                Create Semester
-              </Button>
+              <ConfirmSubmitButton
+                formId="create-semester-form"
+                title="Initialize this Semester?"
+                description="Opens a new Semester window Officers can create Events under."
+                confirmLabel="Create Semester"
+                triggerLabel="Create Semester"
+                triggerVariant="default"
+                triggerSize="default"
+                triggerClassName="font-bold"
+              />
             </form>
           </div>
         </BentoCell>
@@ -290,7 +304,7 @@ export default async function AdminPage({
               </TableBody>
             </Table>
           </div>
-          <form action={addProgram} className="flex gap-2">
+          <form id="add-program-form" action={addProgram} className="flex gap-2">
             <Input
               name="name"
               placeholder="Program name"
@@ -298,9 +312,16 @@ export default async function AdminPage({
               aria-label="New program name"
               className="flex-1 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
             />
-            <Button type="submit" variant="default" className="font-bold">
-              Add Program
-            </Button>
+            <ConfirmSubmitButton
+              formId="add-program-form"
+              title="Add this Program?"
+              description="Makes it selectable during Student registration right away."
+              confirmLabel="Add Program"
+              triggerLabel="Add Program"
+              triggerVariant="default"
+              triggerSize="default"
+              triggerClassName="font-bold"
+            />
           </form>
         </BentoCell>
 
