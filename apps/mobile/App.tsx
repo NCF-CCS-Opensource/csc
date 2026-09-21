@@ -150,7 +150,7 @@ function AuthenticatedApp({
 // runtime `process.env`.
 // Gates the auth/identity flow behind DM Sans loading so no screen ever
 // flashes the system fallback font before the neobrutalist type ramps in.
-function FontGate({ children }: { children: ReactNode }) {
+function FontGate({ children }: Readonly<{ children: ReactNode }>) {
   const [fontsLoaded] = useFonts({
     DMSans_400Regular,
     DMSans_500Medium,
