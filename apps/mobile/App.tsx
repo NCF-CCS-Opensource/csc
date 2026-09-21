@@ -11,6 +11,7 @@ import {
   DMSans_700Bold,
   DMSans_800ExtraBold,
 } from "@expo-google-fonts/dm-sans";
+import { Calendar, Circle, ScanLine, Settings as SettingsIcon, X, type LucideIcon } from "lucide-react-native";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -47,16 +48,16 @@ type MobileAdmission =
   | { allowed: false; message: string }
   | undefined;
 
-const TAB_ICONS: Record<string, string> = {
-  Scanner: "⛶",
-  Events: "📅",
-  Rejections: "✕",
-  Settings: "⚙",
+const TAB_ICONS: Record<string, LucideIcon> = {
+  Scanner: ScanLine,
+  Events: Calendar,
+  Rejections: X,
+  Settings: SettingsIcon,
 };
 
 function TabIcon({ route, color }: { route: string; color: string }) {
-  const icon = TAB_ICONS[route] ?? "•";
-  return <Text style={{ fontSize: 20, color, lineHeight: 22 }}>{icon}</Text>;
+  const Icon = TAB_ICONS[route] ?? Circle;
+  return <Icon size={22} color={color} strokeWidth={2} />;
 }
 
 
