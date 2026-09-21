@@ -264,3 +264,55 @@ describe("Neobrutalist table styling and search filtering (Issue #206)", () => {
   });
 });
 
+describe("Student roster pagination (Issue #218)", () => {
+  const paginatedSnapshot: StudentsSnapshot = {
+    students: Array.from({ length: 21 }, (_, index) => ({
+      id: `s${index + 1}`,
+      name: `Student ${index + 1}`,
+      email: `student${index + 1}@example.edu`,
+      studentId: `24-${String(index + 1).padStart(3, "0")}`,
+      program: "Computer Science",
+      role: "student" as const,
+    })),
+    programs: ["Computer Science"],
+  };
+
+  function renderPaginated() {
+    const client = new QueryClient();
+    return render(
+      <QueryClientProvider client={client}>
+        <StudentsView initialData={paginatedSnapshot} />
+      </QueryClientProvider>,
+    );
+  }
+
+  it("defaults to 20 rows and changes pages and page sizes without reloading", () => {
+    renderPaginated();
+
+    expect(screen.getByText("Student 20")).toBeInTheDocument();
+    expect(screen.queryByText("Student 21")).not.toBeInTheDocument();
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("Student 21")).toBeInTheDocument();
+    expect(screen.queryByText("Student 1")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Rows per page" }));
+    fireEvent.click(screen.getByRole("option", { name: "10 per page" }));
+    expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
+    expect(screen.getByText("Student 10")).toBeInTheDocument();
+    expect(screen.queryByText("Student 11")).not.toBeInTheDocument();
+  });
+
+  it("resets to the first page when filtering the roster", () => {
+    renderPaginated();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+
+    fireEvent.change(screen.getByRole("textbox", { name: /search name/i }), {
+      target: { value: "Student 1" },
+    });
+
+    expect(screen.getByText("Page 1 of 1")).toBeInTheDocument();
+    expect(screen.getByText("Student 1")).toBeInTheDocument();
+  });
+});
