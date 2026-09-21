@@ -12,23 +12,12 @@ import {
 } from "react-native";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
+import { AppLogo } from "../components/AppLogo";
 import { matchesRedirectScheme, watchForRedirectUrl } from "../lib/ssoRedirect";
 
 // Google refuses OAuth inside an embedded WebView, so the flow runs in the
 // system browser and returns to the app through the deep link below.
 WebBrowser.maybeCompleteAuthSession();
-
-function LogoMark({ styles }: { styles: Styles }) {
-  return (
-    <View style={styles.logo}>
-      <View style={[styles.corner, styles.cornerTL]} />
-      <View style={[styles.corner, styles.cornerTR]} />
-      <View style={[styles.corner, styles.cornerBL]} />
-      <View style={[styles.corner, styles.cornerBR]} />
-      <View style={styles.centerLine} />
-    </View>
-  );
-}
 
 type Styles = ReturnType<typeof makeStyles>;
 
@@ -115,9 +104,8 @@ export function LoginScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.center}>
-        <LogoMark styles={styles} />
-        <Text style={styles.title}>AttendKita</Text>
-        <Text style={styles.tagline}>CCS Attendance System</Text>
+        <AppLogo size="xl" title="AttendKita" subtitle="CCS Attendance System" />
+        <View style={styles.brandSpacer} />
 
         <View style={styles.form}>
           {error && <Text style={styles.error}>{error}</Text>}
@@ -168,32 +156,7 @@ function makeStyles(c: ThemeColors) {
       justifyContent: "space-between",
     },
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
-    logo: {
-      width: 76,
-      height: 76,
-      borderRadius: 14,
-      backgroundColor: c.neoPrimary,
-      borderWidth: 2,
-      borderColor: c.neoBorder,
-      marginBottom: 20,
-      alignItems: "center",
-      justifyContent: "center",
-      ...hardShadow(c, 4),
-    },
-    corner: { position: "absolute", width: 14, height: 14, borderColor: "#FFFFFF" },
-    cornerTL: { top: 21, left: 21, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 4 },
-    cornerTR: { top: 21, right: 21, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 4 },
-    cornerBL: { bottom: 21, left: 21, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 4 },
-    cornerBR: { bottom: 21, right: 21, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 4 },
-    centerLine: { width: 30, height: 2.5, backgroundColor: "#FFFFFF", borderRadius: 1.5 },
-    title: {
-      fontSize: 26,
-      fontFamily: "DMSans_800ExtraBold",
-      marginTop: 4,
-      color: c.text,
-      letterSpacing: -0.3,
-    },
-    tagline: { fontSize: 13, fontFamily: "DMSans_500Medium", color: c.textMuted, marginTop: 4, marginBottom: 32 },
+    brandSpacer: { height: 28 },
     form: {
       width: "100%",
       gap: 14,

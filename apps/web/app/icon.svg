@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <!-- Hard Neobrutalist Shadow -->
+  <rect x="9.5" y="9.5" width="48" height="48" rx="12" fill="#111111" />
+  <!-- Main Badge Canvas -->
+  <rect x="6.5" y="6.5" width="48" height="48" rx="12" fill="#FFFFFF" stroke="#111111" stroke-width="2.5" />
+
+  <!-- Quadrant 1 (Top-Left): 'C' (College) in Coral #E8635A -->
+  <rect x="10" y="10" width="19" height="19" rx="4.5" fill="#E8635A" stroke="#111111" stroke-width="1.8" />
+  <!-- Bold Geometric 'C' -->
+  <path d="M23.5 16H17.5C16.4 16 15.5 16.9 15.5 18V21C15.5 22.1 16.4 23 17.5 23H23.5" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- QR Accent Dot -->
+  <rect x="18.5" y="18.5" width="2.5" height="2.5" rx="0.6" fill="#FFE566" />
+
+  <!-- Quadrant 2 (Top-Right): 'C' (Computer) in Yellow #FFE566 -->
+  <rect x="32" y="10" width="19" height="19" rx="4.5" fill="#FFE566" stroke="#111111" stroke-width="1.8" />
+  <!-- Bold Geometric 'C' -->
+  <path d="M45.5 16H39.5C38.4 16 37.5 16.9 37.5 18V21C37.5 22.1 38.4 23 39.5 23H45.5" stroke="#111111" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- QR Accent Dot -->
+  <rect x="40.5" y="18.5" width="2.5" height="2.5" rx="0.6" fill="#E8635A" />
+
+  <!-- Quadrant 3 (Bottom-Left): 'S' (Studies) in Teal #4ECDC4 -->
+  <rect x="10" y="32" width="19" height="19" rx="4.5" fill="#4ECDC4" stroke="#111111" stroke-width="1.8" />
+  <!-- Bold Geometric 'S' -->
+  <path d="M23.5 37.5H17.5C16.7 37.5 16 38.2 16 39V40.2C16 41 16.7 41.6 17.5 41.6H21C21.8 41.6 22.5 42.3 22.5 43.1V44.3C22.5 45.1 21.8 45.8 21 45.8H15.5" stroke="#111111" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Quadrant 4 (Bottom-Right): QR Scanner Viewfinder & Check in Dark #111111 -->
+  <rect x="32" y="32" width="19" height="19" rx="4.5" fill="#111111" stroke="#111111" stroke-width="1.8" />
+  <!-- Corner QR Brackets -->
+  <path d="M37 37H35.5V38.5" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M46 37H47.5V38.5" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M37 46H35.5V44.5" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M46 46H47.5V44.5" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Attendance Verified Checkmark in Teal -->
+  <path d="M38.5 41.7L40.7 43.7L44.7 39.3" stroke="#4ECDC4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Center Alignment Node -->
+  <circle cx="30.5" cy="30.5" r="2.2" fill="#111111" />
+</svg>
