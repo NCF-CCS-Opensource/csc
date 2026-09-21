@@ -39,6 +39,18 @@ export interface ThemeColors {
   iconGray: string;
   iconPinkBg: string;
   iconPink: string;
+  /** Neobrutalist design-foundation palette (DESIGN.md). New fields only —
+   * existing keys above are untouched so current consumers keep compiling. */
+  neoBgPage: string;
+  neoBgSurface: string;
+  neoBgDark: string;
+  neoBorder: string;
+  neoPrimary: string;
+  neoSecondary: string;
+  neoLavender: string;
+  neoTeal: string;
+  neoYellow: string;
+  neoPink: string;
 }
 
 const light: ThemeColors = {
@@ -78,6 +90,16 @@ const light: ThemeColors = {
   iconGray: "#475569",
   iconPinkBg: "#ffe4e6",
   iconPink: "#e11d48",
+  neoBgPage: "#FAFADF",
+  neoBgSurface: "#FFFFFF",
+  neoBgDark: "#111111",
+  neoBorder: "#111111",
+  neoPrimary: "#E8635A",
+  neoSecondary: "#7B6CF6",
+  neoLavender: "#C4B5FD",
+  neoTeal: "#4ECDC4",
+  neoYellow: "#FFE566",
+  neoPink: "#F9A8B8",
 };
 
 const dark: ThemeColors = {
@@ -117,6 +139,16 @@ const dark: ThemeColors = {
   iconGray: "#94a3b8",
   iconPinkBg: "#4c0519",
   iconPink: "#fb7185",
+  neoBgPage: "#121212",
+  neoBgSurface: "#1E1E1E",
+  neoBgDark: "#0A0A0A",
+  neoBorder: "#FFFFFF",
+  neoPrimary: "#E8635A",
+  neoSecondary: "#7B6CF6",
+  neoLavender: "#C4B5FD",
+  neoTeal: "#4ECDC4",
+  neoYellow: "#FFE566",
+  neoPink: "#F9A8B8",
 };
 
 /**
