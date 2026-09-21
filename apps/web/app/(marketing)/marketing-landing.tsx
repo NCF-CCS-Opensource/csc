@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { AppLogoMark } from "@/components/app-logo";
 import { DecorativeAccents } from "@/components/decorative-accents";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,6 +113,7 @@ function Hero({ signedIn }: Readonly<{ signedIn: boolean }>) {
     <section data-testid="hero" className="relative overflow-hidden px-4 py-20 sm:px-8 sm:py-28">
       <DecorativeAccents />
       <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-5 text-center">
+        <AppLogoMark size="xl" className="size-16 sm:size-20" />
         <Badge>College of Computer Studies</Badge>
         <h1 className="font-heading text-5xl font-extrabold tracking-tight text-foreground sm:text-6xl">
           ccs attendance
