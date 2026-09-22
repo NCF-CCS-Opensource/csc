@@ -20,7 +20,7 @@ export default function AppError({
 
   return (
     <div className="flex flex-1 items-center justify-center p-6">
-      <Card className="max-w-md text-center">
+      <Card className="w-full max-w-md text-center">
         <CardHeader>
           <CardTitle>We can&apos;t reach the system right now</CardTitle>
           <CardDescription>

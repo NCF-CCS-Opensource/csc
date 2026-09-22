@@ -4,6 +4,7 @@ export interface LedgerSession {
   status: "present" | "incomplete" | "absent"; amount: number; paid: boolean;
 }
 export interface StudentLedgerResponse { total: number; outstanding: number; sessions: LedgerSession[]; }
+export type BatchStudentLedgerResponse = Record<string, StudentLedgerResponse>;
 export interface SemesterLedgerEvent {
   eventId: string; name: string; venue: string | null; date: string; type: "half_day" | "whole_day";
   status: "upcoming" | "today" | "past";

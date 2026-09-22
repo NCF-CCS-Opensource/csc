@@ -65,7 +65,7 @@ The durable collection of every Scan Approval decision awaiting delivery to the 
 _Avoid_: Recent Scans, scan history
 
 **Needs Review Scan Decision**:
-A Scan Approval decision the backend permanently rejected, retained for the Officer to inspect and explicitly discard. It is no longer retried automatically and does not block later Offline Scan Queue delivery.
+A Scan Approval decision the backend permanently rejected, retained for the Officer to inspect, re-decide (flip between approve/reject), retry unchanged, or discard. It is no longer retried automatically and does not block later Offline Scan Queue delivery. Re-deciding resets it to pending delivery and clears its prior error, without requiring the original QR to be re-scanned.
 _Avoid_: Failed scan, dead letter
 
 **Penalty**:
