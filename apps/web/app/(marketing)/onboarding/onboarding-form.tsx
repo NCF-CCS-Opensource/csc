@@ -26,7 +26,7 @@ export function OnboardingForm({ name, email }: { name: string; email: string })
     <main className="relative flex flex-1 items-center justify-center overflow-hidden p-8">
       <DecorativeAccents />
       <AlertDialog open>
-        <AlertDialogContent className="relative rounded-[14px] border-2 border-border shadow-[var(--shadow-lg)]">
+        <AlertDialogContent className="rounded-[14px] border-2 border-border shadow-[var(--shadow-lg)]">
           <AlertDialogHeader>
             <span className="mx-auto flex size-12 items-center justify-center rounded-full border-2 border-border bg-[var(--color-yellow)] text-foreground">
               <UserPlus className="size-6" aria-hidden />
