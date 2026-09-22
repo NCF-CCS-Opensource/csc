@@ -42,13 +42,13 @@ const snapshot: EventsSnapshot = {
   ],
 };
 
-function renderEvents() {
-  const client = new QueryClient();
-  return render(
+function renderEvents(client: QueryClient = new QueryClient()) {
+  render(
     <QueryClientProvider client={client}>
       <EventsView initialData={snapshot} />
     </QueryClientProvider>,
   );
+  return client;
 }
 
 beforeEach(() => {
@@ -153,5 +153,42 @@ describe("Event edit confirmation (Issue #222)", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
     expect(updateEventMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("Event mutations invalidate cached queries (Issue #281)", () => {
+  it("invalidates the Events and Dashboard caches after an update", async () => {
+    const client = renderEvents();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByDisplayValue("General Assembly"), {
+      target: { value: "General Assembly (Rescheduled)" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Save changes to General Assembly?");
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() =>
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["events-snapshot"] }),
+    );
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["dashboard-snapshot"] });
+  });
+
+  it("invalidates the Events and Dashboard caches after a delete", async () => {
+    deleteEventMock.mockResolvedValue({ error: null });
+    const client = renderEvents();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = await screen.findByRole("alertdialog", {
+      name: /Delete General Assembly\?/,
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() =>
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["events-snapshot"] }),
+    );
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["dashboard-snapshot"] });
   });
 });

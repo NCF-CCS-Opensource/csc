@@ -42,6 +42,7 @@ import {
   type EventsSnapshot,
 } from "./actions";
 import { eventsQueryKey } from "./query-key";
+import { dashboardQueryKey } from "../dashboard/query-key";
 
 type EventRow = EventsSnapshot["events"][number];
 
@@ -64,9 +65,12 @@ export function EventsView({
 
   // createEvent redirects back here, so the shell re-reads and hands down a
   // payload newer than anything cached. Without this the cache would win and a
-  // just-created Event would stay invisible until staleTime expired.
+  // just-created Event would stay invisible until staleTime expired. The
+  // Dashboard's ledger embeds this same Event data under its own key, which
+  // this page can't seed directly, so that one is invalidated instead.
   useEffect(() => {
     queryClient.setQueryData(eventsQueryKey, initialData);
+    queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
   }, [queryClient, initialData]);
 
   const { openSemester, eventTypes, events: allEvents } = data;
@@ -216,6 +220,7 @@ function EventActions({
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: eventsQueryKey });
+    await queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
   }
 
   function summarizeEventChanges(formData: FormData): string {

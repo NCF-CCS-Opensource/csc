@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { requireGovernor } from "@/lib/auth";
 import { apiPost } from "@/lib/api-client";
+import { AdminCacheSync } from "./admin-cache-sync";
 import {
   addProgram,
   closeSemester,
@@ -63,6 +64,10 @@ export default async function AdminPage({
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 p-4 sm:p-6 lg:p-8 bg-[var(--bg-page)] min-h-[calc(100vh-3rem)]">
+      <AdminCacheSync
+        programsSignature={JSON.stringify(allPrograms)}
+        semestersSignature={JSON.stringify(allSemesters)}
+      />
       {/* Editorial Header */}
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex flex-col gap-1">
