@@ -1,3 +1,4 @@
+import { SignOutButton } from "@clerk/nextjs";
 import { ShieldAlert } from "lucide-react";
 import { DecorativeAccents } from "@/components/decorative-accents";
 import {
@@ -7,6 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 export function BlockedEmail({ email }: { email: string }) {
   return (
@@ -25,6 +27,11 @@ export function BlockedEmail({ email }: { email: string }) {
               Signed in as {email}. Sign out and sign in again with your school Google account.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <SignOutButton redirectUrl="/sign-in">
+            <Button variant="pill" size="lg" className="w-full">
+              Sign out
+            </Button>
+          </SignOutButton>
         </AlertDialogContent>
       </AlertDialog>
     </main>
