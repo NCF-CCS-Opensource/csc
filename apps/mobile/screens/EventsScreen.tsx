@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ActivityIndicator,
   FlatList,
@@ -12,12 +13,17 @@ import {
 } from "react-native";
 import { Calendar, MapPin, Pencil, Plus, Trash2 } from "lucide-react-native";
 import { CalendarGrid } from "../components/CalendarGrid";
-import { apiFetch } from "../lib/api";
 import { useTheme } from "../lib/theme-context";
 import { neoShadow, type ThemeColors } from "../lib/theme";
 
-import { useMyEvents } from "../lib/events";
-import type { EventRow, EventType } from "../lib/events";
+import {
+  createEvent,
+  deleteEvent,
+  updateEvent,
+  useEvents,
+  type EventRow,
+  type EventType,
+} from "../lib/events";
 
 type EventStatus = "Active" | "Upcoming" | "Completed";
 
@@ -52,10 +58,18 @@ function formatDate(date: string) {
 export function EventsScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const queryClient = useQueryClient();
   // The shared Events query (lib/events.ts) also backs the Booth screen's
   // event picker — reusing it here means this list picks up the same
   // refetch-on-focus/refetch-on-reconnect safety net for free.
-  const { data: events = [], isLoading, isError, error, isFetching, refetch } = useMyEvents();
+  const {
+    data: events = [],
+    isLoading,
+    isError,
+    error,
+    isFetching,
+    refetch,
+  } = useEvents();
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [deleting, setDeleting] = useState<EventRow | null>(null);
@@ -71,7 +85,9 @@ export function EventsScreen() {
   if (isError) {
     return (
       <View style={styles.center}>
-        <Text style={styles.error}>{error?.message ?? "Failed to load events"}</Text>
+        <Text style={styles.error}>
+          {error instanceof Error ? error.message : "Failed to load events"}
+        </Text>
       </View>
     );
   }
@@ -131,8 +147,8 @@ export function EventsScreen() {
       <EventFormModal
         visible={addOpen}
         mode="create"
+        queryClient={queryClient}
         onClose={() => setAddOpen(false)}
-        onSaved={() => refetch()}
         colors={colors}
         styles={styles}
       />
@@ -140,15 +156,15 @@ export function EventsScreen() {
         visible={!!editing}
         mode="edit"
         event={editing}
+        queryClient={queryClient}
         onClose={() => setEditing(null)}
-        onSaved={() => refetch()}
         colors={colors}
         styles={styles}
       />
       <DeleteEventModal
         event={deleting}
+        queryClient={queryClient}
         onClose={() => setDeleting(null)}
-        onDeleted={() => refetch()}
         colors={colors}
         styles={styles}
       />
@@ -158,14 +174,14 @@ export function EventsScreen() {
 
 function DeleteEventModal({
   event,
+  queryClient,
   onClose,
-  onDeleted,
   colors,
   styles,
 }: {
   event: EventRow | null;
+  queryClient: ReturnType<typeof useQueryClient>;
   onClose: () => void;
-  onDeleted: () => void;
   colors: ThemeColors;
   styles: Styles;
 }) {
@@ -177,11 +193,7 @@ function DeleteEventModal({
     setSubmitting(true);
     setError(null);
     try {
-      await apiFetch("/v1/api/event/delete", {
-        method: "POST",
-        body: JSON.stringify({ id: event.id }),
-      });
-      onDeleted();
+      await deleteEvent(queryClient, event.id);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete event");
@@ -233,16 +245,16 @@ function EventFormModal({
   visible,
   mode,
   event,
+  queryClient,
   onClose,
-  onSaved,
   colors,
   styles,
 }: {
   visible: boolean;
   mode: "create" | "edit";
   event?: EventRow | null;
+  queryClient: ReturnType<typeof useQueryClient>;
   onClose: () => void;
-  onSaved: (event: EventRow) => void;
   colors: ThemeColors;
   styles: Styles;
 }) {
@@ -268,21 +280,12 @@ function EventFormModal({
     setSubmitting(true);
     setError(null);
     try {
-      const result = await apiFetch<EventRow>(
-        mode === "create" ? "/v1/api/event/create" : "/v1/api/event/update",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            ...(mode === "edit" ? { id: event!.id } : {}),
-            name,
-            venue,
-            date,
-            type,
-            halfDayPenaltyAmount: penalty,
-          }),
-        },
-      );
-      onSaved(result);
+      const input = { name, venue, date, type, halfDayPenaltyAmount: penalty };
+      if (mode === "create") {
+        await createEvent(queryClient, input);
+      } else {
+        await updateEvent(queryClient, { id: event!.id, ...input });
+      }
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save event");

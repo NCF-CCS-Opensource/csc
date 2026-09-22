@@ -1,12 +1,10 @@
 "use server";
 
 import { requireCapability } from "@/lib/auth";
-import type { PaymentHistoryEntry, SemesterResponse, StudentLedgerResponse } from "@attendance/contracts";
+import type { PaymentHistoryEntry, StudentLedgerResponse } from "@attendance/contracts";
 import { apiFetch } from "@/lib/api-client";
-
-function findOpenSemester(): Promise<SemesterResponse | null> {
-  return apiFetch<SemesterResponse | null>("/v1/api/semester/current");
-}
+import { getOpenSemester } from "@/lib/queries/open-semester";
+import { getMyLedger } from "@/lib/queries/student-ledger";
 
 export type MyAttendanceSnapshot = {
   student: { name: string; email: string; program: string; studentId: string };
@@ -25,13 +23,13 @@ export type MyAttendanceSnapshot = {
 export async function myAttendanceSnapshot(): Promise<MyAttendanceSnapshot> {
   const [identity, openSemester] = await Promise.all([
     requireCapability("view_own_attendance"),
-    findOpenSemester(),
+    getOpenSemester(),
   ]);
 
   const [ledger, paymentHistory] = await Promise.all([
     openSemester
-      ? apiFetch<StudentLedgerResponse>("/v1/api/ledger/mine", { semesterId: openSemester.id })
-      : Promise.resolve({ total: 0, outstanding: 0, sessions: [] }),
+      ? getMyLedger(openSemester.id)
+      : Promise.resolve({ total: 0, outstanding: 0, sessions: [] } as StudentLedgerResponse),
     apiFetch<PaymentHistoryEntry[]>("/v1/api/ledger/mine/history"),
   ]);
 

@@ -11,4 +11,26 @@ describe("computeLedger", () => {
     expect(ledger.students.get("student")).toMatchObject({ total: 100, outstanding: 100 });
     expect(ledger.events[0]).toMatchObject({ present: 0, absent: 2 });
   });
+
+  it("computes every requested student's standing in one pass, including full no-shows with no stored session rows", () => {
+    const ledger = computeLedger({
+      campusDate: "2026-09-19", semesterEndDate: "2026-12-31",
+      events: [{ id: "event", name: "Assembly", date: "2026-09-18", type: "half_day", halfDayPenaltyAmount: "50.00" }],
+      students: [
+        { id: "attended", createdAt: new Date("2026-01-01T00:00:00Z") },
+        { id: "no-show", createdAt: new Date("2026-01-01T00:00:00Z") },
+      ],
+      sessions: [{ id: "session", eventId: "event", studentId: "attended", half: "am", timeIn: new Date("2026-09-18T08:00:00Z"), timeOut: new Date("2026-09-18T09:00:00Z") }],
+      penalties: [],
+      payments: [],
+    });
+
+    // "attended" has a stored session and no penalty, so nothing owed.
+    expect(ledger.students.get("attended")).toMatchObject({ total: 0, outstanding: 0 });
+    // "no-show" has no stored session rows at all — computeLedger must still
+    // synthesize its missing-session entry and outstanding balance.
+    expect(ledger.students.get("no-show")).toMatchObject({ total: 50, outstanding: 50 });
+    expect(ledger.students.get("no-show")!.sessions).toHaveLength(1);
+    expect(ledger.students.size).toBe(2);
+  });
 });

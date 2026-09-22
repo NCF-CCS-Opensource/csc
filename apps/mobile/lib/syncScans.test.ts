@@ -146,6 +146,28 @@ describe("flushQueue", () => {
     stopQueueRetries("officer-a");
   });
 
+  it("retries a stale-token 401 on an approved Unverified Scan instead of parking it as Needs Review (regression: must deliver, not no-op)", async () => {
+    vi.useFakeTimers();
+    await enqueue(queued("1"));
+    await addRecentScan(recent("1"));
+    send
+      .mockRejectedValueOnce(new ApiError("Unauthorized", 401))
+      .mockResolvedValueOnce({ ok: true });
+
+    await flushQueue("officer-a");
+    expect((await loadRecentScans("officer-a"))[0].deliveryState).toBe(
+      "pending",
+    );
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect((await loadQueue("officer-a")).length).toBe(0);
+    expect((await loadRecentScans("officer-a"))[0].deliveryState).toBe(
+      "delivered",
+    );
+    stopQueueRetries("officer-a");
+    vi.useRealTimers();
+  });
+
   it("retries temporary failures with bounded exponential backoff", async () => {
     vi.useFakeTimers();
     await enqueue(queued("1"));
