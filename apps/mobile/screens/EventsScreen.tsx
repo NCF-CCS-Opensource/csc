@@ -19,7 +19,7 @@ import {
   createEvent,
   deleteEvent,
   updateEvent,
-  useMyEvents,
+  useEvents,
   type EventRow,
   type EventType,
 } from "../lib/events";
@@ -58,7 +58,7 @@ export function EventsScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const queryClient = useQueryClient();
-  const { data: events = [], isLoading, isError, error } = useMyEvents();
+  const { data: events = [], isLoading, isError, error } = useEvents();
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [deleting, setDeleting] = useState<EventRow | null>(null);

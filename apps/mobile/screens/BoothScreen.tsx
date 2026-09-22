@@ -22,6 +22,7 @@ import { Dropdown } from "../components/Dropdown";
 import { ApiError, apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
 import { parseQrPayload } from "../lib/qr";
+import { isPermanentScanFailure } from "../lib/scanErrors";
 import {
   addRecentScan,
   enqueue,
@@ -35,7 +36,7 @@ import {
   isNeedsReviewActionable,
   recentScanOutcomeLabel,
 } from "../lib/recentScanStatus";
-import { useMyEvents } from "../lib/events";
+import { useEvents } from "../lib/events";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
 
@@ -76,7 +77,7 @@ export function BoothScreen({
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
-  const { data: events = [], isError: eventsFailed } = useMyEvents();
+  const { data: events = [], isError: eventsFailed } = useEvents();
   const [eventId, setEventId] = useState<string | null>(null);
   const [mode, setMode] = useState<BoothMode | null>(null);
   const [scanned, setScanned] = useState<ScannedResult | null>(null);
@@ -173,11 +174,7 @@ export function BoothScreen({
         pendingVerification: false,
       });
     } catch (error) {
-      const retryable =
-        !(error instanceof ApiError) ||
-        error.status === 408 ||
-        error.status === 429 ||
-        error.status >= 500;
+      const retryable = !isPermanentScanFailure(error);
       const offlineStudent = retryable ? parseQrPayload(result.data) : null;
       const pendingVerification = offlineStudent !== null;
       const failed: ScannedResult = {

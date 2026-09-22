@@ -1,4 +1,4 @@
-import { ApiError, apiFetch } from "./api";
+import { apiFetch } from "./api";
 import {
   dequeue,
   loadQueue,
@@ -6,19 +6,9 @@ import {
   updateRecentScan,
   type QueuedScan,
 } from "./scanQueue";
+import { isPermanentScanFailure } from "./scanErrors";
 
 const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-function isPermanent(error: unknown): error is ApiError {
-  return (
-    error instanceof ApiError &&
-    error.status >= 400 &&
-    error.status < 500 &&
-    error.status !== 401 &&
-    error.status !== 408 &&
-    error.status !== 429
-  );
-}
 
 function requestFor(scan: QueuedScan): [string, RequestInit] {
   return [
@@ -85,7 +75,7 @@ async function deliverQueue(
       });
       onCountChange?.(remaining);
     } catch (error) {
-      if (!isPermanent(error)) {
+      if (!isPermanentScanFailure(error)) {
         scheduleRetry(officerId, onCountChange, retryAttempt);
         return;
       }

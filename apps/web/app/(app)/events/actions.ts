@@ -1,11 +1,13 @@
 "use server";
 
-import type { EventResponse, EventType, SemesterResponse } from "@attendance/contracts";
+import type { EventType } from "@attendance/contracts";
 import { EVENT_TYPES } from "@attendance/contracts";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { getOpenSemester } from "@/lib/queries/open-semester";
+import { getEventList } from "@/lib/queries/event-list";
 
 // The Event module now lives in apps/api (issue #163, ADR-0019) — these
 // actions are thin proxies: requireOfficerOrGovernor() still gates page
@@ -31,8 +33,8 @@ export async function eventsSnapshot(): Promise<EventsSnapshot> {
   await requireOfficerOrGovernor();
 
   const [openSemester, allEvents] = await Promise.all([
-    apiFetch<SemesterResponse | null>("/v1/api/semester/current"),
-    apiFetch<EventResponse[]>("/v1/api/event/list"),
+    getOpenSemester(),
+    getEventList(),
   ]);
 
   return {

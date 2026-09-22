@@ -16,20 +16,22 @@ export type EventInput = Partial<
   Omit<EventRow, "id" | "date"> & { date: string | null }
 >;
 
-export const myEventsKey = ["events", "mine"] as const;
+// Events are shared among all Officers — there is no per-Officer ownership,
+// so this query key and hook name must never imply "mine".
+export const eventsKey = ["events"] as const;
 
-export async function fetchMyEvents(): Promise<EventRow[]> {
+export async function fetchEvents(): Promise<EventRow[]> {
   return apiFetch<EventRow[]>("/v1/api/event/list", { method: "POST" });
 }
 
 // One shared Event list. A booth relaunched with no signal serves it from the
 // persisted cache, which is what lets the Officer reach the Offline Scan Queue.
-export function useMyEvents() {
-  return useQuery({ queryKey: myEventsKey, queryFn: fetchMyEvents });
+export function useEvents() {
+  return useQuery({ queryKey: eventsKey, queryFn: fetchEvents });
 }
 
 // Every write below invalidates the shared Events query on success, so every
-// screen reading useMyEvents() (Events tab, Booth) reflects the change
+// screen reading useEvents() (Events tab, Booth) reflects the change
 // immediately instead of only whichever screen made the call.
 
 export async function createEvent(
@@ -40,7 +42,7 @@ export async function createEvent(
     method: "POST",
     body: JSON.stringify(input),
   });
-  await queryClient.invalidateQueries({ queryKey: myEventsKey });
+  await queryClient.invalidateQueries({ queryKey: eventsKey });
   return result;
 }
 
@@ -52,7 +54,7 @@ export async function updateEvent(
     method: "POST",
     body: JSON.stringify(input),
   });
-  await queryClient.invalidateQueries({ queryKey: myEventsKey });
+  await queryClient.invalidateQueries({ queryKey: eventsKey });
   return result;
 }
 
@@ -64,5 +66,5 @@ export async function deleteEvent(
     method: "POST",
     body: JSON.stringify({ id }),
   });
-  await queryClient.invalidateQueries({ queryKey: myEventsKey });
+  await queryClient.invalidateQueries({ queryKey: eventsKey });
 }

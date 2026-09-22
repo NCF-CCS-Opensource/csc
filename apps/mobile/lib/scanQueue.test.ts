@@ -12,6 +12,7 @@ import {
   needsReviewScans,
   pendingScans,
   queueSummary,
+  redecideScan,
   retryScan,
   updateRecentScan,
   type QueuedScan,
@@ -213,6 +214,34 @@ describe("Offline Scan Queue ownership", () => {
     ]);
     expect(await retryScan("officer-a", "2")).toBe(false);
     expect((await loadRecentScans("officer-a"))[0].discarded).toBe(true);
+  });
+
+  it("re-decides a Needs Review scan by flipping its type and resetting it to pending", async () => {
+    await enqueue({
+      ...queued("1"),
+      type: "reject",
+      deliveryState: "needs_review",
+      error: "Client misclassified an Unverified Scan as untrusted",
+    });
+    await addRecentScan({
+      ...recent("1"),
+      decision: "rejected",
+      deliveryState: "needs_review",
+      error: "Client misclassified an Unverified Scan as untrusted",
+    });
+
+    expect(await redecideScan("officer-a", "1", "approve")).toBe(true);
+
+    expect(await loadQueue("officer-a")).toEqual([
+      { ...queued("1"), type: "approve", deliveryState: "pending" },
+    ]);
+    expect(await loadRecentScans("officer-a")).toEqual([
+      { ...recent("1"), decision: "accepted", deliveryState: "pending", discarded: false },
+    ]);
+  });
+
+  it("reports false when re-deciding a scan that is not in the officer's queue", async () => {
+    expect(await redecideScan("officer-a", "missing", "reject")).toBe(false);
   });
 
   it("keeps a Needs Review decision reviewable after normal Recent-scan eviction", async () => {

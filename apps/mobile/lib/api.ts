@@ -94,7 +94,13 @@ export async function apiFetch<T>(
     }
     return body as T;
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
+    if (
+      controller.signal.aborted ||
+      (error instanceof Error &&
+        (error.name === "AbortError" ||
+          error.message.toLowerCase().includes("cancelled") ||
+          error.message.toLowerCase().includes("aborted")))
+    ) {
       throw new ApiError("Request timed out", 408);
     }
     throw error;

@@ -154,6 +154,33 @@ export async function retryScan(officerId: string, id: string): Promise<boolean>
   return true;
 }
 
+export async function redecideScan(
+  officerId: string,
+  id: string,
+  type: "approve" | "reject",
+): Promise<boolean> {
+  const found = await mutate(async () => {
+    const queue = await loadAllQueue();
+    const found = queue.some((scan) => scan.id === id && scan.officerId === officerId);
+    await saveQueue(
+      queue.map((scan) => {
+        if (scan.id !== id || scan.officerId !== officerId) return scan;
+        const { error: _error, ...pending } = scan;
+        return { ...pending, type, deliveryState: "pending" };
+      }),
+    );
+    return found;
+  });
+  if (!found) return false;
+  await updateRecentScan(officerId, id, {
+    deliveryState: "pending",
+    error: undefined,
+    discarded: false,
+    decision: type === "approve" ? "accepted" : "rejected",
+  });
+  return true;
+}
+
 export async function discardScan(officerId: string, id: string): Promise<number> {
   const remaining = await dequeue(id, officerId);
   await updateRecentScan(officerId, id, {
@@ -260,6 +287,7 @@ export async function updateRecentScan(
     error?: string;
     discarded?: boolean;
     alreadyScanned?: boolean;
+    decision?: RecentScan["decision"];
   },
 ): Promise<void> {
   await mutate(async () => {
