@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { requireGovernor } from "@/lib/auth";
 import { apiPost } from "@/lib/api-client";
+import { AdminCacheSync } from "./admin-cache-sync";
 import {
   addProgram,
   closeSemester,
@@ -63,6 +64,10 @@ export default async function AdminPage({
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 p-4 sm:p-6 lg:p-8 bg-[var(--bg-page)] min-h-[calc(100vh-3rem)]">
+      <AdminCacheSync
+        programsSignature={JSON.stringify(allPrograms)}
+        semestersSignature={JSON.stringify(allSemesters)}
+      />
       {/* Editorial Header */}
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex flex-col gap-1">
@@ -335,18 +340,6 @@ export default async function AdminPage({
           data-testid="officer-roster-cell"
           className="flex flex-col justify-between gap-4"
         >
-          <form className="flex gap-2">
-            <Input
-              name="q"
-              defaultValue={q ?? ""}
-              placeholder="Search name, email, or student ID"
-              aria-label="Search student to promote"
-              className="flex-1 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
-            />
-            <Button type="submit" variant="default" className="font-bold">
-              Search
-            </Button>
-          </form>
           {searchResults.length > 0 && (
             <div className="rounded-[10px] border-2 border-border overflow-hidden bg-card shadow-[var(--shadow-sm)]">
               <Table>
@@ -394,6 +387,18 @@ export default async function AdminPage({
               </Table>
             </div>
           )}
+          <form className="flex gap-2">
+            <Input
+              name="q"
+              defaultValue={q ?? ""}
+              placeholder="Search name, email, or student ID"
+              aria-label="Search student to promote"
+              className="flex-1 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
+            />
+            <Button type="submit" variant="default" className="font-bold">
+              Search
+            </Button>
+          </form>
         </BentoCell>
       </BentoGrid>
     </main>

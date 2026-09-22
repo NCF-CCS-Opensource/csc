@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, Modal, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Check, ChevronDown } from "lucide-react-native";
 import { useTheme } from "../lib/theme-context";
-import type { ThemeColors } from "../lib/theme";
+import { neoShadow, type ThemeColors } from "../lib/theme";
 
 export function Dropdown<T extends string>({
   label,
@@ -9,12 +10,18 @@ export function Dropdown<T extends string>({
   value,
   options,
   onChange,
+  refreshing,
+  onRefresh,
 }: {
   label: string;
   placeholder: string;
   value: T | null;
   options: { label: string; value: T }[];
   onChange: (value: T) => void;
+  // Optional: lets a caller whose options come from a query (e.g. the shared
+  // Events query) offer pull-to-refresh on the option list itself.
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -28,7 +35,7 @@ export function Dropdown<T extends string>({
         <Text style={styles.triggerText} numberOfLines={1}>
           {selected ? selected.label : placeholder}
         </Text>
-        <Text style={styles.chevron}>⌄</Text>
+        <ChevronDown size={16} color={colors.text} strokeWidth={2.5} />
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -38,6 +45,11 @@ export function Dropdown<T extends string>({
             <FlatList
               data={options}
               keyExtractor={(o) => o.value}
+              refreshControl={
+                onRefresh ? (
+                  <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} />
+                ) : undefined
+              }
               ListEmptyComponent={<Text style={styles.empty}>No options</Text>}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -50,7 +62,7 @@ export function Dropdown<T extends string>({
                   <Text style={[styles.optionText, item.value === value && styles.optionTextSelected]}>
                     {item.label}
                   </Text>
-                  {item.value === value && <Text style={styles.checkMark}>✓</Text>}
+                  {item.value === value && <Check size={16} color={colors.text} strokeWidth={2.5} />}
                 </TouchableOpacity>
               )}
             />
@@ -64,18 +76,20 @@ export function Dropdown<T extends string>({
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     container: { flex: 1 },
-    label: { fontSize: 12, color: c.textMuted, marginBottom: 6 },
+    label: { fontSize: 12, color: c.textMuted, marginBottom: 6, fontFamily: "DMSans_700Bold" },
     trigger: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      backgroundColor: c.inputBackground,
-      borderRadius: 12,
+      backgroundColor: c.neoBgSurface,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      borderRadius: 10,
       paddingHorizontal: 14,
       paddingVertical: 12,
+      ...neoShadow(c.mode, "sm"),
     },
-    triggerText: { fontSize: 14, color: c.text, flexShrink: 1, fontWeight: "400" },
-    chevron: { fontSize: 14, color: c.textMuted, marginLeft: 6 },
+    triggerText: { fontSize: 14, color: c.text, flexShrink: 1, fontFamily: "DMSans_500Medium" },
     backdrop: {
       flex: 1,
       backgroundColor: c.backdrop,
@@ -85,26 +99,24 @@ function makeStyles(c: ThemeColors) {
     },
     card: {
       width: "100%",
-      backgroundColor: c.card,
-      borderRadius: 20,
+      backgroundColor: c.neoBgSurface,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      borderRadius: 14,
       maxHeight: "60%",
       paddingVertical: 16,
       paddingHorizontal: 8,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.2,
-      shadowRadius: 16,
-      elevation: 8,
+      ...neoShadow(c.mode, "lg"),
     },
     dialogTitle: {
       fontSize: 15,
-      fontWeight: "700",
       color: c.text,
       paddingHorizontal: 16,
       paddingBottom: 10,
       marginBottom: 4,
-      borderBottomWidth: 1,
-      borderBottomColor: c.borderSubtle,
+      borderBottomWidth: 2,
+      borderBottomColor: c.neoBorder,
+      fontFamily: "DMSans_800ExtraBold",
     },
     option: {
       flexDirection: "row",
@@ -112,15 +124,16 @@ function makeStyles(c: ThemeColors) {
       justifyContent: "space-between",
       paddingVertical: 14,
       paddingHorizontal: 16,
-      borderRadius: 12,
+      borderRadius: 10,
       marginVertical: 2,
     },
     optionSelected: {
-      backgroundColor: c.inputBackground,
+      backgroundColor: c.neoYellow,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
     },
-    optionText: { fontSize: 15, color: c.text, fontWeight: "500" },
-    optionTextSelected: { fontWeight: "700", color: c.text },
-    checkMark: { fontSize: 15, color: c.text, fontWeight: "700" },
-    empty: { padding: 20, color: c.textFaint, textAlign: "center" },
+    optionText: { fontSize: 15, color: c.text, fontFamily: "DMSans_500Medium" },
+    optionTextSelected: { color: c.text, fontFamily: "DMSans_700Bold" },
+    empty: { padding: 20, color: c.textFaint, textAlign: "center", fontFamily: "DMSans_400Regular" },
   });
 }

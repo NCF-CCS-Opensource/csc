@@ -1,4 +1,5 @@
 import { useAuth } from "@clerk/clerk-expo";
+import { LogOut, Palette, type LucideIcon } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -12,14 +13,11 @@ import { apiFetch, endOfficerSession } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
 import {
   blockingScanCount,
-  discardScan,
   discardLegacyScans,
   legacyScans,
   needsReviewScans,
-  retryScan,
-  type QueuedScan,
 } from "../lib/scanQueue";
-import { flushQueue } from "../lib/syncScans";
+import { logoutResolution } from "../lib/pendingTab";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors, ThemePreference } from "../lib/theme";
 
@@ -36,6 +34,7 @@ const THEME_LABEL: Record<ThemePreference, string> = {
 function SettingsRow({
   icon,
   iconBg,
+  iconColor,
   label,
   value,
   onPress,
@@ -43,8 +42,9 @@ function SettingsRow({
   destructive,
   styles,
 }: {
-  icon: string;
+  icon: LucideIcon;
   iconBg: string;
+  iconColor: string;
   label: string;
   value?: string;
   onPress?: () => void;
@@ -52,11 +52,12 @@ function SettingsRow({
   destructive?: boolean;
   styles: Styles;
 }) {
+  const Icon = icon;
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} disabled={disabled || !onPress}>
       <View style={styles.rowLeft}>
         <View style={[styles.iconBadge, { backgroundColor: iconBg }]}>
-          <Text style={styles.iconBadgeText}>{icon}</Text>
+          <Icon size={18} color={iconColor} strokeWidth={2} />
         </View>
         <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive, disabled && styles.rowLabelDisabled]}>
           {label}
@@ -74,9 +75,11 @@ function SettingsRow({
 export function SettingsScreen({
   officerId,
   onQueueChanged,
+  onNavigateToPending,
 }: {
   officerId: string;
   onQueueChanged: () => void;
+  onNavigateToPending: () => void;
 }) {
   const { colors, preference, setPreference } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -114,59 +117,26 @@ export function SettingsScreen({
     );
   }
 
-  function reviewNeedsReviewScan(scan: QueuedScan, total: number) {
-    Alert.alert(
-      `Needs Review${total > 1 ? ` (1 of ${total})` : ""}`,
-      `${scan.error ?? "Delivery was rejected."}\nCaptured ${new Date(scan.scannedAt).toLocaleString()}`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Discard scan",
-          style: "destructive",
-          onPress: () =>
-            Alert.alert(
-              "Discard Needs Review scan?",
-              "This removes only this queued delivery. This cannot be undone.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Discard",
-                  style: "destructive",
-                  onPress: async () => {
-                    await discardScan(officerId, scan.id);
-                    onQueueChanged();
-                  },
-                },
-              ],
-            ),
-        },
-        {
-          text: "Retry",
-          onPress: async () => {
-            await retryScan(officerId, scan.id);
-            onQueueChanged();
-            flushQueue(officerId, onQueueChanged).catch(() => {});
-          },
-        },
-      ],
-    );
-  }
-
   async function logout() {
     const [count, legacy, needsReview] = await Promise.all([
       blockingScanCount(officerId),
       legacyScans(),
       needsReviewScans(officerId),
     ]);
-    if (count === 0 && legacy.length === 0) {
+    const resolution = logoutResolution({
+      blockingCount: count,
+      legacyCount: legacy.length,
+      needsReviewCount: needsReview.length,
+    });
+    if (resolution.canLogout) {
       await endSession();
       return;
     }
 
-    if (count === 0) {
+    if (resolution.reason === "quarantined_legacy") {
       Alert.alert(
         "Older scans quarantined",
-        `${legacy.length} scan${legacy.length === 1 ? "" : "s"} from the previous storage format cannot be safely attributed or delivered. You may log out without inheriting them.`,
+        `${resolution.legacyCount} scan${resolution.legacyCount === 1 ? "" : "s"} from the previous storage format cannot be safely attributed or delivered. You may log out without inheriting them.`,
         [
           { text: "Cancel", style: "cancel" },
           { text: "Discard older scans", style: "destructive", onPress: confirmDiscardLegacy },
@@ -178,15 +148,12 @@ export function SettingsScreen({
 
     Alert.alert(
       "Can’t log out yet",
-      `${count} scan${count === 1 ? "" : "s"} remain unresolved. Reconnect to retry Pending scans, or return to Scanner and review Needs Review rows.`,
+      resolution.message,
       [
-        ...(needsReview[0]
-          ? [{
-              text: "Review Needs Review",
-              onPress: () =>
-                reviewNeedsReviewScan(needsReview[0], needsReview.length),
-            }]
-          : []),
+        {
+          text: resolution.actionLabel,
+          onPress: onNavigateToPending,
+        },
         { text: "OK" },
       ],
     );
@@ -213,8 +180,9 @@ export function SettingsScreen({
       <Text style={styles.sectionLabel}>GENERAL</Text>
       <View style={styles.section}>
         <SettingsRow
-          icon="🎨"
+          icon={Palette}
           iconBg={colors.iconPurpleBg}
+          iconColor={colors.iconPurple}
           label="Change theme"
           value={THEME_LABEL[preference]}
           onPress={cycleTheme}
@@ -225,8 +193,9 @@ export function SettingsScreen({
       <Text style={styles.sectionLabel}>ACCOUNT</Text>
       <View style={styles.section}>
         <SettingsRow
-          icon="🚪"
+          icon={LogOut}
           iconBg={colors.iconPinkBg}
+          iconColor={colors.iconPink}
           label="Log out"
           destructive
           onPress={logout}
@@ -240,65 +209,110 @@ export function SettingsScreen({
   );
 }
 
+// Zero-blur hard offset shadow per apps/mobile/DESIGN.md — dark mode keeps a
+// black shadow even though the border flips to white.
+function hardShadow(c: ThemeColors, size: 3 | 4 | 6) {
+  return {
+    shadowColor: c.mode === "dark" ? "#000000" : "#111111",
+    shadowOffset: { width: size, height: size },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: size,
+  } as const;
+}
+
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: c.background },
+    container: { flex: 1, backgroundColor: c.neoBgPage },
     content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
-    title: { fontSize: 26, fontWeight: "700", marginBottom: 16, color: c.text, letterSpacing: -0.5 },
+    title: { fontSize: 28, fontFamily: "DMSans_800ExtraBold", marginBottom: 16, color: c.text, letterSpacing: -0.5 },
     profileRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 14,
-      backgroundColor: c.card,
-      borderWidth: 1,
-      borderColor: c.border,
-      borderRadius: 16,
+      backgroundColor: c.neoBgSurface,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      borderRadius: 14,
       padding: 16,
-      marginBottom: 12,
+      marginBottom: 16,
+      ...hardShadow(c, 4),
     },
-    avatar: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-    avatarText: { color: "#ffffff", fontWeight: "700", fontSize: 16 },
+    avatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarText: { color: "#ffffff", fontFamily: "DMSans_700Bold", fontSize: 16 },
     profileMeta: { flex: 1 },
-    profileName: { fontSize: 16, fontWeight: "700", color: c.text },
-    profileEmail: { fontSize: 13, color: c.textMuted, marginTop: 2 },
-    sectionLabel: { fontSize: 12, color: c.textMuted, fontWeight: "600", marginTop: 18, marginBottom: 8, letterSpacing: 0.5 },
-    section: { borderWidth: 1, borderColor: c.border, borderRadius: 16, overflow: "hidden", backgroundColor: c.card },
+    profileName: { fontSize: 16, fontFamily: "DMSans_700Bold", color: c.text },
+    profileEmail: { fontSize: 13, fontFamily: "DMSans_400Regular", color: c.textMuted, marginTop: 2 },
+    sectionLabel: {
+      fontSize: 12,
+      color: c.textMuted,
+      fontFamily: "DMSans_700Bold",
+      marginTop: 18,
+      marginBottom: 8,
+      letterSpacing: 0.5,
+    },
+    section: {
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      borderRadius: 14,
+      overflow: "hidden",
+      backgroundColor: c.neoBgSurface,
+      ...hardShadow(c, 4),
+    },
     row: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingVertical: 14,
       borderBottomWidth: 1,
       borderBottomColor: c.borderSubtle,
-      backgroundColor: c.card,
+      backgroundColor: c.neoBgSurface,
     },
     rowLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
     iconBadge: {
       width: 36,
       height: 36,
       borderRadius: 10,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
       alignItems: "center",
       justifyContent: "center",
     },
-    iconBadgeText: { fontSize: 16 },
-    rowLabel: { fontSize: 15, color: c.text, fontWeight: "500" },
+    rowLabel: { fontSize: 15, color: c.text, fontFamily: "DMSans_500Medium" },
     rowLabelDisabled: { color: c.textDisabled },
-    rowLabelDestructive: { color: c.danger, fontWeight: "500" },
+    rowLabelDestructive: { color: c.danger, fontFamily: "DMSans_500Medium" },
     rowChevron: { color: c.chevron, fontSize: 18 },
-    rowValue: { fontSize: 14, color: c.textMuted },
-    version: { textAlign: "center", fontSize: 13, color: c.textFaint, marginTop: 32, marginBottom: 12 },
+    rowValue: { fontSize: 14, fontFamily: "DMSans_500Medium", color: c.textMuted },
+    version: { textAlign: "center", fontSize: 13, fontFamily: "DMSans_400Regular", color: c.textFaint, marginTop: 32, marginBottom: 12 },
     modalBackdrop: { flex: 1, backgroundColor: c.backdrop, justifyContent: "flex-end" },
-    modalCard: { backgroundColor: c.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 12 },
+    modalCard: { backgroundColor: c.neoBgSurface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 12 },
     modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.handle, alignSelf: "center", marginBottom: 4 },
-    modalTitle: { fontSize: 20, fontWeight: "700", marginBottom: 4, color: c.text },
-    input: { backgroundColor: c.inputBackground, borderRadius: 12, padding: 14, fontSize: 15, color: c.text },
-    error: { fontSize: 13, color: c.danger },
-    successText: { fontSize: 14, color: c.success },
+    modalTitle: { fontSize: 20, fontFamily: "DMSans_700Bold", marginBottom: 4, color: c.text },
+    input: { backgroundColor: c.inputBackground, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: "DMSans_400Regular", color: c.text },
+    error: { fontSize: 13, fontFamily: "DMSans_500Medium", color: c.danger },
+    successText: { fontSize: 14, fontFamily: "DMSans_500Medium", color: c.success },
     modalActions: { flexDirection: "row", gap: 12, marginTop: 8, width: "100%" },
-    button: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: "center", backgroundColor: c.primary },
-    buttonText: { color: c.primaryText, fontWeight: "600" },
-    cancelButton: { backgroundColor: c.cancelBackground, borderWidth: 1, borderColor: c.border },
-    cancelButtonText: { fontWeight: "600", color: c.cancelText },
+    button: {
+      flex: 1,
+      borderRadius: 10,
+      paddingVertical: 14,
+      alignItems: "center",
+      backgroundColor: c.neoPrimary,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      ...hardShadow(c, 3),
+    },
+    buttonText: { color: "#FFFFFF", fontFamily: "DMSans_700Bold" },
+    cancelButton: { backgroundColor: c.cancelBackground, borderWidth: 2, borderColor: c.neoBorder },
+    cancelButtonText: { fontFamily: "DMSans_700Bold", color: c.cancelText },
   });
 }

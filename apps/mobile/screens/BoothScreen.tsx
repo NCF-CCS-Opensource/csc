@@ -1,9 +1,16 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Crypto from "expo-crypto";
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  Clock,
+  X,
+  Zap,
+} from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -15,21 +22,21 @@ import { Dropdown } from "../components/Dropdown";
 import { ApiError, apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
 import { parseQrPayload } from "../lib/qr";
+import { isPermanentScanFailure } from "../lib/scanErrors";
 import {
   addRecentScan,
-  discardScan,
   enqueue,
   loadRecentScans,
-  retryScan,
   type QueuedScan,
   type RecentScan,
 } from "../lib/scanQueue";
 import { flushQueue } from "../lib/syncScans";
 import {
   isAlreadyScanned,
+  isNeedsReviewActionable,
   recentScanOutcomeLabel,
 } from "../lib/recentScanStatus";
-import { useMyEvents } from "../lib/events";
+import { useEvents } from "../lib/events";
 import { useTheme } from "../lib/theme-context";
 import type { ThemeColors } from "../lib/theme";
 
@@ -58,17 +65,24 @@ export function BoothScreen({
   pendingCount,
   queueRevision,
   onQueueChanged,
+  onNavigateToPending,
 }: {
   officerId: string;
   pendingCount: number;
   queueRevision: number;
   onQueueChanged: () => void;
+  onNavigateToPending: () => void;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
-  const { data: events = [], isError: eventsFailed } = useMyEvents();
+  const {
+    data: events = [],
+    isError: eventsFailed,
+    isFetching: eventsFetching,
+    refetch: refetchEvents,
+  } = useEvents();
   const [eventId, setEventId] = useState<string | null>(null);
   const [mode, setMode] = useState<BoothMode | null>(null);
   const [scanned, setScanned] = useState<ScannedResult | null>(null);
@@ -76,7 +90,7 @@ export function BoothScreen({
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
-  const [selectedReview, setSelectedReview] = useState<RecentScan | null>(null);
+
 
   const refreshRecent = useCallback(() => {
     loadRecentScans(officerId).then(setRecentScans);
@@ -165,11 +179,7 @@ export function BoothScreen({
         pendingVerification: false,
       });
     } catch (error) {
-      const retryable =
-        !(error instanceof ApiError) ||
-        error.status === 408 ||
-        error.status === 429 ||
-        error.status >= 500;
+      const retryable = !isPermanentScanFailure(error);
       const offlineStudent = retryable ? parseQrPayload(result.data) : null;
       const pendingVerification = offlineStudent !== null;
       const failed: ScannedResult = {
@@ -197,39 +207,6 @@ export function BoothScreen({
 
   async function decide(decision: "accepted" | "rejected") {
     if (scanned) await queueDecision(decision, scanned);
-  }
-
-  async function retrySelectedReview() {
-    if (!selectedReview) return;
-    await retryScan(officerId, selectedReview.id);
-    setSelectedReview(null);
-    refreshRecent();
-    onQueueChanged();
-    flushQueue(officerId, onQueueChanged)
-      .then(refreshRecent)
-      .catch(() => {});
-  }
-
-  function confirmDiscard() {
-    if (!selectedReview) return;
-    const scan = selectedReview;
-    Alert.alert(
-      "Discard Needs Review scan?",
-      "This removes only its queued delivery. The Recent scan stays visible until normal five-item eviction.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: async () => {
-            await discardScan(officerId, scan.id);
-            setSelectedReview(null);
-            refreshRecent();
-            onQueueChanged();
-          },
-        },
-      ],
-    );
   }
 
   if (!permission) return null;
@@ -277,7 +254,7 @@ export function BoothScreen({
           </View>
 
           <TouchableOpacity style={styles.torchButton} onPress={() => setTorch((t) => !t)}>
-            <Text style={styles.torchIcon}>⚡</Text>
+            <Zap size={18} color="#ffffff" strokeWidth={2} fill={torch ? "#ffffff" : "none"} />
           </TouchableOpacity>
         </View>
       </View>
@@ -316,6 +293,8 @@ export function BoothScreen({
             value={eventId}
             options={events.map((e) => ({ label: e.name, value: e.id }))}
             onChange={setEventId}
+            refreshing={eventsFetching}
+            onRefresh={refetchEvents}
           />
           <Dropdown
             label="Time"
@@ -338,11 +317,7 @@ export function BoothScreen({
                 key={scan.id}
                 scan={scan}
                 styles={styles}
-                onPress={() =>
-                  scan.deliveryState === "needs_review" &&
-                  !scan.discarded &&
-                  setSelectedReview(scan)
-                }
+                onPress={onNavigateToPending}
               />
             ))}
           </ScrollView>
@@ -451,17 +426,21 @@ export function BoothScreen({
                       style={[styles.actionButton, styles.rejectButton]}
                       onPress={() => decide("rejected")}
                     >
-                      <Text style={styles.rejectText}>✕ Reject</Text>
+                      <X size={16} color={colors.danger} strokeWidth={2.5} />
+                      <Text style={styles.rejectText}>Reject</Text>
                     </TouchableOpacity>
                     {(scanned.verified || scanned.pendingVerification) && (
                       <TouchableOpacity
                         style={[styles.actionButton, styles.acceptButton]}
                         onPress={() => decide("accepted")}
                       >
+                        {!scanned.pendingVerification && (
+                          <Check size={16} color="#ffffff" strokeWidth={2.5} />
+                        )}
                         <Text style={styles.acceptText}>
                           {scanned.pendingVerification
                             ? "Queue for verification"
-                            : "✓ Accept"}
+                            : "Accept"}
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -471,39 +450,6 @@ export function BoothScreen({
             )}
           </TouchableOpacity>
         </TouchableOpacity>
-      </Modal>
-
-      <Modal
-        visible={!!selectedReview}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedReview(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.reviewCard}>
-            <Text style={styles.modalTitle}>Needs Review</Text>
-            <Text style={styles.reviewError}>
-              {selectedReview?.error ?? "Delivery was rejected."}
-            </Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.rejectButton]}
-                onPress={confirmDiscard}
-              >
-                <Text style={styles.rejectText}>Discard scan</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.acceptButton]}
-                onPress={retrySelectedReview}
-              >
-                <Text style={styles.acceptText}>Retry</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity onPress={() => setSelectedReview(null)}>
-              <Text style={styles.closeReview}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </Modal>
     </View>
   );
@@ -519,24 +465,34 @@ function RecentScanRow({
   onPress: () => void;
 }) {
   const outcome = recentScanOutcomeLabel(scan);
-  const status = scan.discarded
-    ? "! Needs Review · Discarded"
+  const StatusIcon = scan.discarded
+    ? AlertTriangle
+    : { pending: Clock, delivered: CheckCircle2, needs_review: AlertTriangle }[
+        scan.deliveryState
+      ];
+  const statusLabel = scan.discarded
+    ? "Needs Review · Discarded"
+    : { pending: "Pending", delivered: "Delivered", needs_review: "Needs Review" }[
+        scan.deliveryState
+      ];
+  const statusStyle = scan.discarded
+    ? styles.failedLabel
     : {
-        pending: "◷ Pending",
-        delivered: "✓ Delivered",
-        needs_review: "! Needs Review",
+        pending: styles.pendingLabel,
+        delivered: styles.syncedLabel,
+        needs_review: styles.failedLabel,
       }[scan.deliveryState];
   const mode = BOOTH_MODES.find(({ value }) => value === scan.mode)?.label ?? scan.mode;
+
+  const canReview = isNeedsReviewActionable(scan);
 
   return (
     <TouchableOpacity
       style={styles.recentRow}
       onPress={onPress}
-      disabled={scan.deliveryState !== "needs_review" || scan.discarded}
+      disabled={!canReview}
       accessibilityHint={
-        scan.deliveryState === "needs_review" && !scan.discarded
-          ? "Opens delivery error and actions"
-          : undefined
+        canReview ? "Opens Pending tab to resolve scan" : undefined
       }
     >
       <View style={styles.recentMain}>
@@ -563,17 +519,10 @@ function RecentScanRow({
         >
           {outcome}
         </Text>
-        <Text
-          style={
-            scan.deliveryState === "delivered"
-              ? styles.syncedLabel
-              : scan.deliveryState === "needs_review"
-                ? styles.failedLabel
-                : styles.pendingLabel
-          }
-        >
-          {status}
-        </Text>
+        <View style={styles.statusLabelRow}>
+          <StatusIcon size={11} color={statusStyle.color} strokeWidth={2.5} />
+          <Text style={statusStyle}>{statusLabel}</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -590,10 +539,10 @@ function DetailRow({ label, value, styles }: { label: string; value: string; sty
 
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: c.background },
+    container: { flex: 1, backgroundColor: c.neoBgPage },
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
-    hint: { fontSize: 13, color: c.textMuted },
-    messageHint: { fontSize: 13, color: c.textMuted, paddingHorizontal: 16, marginTop: 4 },
+    hint: { fontSize: 13, color: c.textMuted, fontFamily: "DMSans_400Regular" },
+    messageHint: { fontSize: 13, color: c.textMuted, paddingHorizontal: 16, marginTop: 4, fontFamily: "DMSans_400Regular" },
     cameraWrap: { flex: 0.85, maxHeight: 310, backgroundColor: "#000000" },
     camera: { flex: 1 },
     cameraOverlay: {
@@ -663,9 +612,8 @@ function makeStyles(c: ThemeColors) {
       justifyContent: "center",
     },
 
-    torchIcon: { color: "#ffffff", fontSize: 18 },
     controlPanel: {
-      backgroundColor: c.background,
+      backgroundColor: c.neoBgPage,
       paddingVertical: 12,
     },
     statusBar: {
@@ -681,10 +629,10 @@ function makeStyles(c: ThemeColors) {
     statusReady: { backgroundColor: c.successBg },
     statusNotReady: { backgroundColor: c.warningBg },
     statusDot: { width: 8, height: 8, borderRadius: 4 },
-    statusText: { fontSize: 14, fontWeight: "600" },
-    statusHint: { fontSize: 13, color: c.textMuted, marginLeft: "auto" },
-    eventsError: { fontSize: 13, color: c.danger, paddingHorizontal: 16, marginTop: 8 },
-    pending: { fontSize: 13, color: c.warning, fontWeight: "600", paddingHorizontal: 16, marginTop: 8 },
+    statusText: { fontSize: 14, fontFamily: "DMSans_700Bold" },
+    statusHint: { fontSize: 13, color: c.textMuted, marginLeft: "auto", fontFamily: "DMSans_400Regular" },
+    eventsError: { fontSize: 13, color: c.danger, paddingHorizontal: 16, marginTop: 8, fontFamily: "DMSans_500Medium" },
+    pending: { fontSize: 13, color: c.warning, paddingHorizontal: 16, marginTop: 8, fontFamily: "DMSans_700Bold" },
     dropdownRow: { flexDirection: "row", gap: 12, paddingHorizontal: 16, paddingTop: 12 },
     recentSection: {
       borderTopWidth: 1,
@@ -692,8 +640,8 @@ function makeStyles(c: ThemeColors) {
       paddingHorizontal: 16,
       paddingBottom: 10,
     },
-    recentTitle: { fontSize: 14, fontWeight: "700", color: c.text, paddingVertical: 8 },
-    emptyRecent: { fontSize: 13, color: c.textMuted, paddingBottom: 8 },
+    recentTitle: { fontSize: 14, color: c.text, paddingVertical: 8, fontFamily: "DMSans_700Bold" },
+    emptyRecent: { fontSize: 13, color: c.textMuted, paddingBottom: 8, fontFamily: "DMSans_400Regular" },
     recentList: { maxHeight: 210 },
     recentRow: {
       flexDirection: "row",
@@ -703,30 +651,31 @@ function makeStyles(c: ThemeColors) {
       borderTopColor: c.borderSubtle,
     },
     recentMain: { flex: 1 },
-    recentName: { fontSize: 12, fontWeight: "600", color: c.text },
-    recentMeta: { fontSize: 11, color: c.textMuted, marginTop: 2 },
+    recentName: { fontSize: 12, color: c.text, fontFamily: "DMSans_700Bold" },
+    recentMeta: { fontSize: 11, color: c.textMuted, marginTop: 2, fontFamily: "DMSans_400Regular" },
     recentState: { alignItems: "flex-end", gap: 2 },
-    acceptedLabel: { fontSize: 11, color: c.success, fontWeight: "600" },
-    rejectedLabel: { fontSize: 11, color: c.danger, fontWeight: "600" },
-    alreadyScannedLabel: { fontSize: 11, color: c.warning, fontWeight: "600" },
-    pendingLabel: { fontSize: 11, color: c.warning, fontWeight: "600" },
-    syncedLabel: { fontSize: 11, color: c.success, fontWeight: "600" },
-    failedLabel: { fontSize: 11, color: c.danger, fontWeight: "600" },
+    statusLabelRow: { flexDirection: "row", alignItems: "center", gap: 3 },
+    acceptedLabel: { fontSize: 11, color: c.success, fontFamily: "DMSans_700Bold" },
+    rejectedLabel: { fontSize: 11, color: c.danger, fontFamily: "DMSans_700Bold" },
+    alreadyScannedLabel: { fontSize: 11, color: c.warning, fontFamily: "DMSans_700Bold" },
+    pendingLabel: { fontSize: 11, color: c.warning, fontFamily: "DMSans_700Bold" },
+    syncedLabel: { fontSize: 11, color: c.success, fontFamily: "DMSans_700Bold" },
+    failedLabel: { fontSize: 11, color: c.danger, fontFamily: "DMSans_700Bold" },
     button: {
-      backgroundColor: c.primary,
+      backgroundColor: c.neoPrimary,
       borderRadius: 12,
       paddingVertical: 12,
       paddingHorizontal: 20,
       alignItems: "center",
     },
-    buttonText: { color: c.primaryText, fontWeight: "600" },
+    buttonText: { color: "#ffffff", fontFamily: "DMSans_700Bold" },
     modalBackdrop: {
       flex: 1,
       backgroundColor: c.backdrop,
       justifyContent: "flex-end",
     },
     modalCard: {
-      backgroundColor: c.card,
+      backgroundColor: c.neoBgSurface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingHorizontal: 20,
@@ -734,15 +683,6 @@ function makeStyles(c: ThemeColors) {
       paddingBottom: 28,
       gap: 16,
     },
-    reviewCard: {
-      backgroundColor: c.card,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      padding: 20,
-      gap: 12,
-    },
-    reviewError: { fontSize: 13, color: c.danger },
-    closeReview: { color: c.textMuted, textAlign: "center", paddingVertical: 6 },
     modalHandle: {
       width: 44,
       height: 4,
@@ -753,12 +693,12 @@ function makeStyles(c: ThemeColors) {
     },
     modalHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
     avatar: { width: 46, height: 46, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-    avatarText: { color: "#ffffff", fontWeight: "700", fontSize: 15 },
+    avatarText: { color: "#ffffff", fontSize: 15, fontFamily: "DMSans_700Bold" },
     modalHeaderText: { flex: 1 },
-    modalTitle: { fontSize: 16, fontWeight: "700", color: c.text },
-    modalSubtitle: { fontSize: 13, color: c.textMuted, marginTop: 2 },
+    modalTitle: { fontSize: 16, color: c.text, fontFamily: "DMSans_700Bold" },
+    modalSubtitle: { fontSize: 13, color: c.textMuted, marginTop: 2, fontFamily: "DMSans_400Regular" },
     validBadge: { backgroundColor: c.successBg, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-    validBadgeText: { fontSize: 12, fontWeight: "600", color: c.success },
+    validBadgeText: { fontSize: 12, color: c.success, fontFamily: "DMSans_700Bold" },
     invalidBadge: { backgroundColor: c.dangerBg },
     invalidBadgeText: { color: c.danger },
     unverifiedBadge: { backgroundColor: c.warningBg },
@@ -770,14 +710,22 @@ function makeStyles(c: ThemeColors) {
       gap: 10,
     },
     detailRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    detailLabel: { fontSize: 13, color: c.textMuted },
-    detailValue: { fontSize: 13, fontWeight: "600", color: c.text },
+    detailLabel: { fontSize: 13, color: c.textMuted, fontFamily: "DMSans_400Regular" },
+    detailValue: { fontSize: 13, color: c.text, fontFamily: "DMSans_700Bold" },
     divider: { height: 1, backgroundColor: c.borderSubtle },
     modalActions: { flexDirection: "row", gap: 12, marginTop: 4 },
-    actionButton: { flex: 1, borderRadius: 12, paddingVertical: 15, alignItems: "center" },
+    actionButton: {
+      flex: 1,
+      flexDirection: "row",
+      gap: 6,
+      borderRadius: 12,
+      paddingVertical: 15,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     rejectButton: { backgroundColor: c.dangerBg },
-    rejectText: { color: c.danger, fontWeight: "600", fontSize: 15 },
-    acceptButton: { backgroundColor: c.primary },
-    acceptText: { color: c.primaryText, fontWeight: "600", fontSize: 15 },
+    rejectText: { color: c.danger, fontSize: 15, fontFamily: "DMSans_700Bold" },
+    acceptButton: { backgroundColor: c.neoPrimary },
+    acceptText: { color: "#ffffff", fontSize: 15, fontFamily: "DMSans_700Bold" },
   });
 }

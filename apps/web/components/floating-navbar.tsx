@@ -1,8 +1,9 @@
 "use client";
 
-import { Menu, ScanLine } from "lucide-react";
+import { Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AppLogo } from "@/components/app-logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,16 +44,18 @@ export function FloatingNavbar({
       >
         <Link
           href={brandHref}
-          className="flex shrink-0 items-center gap-2 font-bold tracking-tight"
+          className="flex shrink-0 items-center transition-transform hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px]"
         >
-          <span className="flex size-8 items-center justify-center rounded-full border-2 border-border bg-[var(--color-yellow)]">
-            <ScanLine className="size-4" aria-hidden />
-          </span>
-          <span className="hidden sm:inline">CCS Attendance</span>
+          <AppLogo size="sm" wordmarkClassName="hidden sm:inline-flex" />
         </Link>
 
         {links.length > 0 && (
-          <ul className="hidden flex-1 items-center justify-center gap-1 2xl:flex">
+          <ul
+            className={cn(
+              "flex-1 items-center justify-center gap-1",
+              links.length > 1 ? "hidden 2xl:flex" : "flex"
+            )}
+          >
             {links.map((link) => {
               const active = pathname === link.href;
               return (
@@ -63,7 +66,9 @@ export function FloatingNavbar({
                     className={linkClassName(active)}
                   >
                     <link.icon className="size-4 shrink-0" />
-                    <span className="hidden md:inline">{link.label}</span>
+                    <span className={links.length > 1 ? "hidden md:inline" : "inline"}>
+                      {link.label}
+                    </span>
                   </Link>
                 </li>
               );
@@ -71,7 +76,7 @@ export function FloatingNavbar({
           </ul>
         )}
 
-        {links.length > 0 && (
+        {links.length > 1 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button

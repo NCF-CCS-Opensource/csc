@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { LayoutDashboard, Users } from "lucide-react";
+import { ClipboardCheck, LayoutDashboard, Users } from "lucide-react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
@@ -54,5 +54,15 @@ describe("FloatingNavbar", () => {
       "page"
     );
     expect(screen.getByRole("menuitem", { name: /students/i })).toBeInTheDocument();
+  });
+
+  it("shows a single link directly, with no compact-menu button, e.g. for students", () => {
+    const singleLink = [
+      { href: "/my-attendance", label: "My Attendance", icon: ClipboardCheck },
+    ];
+    render(<FloatingNavbar links={singleLink} />);
+
+    expect(screen.getByRole("link", { name: /my attendance/i })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /more navigation/i })).not.toBeInTheDocument();
   });
 });

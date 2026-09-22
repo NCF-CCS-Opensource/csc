@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import type { ReactNode } from "react";
 
 const { requireGovernorMock, apiPostMock } = vi.hoisted(() => ({
   requireGovernorMock: vi.fn(),
@@ -66,10 +68,17 @@ afterEach(() => {
   cleanup();
 });
 
+// AdminCacheSync reads useQueryClient(), so every render needs a provider now
+// (it was a plain server-rendered tree before this ticket).
+function renderAdmin(page: ReactNode) {
+  const client = new QueryClient();
+  return render(<QueryClientProvider client={client}>{page}</QueryClientProvider>);
+}
+
 describe("AdminPage Bento Grid & Lifecycle Management (Issue #206)", () => {
   it("renders modular Bento cells with uppercase overlines and letter spacing", async () => {
     const page = await AdminPage({ searchParams: Promise.resolve({}) });
-    render(page);
+    renderAdmin(page);
 
     // Overline 1: SEMESTER LIFECYCLE
     const semesterOverline = screen.getByText("SEMESTER LIFECYCLE");
@@ -96,7 +105,7 @@ describe("AdminPage Bento Grid & Lifecycle Management (Issue #206)", () => {
 
   it("displays date boundaries inside the Semester Lifecycle Bento card", async () => {
     const page = await AdminPage({ searchParams: Promise.resolve({}) });
-    render(page);
+    renderAdmin(page);
 
     const cell = screen.getByTestId("semester-lifecycle-cell");
     expect(cell).toBeInTheDocument();
@@ -114,7 +123,7 @@ describe("AdminPage Bento Grid & Lifecycle Management (Issue #206)", () => {
 
   it("displays program rosters inside the Academic Rosters Bento card", async () => {
     const page = await AdminPage({ searchParams: Promise.resolve({}) });
-    render(page);
+    renderAdmin(page);
 
     const cell = screen.getByTestId("academic-rosters-cell");
     expect(cell).toBeInTheDocument();
@@ -128,12 +137,39 @@ describe("AdminPage Bento Grid & Lifecycle Management (Issue #206)", () => {
 
   it("displays officer promotion search in the Officer Roster Bento card", async () => {
     const page = await AdminPage({ searchParams: Promise.resolve({ q: "Alice" }) });
-    render(page);
+    renderAdmin(page);
 
     const cell = screen.getByTestId("officer-roster-cell");
     expect(cell).toBeInTheDocument();
     expect(cell).toHaveAttribute("data-slot", "bento-cell");
 
     expect(screen.getByText("Alice Reyes")).toBeInTheDocument();
+  });
+
+  it("renders the Officer Roster results table above the search form when results exist", async () => {
+    const page = await AdminPage({ searchParams: Promise.resolve({ q: "Alice" }) });
+    renderAdmin(page);
+
+    const cell = screen.getByTestId("officer-roster-cell");
+    const table = cell.querySelector("table");
+    const form = cell.querySelector("form");
+
+    expect(table).toBeInTheDocument();
+    expect(form).toBeInTheDocument();
+
+    // Results table must precede the search form in document order.
+    expect(table!.compareDocumentPosition(form!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("keeps the Officer Roster search form present with no results table in the empty state", async () => {
+    const page = await AdminPage({ searchParams: Promise.resolve({}) });
+    renderAdmin(page);
+
+    const cell = screen.getByTestId("officer-roster-cell");
+    const table = cell.querySelector("table");
+    const form = cell.querySelector("form");
+
+    expect(table).not.toBeInTheDocument();
+    expect(form).toBeInTheDocument();
   });
 });

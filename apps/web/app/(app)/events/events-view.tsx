@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CalendarCheck, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import {
@@ -41,6 +42,7 @@ import {
   type EventsSnapshot,
 } from "./actions";
 import { eventsQueryKey } from "./query-key";
+import { dashboardQueryKey } from "../dashboard/query-key";
 
 type EventRow = EventsSnapshot["events"][number];
 
@@ -63,15 +65,18 @@ export function EventsView({
 
   // createEvent redirects back here, so the shell re-reads and hands down a
   // payload newer than anything cached. Without this the cache would win and a
-  // just-created Event would stay invisible until staleTime expired.
+  // just-created Event would stay invisible until staleTime expired. The
+  // Dashboard's ledger embeds this same Event data under its own key, which
+  // this page can't seed directly, so that one is invalidated instead.
   useEffect(() => {
     queryClient.setQueryData(eventsQueryKey, initialData);
+    queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
   }, [queryClient, initialData]);
 
   const { openSemester, eventTypes, events: allEvents } = data;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-8">
       <h1 className="text-xl font-medium">Events</h1>
       {error && <p className="text-destructive text-sm">{error}</p>}
 
@@ -108,8 +113,10 @@ export function EventsView({
                     </TableCell>
                     <TableCell className="flex justify-end gap-1">
                       <EventActions event={event} eventTypes={eventTypes} />
-                      <Button asChild variant="link" size="sm">
-                        <Link href={`/events/${event.id}/attendance`}>Attendance</Link>
+                      <Button asChild variant="secondary" size="icon-sm">
+                        <Link href={`/events/${event.id}/attendance`} aria-label="Attendance">
+                          <CalendarCheck />
+                        </Link>
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -213,6 +220,7 @@ function EventActions({
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: eventsQueryKey });
+    await queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
   }
 
   function summarizeEventChanges(formData: FormData): string {
@@ -242,8 +250,8 @@ function EventActions({
         }}
       >
         <AlertDialogTrigger asChild>
-          <Button variant="link" size="sm">
-            Edit
+          <Button variant="outline" size="icon-sm" aria-label="Edit">
+            <Pencil />
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
@@ -357,8 +365,8 @@ function EventActions({
         }}
       >
         <AlertDialogTrigger asChild>
-          <Button variant="link" size="sm" className="text-destructive">
-            Delete
+          <Button variant="destructive" size="icon-sm" aria-label="Delete">
+            <Trash2 />
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>

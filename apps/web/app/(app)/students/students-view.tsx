@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { memo, useCallback, useMemo, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Pencil } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -194,14 +194,15 @@ const StudentTableRow = memo(function StudentTableRow({
           <TableCell className="text-right">
             <Button
               type="button"
-              variant="link"
-              size="sm"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Edit student"
               onClick={() => {
                 setCardInvalidated(false);
                 setEditing(true);
               }}
             >
-              Correct
+              <Pencil />
             </Button>
           </TableCell>
           <TableCell className="text-right">
@@ -418,7 +419,7 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8 bg-[var(--bg-page)] min-h-[calc(100vh-3rem)]">
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8 bg-[var(--bg-page)] min-h-[calc(100vh-3rem)]">
       <header className="flex flex-col gap-2">
         <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#888888]">
           STUDENT MANAGEMENT
@@ -528,7 +529,10 @@ export function StudentsView({ initialData }: { initialData: StudentsSnapshot })
                     <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">Student ID</TableHead>
                     <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">Program</TableHead>
                     <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">Role</TableHead>
-                    <TableHead />
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
+                      <Pencil className="size-3.5" aria-hidden="true" />
+                      <span className="sr-only">Edit</span>
+                    </TableHead>
                     <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">QR Card</TableHead>
                   </TableRow>
                 </TableHeader>

@@ -1,20 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ActivityIndicator,
   FlatList,
   Modal,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Calendar, MapPin, Pencil, Plus, Trash2 } from "lucide-react-native";
 import { CalendarGrid } from "../components/CalendarGrid";
-import { apiFetch } from "../lib/api";
 import { useTheme } from "../lib/theme-context";
-import type { ThemeColors } from "../lib/theme";
+import { neoShadow, type ThemeColors } from "../lib/theme";
 
-import type { EventRow, EventType } from "../lib/events";
+import {
+  createEvent,
+  deleteEvent,
+  updateEvent,
+  useEvents,
+  type EventRow,
+  type EventType,
+} from "../lib/events";
 
 type EventStatus = "Active" | "Upcoming" | "Completed";
 
@@ -49,32 +58,23 @@ function formatDate(date: string) {
 export function EventsScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [events, setEvents] = useState<EventRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  // The shared Events query (lib/events.ts) also backs the Booth screen's
+  // event picker — reusing it here means this list picks up the same
+  // refetch-on-focus/refetch-on-reconnect safety net for free.
+  const {
+    data: events = [],
+    isLoading,
+    isError,
+    error,
+    isFetching,
+    refetch,
+  } = useEvents();
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [deleting, setDeleting] = useState<EventRow | null>(null);
 
-  function load() {
-    setLoading(true);
-    apiFetch<EventRow[]>("/v1/api/event/list", { method: "POST" })
-      .then(setEvents)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }
-
-  useEffect(load, []);
-
-  function onUpdated(updated: EventRow) {
-    setEvents((prev) => prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e)));
-  }
-
-  function onDeleted(id: string) {
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-  }
-
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.text} />
@@ -82,10 +82,12 @@ export function EventsScreen() {
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
       <View style={styles.center}>
-        <Text style={styles.error}>{error}</Text>
+        <Text style={styles.error}>
+          {error instanceof Error ? error.message : "Failed to load events"}
+        </Text>
       </View>
     );
   }
@@ -95,7 +97,7 @@ export function EventsScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Events</Text>
         <TouchableOpacity style={styles.addButton} onPress={() => setAddOpen(true)}>
-          <Text style={styles.addButtonText}>+</Text>
+          <Plus size={20} color="#ffffff" strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
 
@@ -103,6 +105,7 @@ export function EventsScreen() {
         data={events}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}
         ListEmptyComponent={<Text style={styles.hint}>No Events yet.</Text>}
         renderItem={({ item }) => {
           const status = deriveStatus(item.date);
@@ -125,13 +128,15 @@ export function EventsScreen() {
                   style={[styles.cardActionButton, styles.editButton]}
                   onPress={() => setEditing(item)}
                 >
-                  <Text style={styles.editButtonText}>✎ Edit</Text>
+                  <Pencil size={14} color={colors.text} strokeWidth={2.5} />
+                  <Text style={styles.editButtonText}>Edit</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.cardActionButton, styles.deleteButton]}
                   onPress={() => setDeleting(item)}
                 >
-                  <Text style={styles.deleteButtonText}>🗑 Delete</Text>
+                  <Trash2 size={14} color={colors.danger} strokeWidth={2.5} />
+                  <Text style={styles.deleteButtonText}>Delete</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -142,8 +147,8 @@ export function EventsScreen() {
       <EventFormModal
         visible={addOpen}
         mode="create"
+        queryClient={queryClient}
         onClose={() => setAddOpen(false)}
-        onSaved={load}
         colors={colors}
         styles={styles}
       />
@@ -151,17 +156,15 @@ export function EventsScreen() {
         visible={!!editing}
         mode="edit"
         event={editing}
+        queryClient={queryClient}
         onClose={() => setEditing(null)}
-        onSaved={(updated) => onUpdated(updated)}
         colors={colors}
         styles={styles}
       />
       <DeleteEventModal
         event={deleting}
+        queryClient={queryClient}
         onClose={() => setDeleting(null)}
-        onDeleted={() => {
-          if (deleting) onDeleted(deleting.id);
-        }}
         colors={colors}
         styles={styles}
       />
@@ -171,14 +174,14 @@ export function EventsScreen() {
 
 function DeleteEventModal({
   event,
+  queryClient,
   onClose,
-  onDeleted,
   colors,
   styles,
 }: {
   event: EventRow | null;
+  queryClient: ReturnType<typeof useQueryClient>;
   onClose: () => void;
-  onDeleted: () => void;
   colors: ThemeColors;
   styles: Styles;
 }) {
@@ -190,11 +193,7 @@ function DeleteEventModal({
     setSubmitting(true);
     setError(null);
     try {
-      await apiFetch("/v1/api/event/delete", {
-        method: "POST",
-        body: JSON.stringify({ id: event.id }),
-      });
-      onDeleted();
+      await deleteEvent(queryClient, event.id);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete event");
@@ -210,7 +209,7 @@ function DeleteEventModal({
           <View style={styles.modalHandle} />
 
           <View style={styles.deleteIconBadge}>
-            <Text style={styles.deleteIconText}>🗑</Text>
+            <Trash2 size={22} color={colors.danger} strokeWidth={2.5} />
           </View>
 
           <Text style={styles.deleteModalTitle}>Delete event?</Text>
@@ -246,16 +245,16 @@ function EventFormModal({
   visible,
   mode,
   event,
+  queryClient,
   onClose,
-  onSaved,
   colors,
   styles,
 }: {
   visible: boolean;
   mode: "create" | "edit";
   event?: EventRow | null;
+  queryClient: ReturnType<typeof useQueryClient>;
   onClose: () => void;
-  onSaved: (event: EventRow) => void;
   colors: ThemeColors;
   styles: Styles;
 }) {
@@ -281,21 +280,12 @@ function EventFormModal({
     setSubmitting(true);
     setError(null);
     try {
-      const result = await apiFetch<EventRow>(
-        mode === "create" ? "/v1/api/event/create" : "/v1/api/event/update",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            ...(mode === "edit" ? { id: event!.id } : {}),
-            name,
-            venue,
-            date,
-            type,
-            halfDayPenaltyAmount: penalty,
-          }),
-        },
-      );
-      onSaved(result);
+      const input = { name, venue, date, type, halfDayPenaltyAmount: penalty };
+      if (mode === "create") {
+        await createEvent(queryClient, input);
+      } else {
+        await updateEvent(queryClient, { id: event!.id, ...input });
+      }
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save event");
@@ -316,7 +306,7 @@ function EventFormModal({
 
           <Text style={styles.fieldLabel}>Event name</Text>
           <View style={styles.inputWrap}>
-            <Text style={styles.inputIcon}>📅</Text>
+            <Calendar size={14} color={colors.textMuted} strokeWidth={2.5} />
             <TextInput
               style={styles.inputWithIcon}
               placeholder="e.g. Foundation Day Ceremony"
@@ -328,7 +318,7 @@ function EventFormModal({
 
           <Text style={styles.fieldLabel}>Venue / Location</Text>
           <View style={styles.inputWrap}>
-            <Text style={styles.inputIcon}>📍</Text>
+            <MapPin size={14} color={colors.textMuted} strokeWidth={2.5} />
             <TextInput
               style={styles.inputWithIcon}
               placeholder="e.g. ST Quad"
@@ -368,11 +358,10 @@ function EventFormModal({
 
           <Text style={styles.fieldLabel}>Event date</Text>
           <View style={styles.inputWrap}>
-            <Text style={styles.inputIcon}>📅</Text>
+            <Calendar size={14} color={colors.textMuted} strokeWidth={2.5} />
             <Text style={styles.datePickerValueText}>
               {date ? formatDate(date) : "Select date"}
             </Text>
-            <Text style={styles.dropdownChevron}>⌄</Text>
           </View>
 
           <View style={styles.calendarContainer}>
@@ -410,7 +399,7 @@ function EventFormModal({
 
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: c.background },
+    container: { flex: 1, backgroundColor: c.neoBgPage },
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
     header: {
       flexDirection: "row",
@@ -420,51 +409,62 @@ function makeStyles(c: ThemeColors) {
       paddingTop: 16,
       paddingBottom: 12,
     },
-    title: { fontSize: 26, fontWeight: "700", color: c.text, letterSpacing: -0.5 },
+    title: { fontSize: 26, color: c.text, letterSpacing: -0.5, fontFamily: "DMSans_800ExtraBold" },
     addButton: {
       width: 36,
       height: 36,
       borderRadius: 10,
-      backgroundColor: c.primary,
+      backgroundColor: c.neoPrimary,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
       alignItems: "center",
       justifyContent: "center",
+      ...neoShadow(c.mode, "sm"),
     },
-    addButtonText: { color: c.primaryText, fontSize: 22, fontWeight: "500", marginTop: -2 },
     list: { paddingHorizontal: 20, paddingBottom: 24, gap: 14 },
-    hint: { fontSize: 14, color: c.textMuted, textAlign: "center", marginTop: 24 },
-    error: { fontSize: 13, color: c.danger, textAlign: "center", marginVertical: 4 },
+    hint: { fontSize: 14, color: c.textMuted, textAlign: "center", marginTop: 24, fontFamily: "DMSans_400Regular" },
+    error: { fontSize: 13, color: c.danger, textAlign: "center", marginVertical: 4, fontFamily: "DMSans_500Medium" },
     card: {
-      borderWidth: 1,
-      borderColor: c.border,
-      borderRadius: 16,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      borderRadius: 14,
       padding: 16,
       gap: 4,
-      backgroundColor: c.card,
+      backgroundColor: c.neoBgSurface,
+      ...neoShadow(c.mode, "md"),
     },
     cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    cardTitle: { fontSize: 16, fontWeight: "700", flexShrink: 1, color: c.text },
-    cardMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
-    badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-    badgeText: { fontSize: 12, fontWeight: "600" },
+    cardTitle: { fontSize: 16, flexShrink: 1, color: c.text, fontFamily: "DMSans_700Bold" },
+    cardMeta: { fontSize: 13, color: c.textMuted, marginTop: 2, fontFamily: "DMSans_500Medium" },
+    badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 2, borderColor: c.neoBorder },
+    badgeText: { fontSize: 12, fontFamily: "DMSans_700Bold" },
     cardActions: { flexDirection: "row", gap: 10, marginTop: 4 },
     cardActionButton: {
       flex: 1,
+      flexDirection: "row",
+      gap: 6,
       borderRadius: 10,
       paddingVertical: 10,
       alignItems: "center",
       justifyContent: "center",
+      borderWidth: 2,
+      borderColor: c.neoBorder,
     },
-    editButton: { borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
-    editButtonText: { fontSize: 13, fontWeight: "600", color: c.text },
+    editButton: { backgroundColor: c.neoBgSurface },
+    editButtonText: { fontSize: 13, color: c.text, fontFamily: "DMSans_700Bold" },
     deleteButton: { backgroundColor: c.dangerBg },
-    deleteButtonText: { fontSize: 13, fontWeight: "600", color: c.danger },
+    deleteButtonText: { fontSize: 13, color: c.danger, fontFamily: "DMSans_700Bold" },
     modalBackdrop: {
       flex: 1,
       backgroundColor: c.backdrop,
       justifyContent: "flex-end",
     },
     modalCard: {
-      backgroundColor: c.card,
+      backgroundColor: c.neoBgSurface,
+      borderTopWidth: 2,
+      borderLeftWidth: 2,
+      borderRightWidth: 2,
+      borderColor: c.neoBorder,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingHorizontal: 20,
@@ -474,7 +474,11 @@ function makeStyles(c: ThemeColors) {
       maxHeight: "90%",
     },
     deleteModalCard: {
-      backgroundColor: c.card,
+      backgroundColor: c.neoBgSurface,
+      borderTopWidth: 2,
+      borderLeftWidth: 2,
+      borderRightWidth: 2,
+      borderColor: c.neoBorder,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingHorizontal: 20,
@@ -488,15 +492,16 @@ function makeStyles(c: ThemeColors) {
       height: 48,
       borderRadius: 24,
       backgroundColor: c.dangerBg,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
       alignItems: "center",
       justifyContent: "center",
       marginVertical: 8,
     },
-    deleteIconText: { fontSize: 22 },
-    deleteModalTitle: { fontSize: 18, fontWeight: "700", color: c.text },
-    deleteModalSubtitle: { fontSize: 13, color: c.textMuted, textAlign: "center", paddingHorizontal: 12, marginBottom: 8 },
-    deleteConfirmButton: { backgroundColor: c.primary },
-    deleteConfirmButtonText: { color: c.primaryText, fontWeight: "600" },
+    deleteModalTitle: { fontSize: 18, color: c.text, fontFamily: "DMSans_800ExtraBold" },
+    deleteModalSubtitle: { fontSize: 13, color: c.textMuted, textAlign: "center", paddingHorizontal: 12, marginBottom: 8, fontFamily: "DMSans_500Medium" },
+    deleteConfirmButton: { backgroundColor: c.danger, borderColor: c.neoBorder },
+    deleteConfirmButtonText: { color: "#ffffff", fontFamily: "DMSans_700Bold" },
     modalHandle: {
       width: 40,
       height: 4,
@@ -505,56 +510,56 @@ function makeStyles(c: ThemeColors) {
       alignSelf: "center",
       marginBottom: 8,
     },
-    modalTitle: { fontSize: 20, fontWeight: "700", color: c.text },
-    modalSubtitle: { fontSize: 13, color: c.textMuted, marginBottom: 4 },
-    fieldLabel: { fontSize: 12, color: c.textMuted, marginTop: 8 },
+    modalTitle: { fontSize: 20, color: c.text, fontFamily: "DMSans_800ExtraBold" },
+    modalSubtitle: { fontSize: 13, color: c.textMuted, marginBottom: 4, fontFamily: "DMSans_500Medium" },
+    fieldLabel: { fontSize: 12, color: c.textMuted, marginTop: 8, fontFamily: "DMSans_700Bold" },
     inputWrap: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: c.inputBackground,
-      borderRadius: 12,
+      gap: 8,
+      backgroundColor: c.neoBgSurface,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      borderRadius: 10,
       paddingHorizontal: 14,
       paddingVertical: 12,
       marginTop: 4,
     },
-    inputIcon: { fontSize: 14, marginRight: 8, color: c.textMuted },
+    inputIcon: { fontSize: 14, color: c.textMuted },
     inputWithIcon: {
       flex: 1,
       fontSize: 14,
       color: c.text,
       padding: 0,
+      fontFamily: "DMSans_500Medium",
     },
     typeRow: { flexDirection: "row", gap: 8, marginTop: 4 },
     typeOption: {
       flex: 1,
-      borderWidth: 1,
-      borderColor: c.border,
-      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: c.neoBorder,
+      borderRadius: 10,
       paddingVertical: 12,
       alignItems: "center",
+      backgroundColor: c.neoBgSurface,
     },
-    typeOptionSelected: { backgroundColor: c.primary, borderColor: c.primary },
-    typeOptionText: { fontSize: 13, color: c.text },
-    typeOptionTextSelected: { color: c.primaryText, fontWeight: "600" },
+    typeOptionSelected: { backgroundColor: c.neoYellow },
+    typeOptionText: { fontSize: 13, color: c.text, fontFamily: "DMSans_500Medium" },
+    typeOptionTextSelected: { color: c.text, fontFamily: "DMSans_800ExtraBold" },
     datePickerValueText: {
       flex: 1,
       fontSize: 14,
       color: c.text,
+      fontFamily: "DMSans_500Medium",
     },
-    dropdownChevron: { fontSize: 14, color: c.textMuted, marginLeft: 6 },
     calendarContainer: {
       marginTop: 8,
-      padding: 12,
-      backgroundColor: c.card,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: c.borderSubtle,
     },
     modalActions: { flexDirection: "row", gap: 12, marginTop: 16, width: "100%" },
-    button: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: "center" },
-    cancelButton: { backgroundColor: c.cancelBackground, borderWidth: 1, borderColor: c.border },
-    cancelButtonText: { fontWeight: "600", color: c.cancelText },
-    submitButton: { backgroundColor: c.primary },
-    submitButtonText: { color: c.primaryText, fontWeight: "600" },
+    button: { flex: 1, borderRadius: 10, paddingVertical: 14, alignItems: "center", borderWidth: 2, borderColor: c.neoBorder },
+    cancelButton: { backgroundColor: c.neoBgSurface },
+    cancelButtonText: { fontFamily: "DMSans_700Bold", color: c.text },
+    submitButton: { backgroundColor: c.neoPrimary },
+    submitButtonText: { color: "#ffffff", fontFamily: "DMSans_700Bold" },
   });
 }

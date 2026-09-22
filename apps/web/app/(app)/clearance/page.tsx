@@ -1,15 +1,11 @@
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import type {
-  SemesterOutstandingResponse,
-  SemesterResponse,
+  BatchStudentLedgerResponse,
   StudentListResponse,
 } from "@attendance/contracts";
 import { apiFetch, apiPost } from "@/lib/api-client";
+import { getOpenSemester } from "@/lib/queries/open-semester";
 import { ClearanceView } from "./clearance-view";
-
-function findOpenSemester(): Promise<SemesterResponse | null> {
-  return apiFetch<SemesterResponse | null>("/v1/api/semester/current");
-}
 
 export const dynamic = "force-dynamic";
 
@@ -22,21 +18,21 @@ export default async function ClearancePage({
   const { q } = await searchParams;
 
   const [openSemester, allStudents] = await Promise.all([
-    findOpenSemester(),
+    getOpenSemester(),
     apiPost<StudentListResponse>("student/list").then(({ students }) => students),
   ]);
 
-  // One bulk fetch for every student's outstanding balance, not one per student
-  // (that N+1 pattern used to time out the page for real student counts).
-  const outstandingByStudent = openSemester
-    ? await apiFetch<SemesterOutstandingResponse>("/v1/api/ledger/semester/outstanding", {
+  // One batched Ledger request for every enrolled Student instead of one
+  // request per Student (issue #282; batched endpoint added in #278).
+  const ledgerByStudentId: BatchStudentLedgerResponse = openSemester
+    ? await apiFetch<BatchStudentLedgerResponse>("/v1/api/ledger/students", {
         semesterId: openSemester.id,
       })
     : {};
 
   const results = allStudents.map((student) => ({
     student,
-    outstanding: outstandingByStudent[student.id] ?? 0,
+    outstanding: ledgerByStudentId[student.id]?.outstanding ?? 0,
   }));
 
   return (

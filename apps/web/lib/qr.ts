@@ -45,7 +45,10 @@ export function buildQrCardModels(subjects: QrSubject[]): Promise<QrCardModel[]>
   return Promise.all(
     subjects.map(async (subject) => {
       const { name, studentId, program } = subject;
-      const qrImage = await QRCode.toDataURL(buildQrPayload(subject));
+      // Fixed width so every card's QR renders at the same pixel size
+      // regardless of payload length (longer names/programs bump the QR
+      // version, which otherwise scales the source image up).
+      const qrImage = await QRCode.toDataURL(buildQrPayload(subject), { width: 400 });
       return { name, studentId, program, qrImage };
     }),
   );
