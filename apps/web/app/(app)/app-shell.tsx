@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FloatingNavbar, type NavLink } from "@/components/floating-navbar";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,7 @@ export function AppShell({
     queryFn: getIdentity,
     initialData: initialIdentity,
   });
+  const queryClient = useQueryClient();
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-[var(--bg-page)]">
@@ -65,7 +66,18 @@ export function AppShell({
             </span>
             {identity && (
               <SignOutButton redirectUrl="/sign-in">
-                <Button variant="ghost" size="icon-sm" aria-label="Log out">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Log out"
+                  // Identity now lives in the same shared, localStorage-persisted
+                  // cache as every other page's data (ADR 0013), so a plain
+                  // localStorage.removeItem for one key no longer clears it on
+                  // sign-out. Clear the whole client cache instead, so the next
+                  // Student to use this browser never sees a prior Student's
+                  // cached identity or data.
+                  onClick={() => queryClient.clear()}
+                >
                   <LogOut className="size-4" />
                 </Button>
               </SignOutButton>
