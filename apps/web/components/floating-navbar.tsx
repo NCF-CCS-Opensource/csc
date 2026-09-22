@@ -50,7 +50,12 @@ export function FloatingNavbar({
         </Link>
 
         {links.length > 0 && (
-          <ul className="hidden flex-1 items-center justify-center gap-1 2xl:flex">
+          <ul
+            className={cn(
+              "flex-1 items-center justify-center gap-1",
+              links.length > 1 ? "hidden 2xl:flex" : "flex"
+            )}
+          >
             {links.map((link) => {
               const active = pathname === link.href;
               return (
@@ -61,7 +66,9 @@ export function FloatingNavbar({
                     className={linkClassName(active)}
                   >
                     <link.icon className="size-4 shrink-0" />
-                    <span className="hidden md:inline">{link.label}</span>
+                    <span className={links.length > 1 ? "hidden md:inline" : "inline"}>
+                      {link.label}
+                    </span>
                   </Link>
                 </li>
               );
@@ -69,7 +76,7 @@ export function FloatingNavbar({
           </ul>
         )}
 
-        {links.length > 0 && (
+        {links.length > 1 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
