@@ -1,7 +1,13 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { PaymentHistoryEntry, SemesterLedgerResponse, StudentLedgerResponse } from "@attendance/contracts";
+import type { BatchStudentLedgerResponse, PaymentHistoryEntry, SemesterLedgerResponse, StudentLedgerResponse } from "@attendance/contracts";
 import { LEDGER_REPOSITORY, type LedgerRepository } from "../domain/ledger-repository";
-import { computeLedger } from "../domain/ledger";
+import { computeLedger, type StudentStanding } from "../domain/ledger";
+
+const EMPTY_STANDING: StudentLedgerResponse = { total: 0, outstanding: 0, sessions: [] };
+
+function toResponse(standing: StudentStanding | null | undefined): StudentLedgerResponse {
+  return standing ? { ...standing, sessions: standing.sessions.map((session) => ({ ...session, timeIn: session.timeIn?.toISOString() ?? null, timeOut: session.timeOut?.toISOString() ?? null })) } : EMPTY_STANDING;
+}
 
 @Injectable()
 export class LedgerUseCase {
@@ -9,8 +15,19 @@ export class LedgerUseCase {
 
   async student(semesterId: string, studentId: string): Promise<StudentLedgerResponse> {
     const input = await this.ledgerRepository.ledgerInput(semesterId, studentId);
-    const standing = input && computeLedger(input).students.get(studentId);
-    return standing ? { ...standing, sessions: standing.sessions.map((session) => ({ ...session, timeIn: session.timeIn?.toISOString() ?? null, timeOut: session.timeOut?.toISOString() ?? null })) } : { total: 0, outstanding: 0, sessions: [] };
+    return toResponse(input && computeLedger(input).students.get(studentId));
+  }
+
+  // Batched form of `student`: reuses the same per-Semester computation
+  // (computeLedger already derives every Student's standing internally) but
+  // reads it once and returns every requested Student's balance in one call,
+  // instead of one DB read + computeLedger per Student.
+  async students(semesterId: string, studentIds?: string[]): Promise<BatchStudentLedgerResponse> {
+    const input = await this.ledgerRepository.ledgerInput(semesterId);
+    if (!input) return {};
+    const ledger = computeLedger(input);
+    const ids = studentIds ?? input.students.map((student) => student.id);
+    return Object.fromEntries(ids.map((id) => [id, toResponse(ledger.students.get(id))]));
   }
 
   async semester(semesterId: string): Promise<SemesterLedgerResponse> {

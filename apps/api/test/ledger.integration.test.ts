@@ -95,4 +95,29 @@ describe("Ledger (e2e)", () => {
       { id: expect.any(String), amount: "50.00", paidAt: "2026-07-16T08:00:00.000Z" },
     ]);
   });
+
+  it("returns each requested student's outstanding balance in one call, matching the per-student endpoint", async () => {
+    const [semester] = await db.insert(semesters).values({ startDate: "2026-06-01", endDate: "2026-10-31" }).returning();
+    const [event] = await db.insert(events).values({
+      name: "Foundation Day", semesterId: semester.id, date: "2026-07-15", type: "half_day", halfDayPenaltyAmount: "50.00",
+    }).returning();
+    const [attended, noShow, officer] = await db.insert(students).values([
+      { email: "attended@example.com", authUserId: "user_attended", name: "Grace Hopper", program: "Computer Science", studentId: "24-001" },
+      { email: "noshow@example.com", authUserId: "user_noshow", name: "Ada Lovelace", program: "Computer Science", studentId: "24-002" },
+      { email: "officer@example.com", authUserId: "user_officer", name: "Katherine Johnson", program: "Computer Science", studentId: "24-003", role: "officer" },
+    ]).returning();
+    verify.mockResolvedValue({ authUserId: officer.authUserId });
+
+    await db.insert(attendanceSessions).values([
+      { eventId: event.id, studentId: attended.id, half: "am", timeIn: new Date("2026-07-15T08:00:00.000Z"), timeOut: new Date("2026-07-15T09:00:00.000Z") },
+    ]);
+    // noShow has no stored session row at all — a full no-show.
+
+    const batch = await request(server()).post("/ledger/students").set("Authorization", bearer).send({ semesterId: semester.id, studentIds: [attended.id, noShow.id] }).expect(201);
+
+    for (const student of [attended, noShow]) {
+      const single = await request(server()).post("/ledger/student").set("Authorization", bearer).send({ semesterId: semester.id, studentId: student.id }).expect(201);
+      expect(batch.body[student.id]).toEqual(single.body);
+    }
+  });
 });
