@@ -175,9 +175,15 @@ importers:
       '@react-pdf/renderer':
         specifier: ^4.5.1
         version: 4.5.1(react@19.2.4)
+      '@tanstack/query-async-storage-persister':
+        specifier: ^5.101.4
+        version: 5.101.4
       '@tanstack/react-query':
         specifier: ^5.101.4
         version: 5.101.4(react@19.2.4)
+      '@tanstack/react-query-persist-client':
+        specifier: ^5.101.4
+        version: 5.101.4(@tanstack/react-query@5.101.4(react@19.2.4))(react@19.2.4)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3669,6 +3675,9 @@ packages:
 
   '@tanstack/query-core@5.101.4':
     resolution: {integrity: sha512-gNwcvOJcRbLWPOLG/2OBm+zM+Yv+MKsXKEOWC57USuZDEsI71hEErQsiEGx5wX9rzWWkfwM0fVSPoiIFSsxfiw==}
+
+  '@tanstack/query-core@5.103.1':
+    resolution: {integrity: sha512-rms8HqTGp6zA00dM+cUQ2eBcgzNJefuu5CAMB37i/6MiGT1zulPOytCFu2a0qjLqVR2n1jENPj9woqFQNuCzWA==}
 
   '@tanstack/query-core@5.87.4':
     resolution: {integrity: sha512-uNsg6zMxraEPDVO2Bn+F3/ctHi+Zsk+MMpcN8h6P7ozqD088F6mFY5TfGM7zuyIrL7HKpDyu6QHfLWiDxh3cuw==}
@@ -9046,7 +9055,7 @@ snapshots:
 
   '@clerk/shared@4.27.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
-      '@tanstack/query-core': 5.101.4
+      '@tanstack/query-core': 5.103.1
       dequal: 2.0.3
       glob-to-regexp: 0.4.1
       js-cookie: 3.0.7
@@ -12097,6 +12106,8 @@ snapshots:
 
   '@tanstack/query-core@5.101.4': {}
 
+  '@tanstack/query-core@5.103.1': {}
+
   '@tanstack/query-core@5.87.4': {}
 
   '@tanstack/query-persist-client-core@5.101.4':
@@ -12108,6 +12119,12 @@ snapshots:
       '@tanstack/query-persist-client-core': 5.101.4
       '@tanstack/react-query': 5.101.4(react@19.2.3)
       react: 19.2.3
+
+  '@tanstack/react-query-persist-client@5.101.4(@tanstack/react-query@5.101.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@tanstack/query-persist-client-core': 5.101.4
+      '@tanstack/react-query': 5.101.4(react@19.2.4)
+      react: 19.2.4
 
   '@tanstack/react-query@5.101.4(react@19.2.3)':
     dependencies:
