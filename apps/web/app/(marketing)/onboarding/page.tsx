@@ -2,8 +2,9 @@ import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { alreadyStudent } from "@/lib/student-identity";
 import { claimRosterByEmail } from "@/lib/enrollment-roster";
-import { verifiedPrimaryEmail } from "@/lib/onboarding";
+import { isSchoolEmail, ONBOARDING_TEST_EMAILS, verifiedPrimaryEmail } from "@/lib/onboarding";
 import { OnboardingForm } from "./onboarding-form";
+import { BlockedEmail } from "./blocked-email";
 
 // The Program list is Governor-editable — never statically cache this page.
 export const dynamic = "force-dynamic";
@@ -19,6 +20,8 @@ export default async function OnboardingPage() {
   // identity the action would then refuse.
   const email = verifiedPrimaryEmail(user) ?? "";
   if (email) {
+    if (!isSchoolEmail(email, ONBOARDING_TEST_EMAILS)) return <BlockedEmail email={email} />;
+
     const claimed = await claimRosterByEmail();
     if (claimed) redirect("/my-attendance");
   }
