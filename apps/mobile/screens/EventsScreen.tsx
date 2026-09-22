@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,7 +16,7 @@ import { apiFetch } from "../lib/api";
 import { useTheme } from "../lib/theme-context";
 import { neoShadow, type ThemeColors } from "../lib/theme";
 
-import type { EventRow, EventType } from "../lib/events";
+import { eventsKey, useEvents, type EventRow, type EventType } from "../lib/events";
 
 type EventStatus = "Active" | "Upcoming" | "Completed";
 
@@ -50,32 +51,25 @@ function formatDate(date: string) {
 export function EventsScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [events, setEvents] = useState<EventRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { data: events = [], isLoading, isError, error, refetch } = useEvents();
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [deleting, setDeleting] = useState<EventRow | null>(null);
 
-  function load() {
-    setLoading(true);
-    apiFetch<EventRow[]>("/v1/api/event/list", { method: "POST" })
-      .then(setEvents)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }
-
-  useEffect(load, []);
-
   function onUpdated(updated: EventRow) {
-    setEvents((prev) => prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e)));
+    queryClient.setQueryData(eventsKey, (prev: EventRow[] = []) =>
+      prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e)),
+    );
   }
 
   function onDeleted(id: string) {
-    setEvents((prev) => prev.filter((e) => e.id !== id));
+    queryClient.setQueryData(eventsKey, (prev: EventRow[] = []) =>
+      prev.filter((e) => e.id !== id),
+    );
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.text} />
@@ -83,10 +77,12 @@ export function EventsScreen() {
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
       <View style={styles.center}>
-        <Text style={styles.error}>{error}</Text>
+        <Text style={styles.error}>
+          {error instanceof Error ? error.message : "Failed to load events"}
+        </Text>
       </View>
     );
   }
@@ -146,7 +142,7 @@ export function EventsScreen() {
         visible={addOpen}
         mode="create"
         onClose={() => setAddOpen(false)}
-        onSaved={load}
+        onSaved={() => refetch()}
         colors={colors}
         styles={styles}
       />

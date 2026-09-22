@@ -12,14 +12,16 @@ export type EventRow = {
   venue: string | null;
 };
 
-export const myEventsKey = ["events", "mine"] as const;
+// Events are shared among all Officers — there is no per-Officer ownership,
+// so this query key and hook name must never imply "mine".
+export const eventsKey = ["events"] as const;
 
-export async function fetchMyEvents(): Promise<EventRow[]> {
+export async function fetchEvents(): Promise<EventRow[]> {
   return apiFetch<EventRow[]>("/v1/api/event/list", { method: "POST" });
 }
 
 // One shared Event list. A booth relaunched with no signal serves it from the
 // persisted cache, which is what lets the Officer reach the Offline Scan Queue.
-export function useMyEvents() {
-  return useQuery({ queryKey: myEventsKey, queryFn: fetchMyEvents });
+export function useEvents() {
+  return useQuery({ queryKey: eventsKey, queryFn: fetchEvents });
 }

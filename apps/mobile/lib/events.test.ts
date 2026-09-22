@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchMyEvents } from "./events";
+import { fetchEvents } from "./events";
 import { boothQueryDefaults, cacheMaxAgeMs } from "./queryClient";
 
 const apiFetch = vi.hoisted(() => vi.fn());
 vi.mock("./api", () => ({ apiFetch }));
 
-describe("fetchMyEvents", () => {
-  it("returns the Officer's events", async () => {
+describe("fetchEvents", () => {
+  it("returns the shared Event list", async () => {
     apiFetch.mockResolvedValueOnce([{ id: "e1", name: "Foundation Day" }]);
-    await expect(fetchMyEvents()).resolves.toEqual([
+    await expect(fetchEvents()).resolves.toEqual([
       { id: "e1", name: "Foundation Day" },
     ]);
     expect(apiFetch).toHaveBeenCalledWith("/v1/api/event/list", { method: "POST" });
@@ -16,7 +16,7 @@ describe("fetchMyEvents", () => {
 
   it("propagates a failure instead of yielding an empty list", async () => {
     apiFetch.mockRejectedValueOnce(new Error("offline"));
-    await expect(fetchMyEvents()).rejects.toThrow("offline");
+    await expect(fetchEvents()).rejects.toThrow("offline");
   });
 });
 
