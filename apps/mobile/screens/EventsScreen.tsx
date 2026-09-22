@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -15,6 +16,7 @@ import { apiFetch } from "../lib/api";
 import { useTheme } from "../lib/theme-context";
 import { neoShadow, type ThemeColors } from "../lib/theme";
 
+import { useMyEvents } from "../lib/events";
 import type { EventRow, EventType } from "../lib/events";
 
 type EventStatus = "Active" | "Upcoming" | "Completed";
@@ -50,32 +52,15 @@ function formatDate(date: string) {
 export function EventsScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [events, setEvents] = useState<EventRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // The shared Events query (lib/events.ts) also backs the Booth screen's
+  // event picker — reusing it here means this list picks up the same
+  // refetch-on-focus/refetch-on-reconnect safety net for free.
+  const { data: events = [], isLoading, isError, error, isFetching, refetch } = useMyEvents();
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [deleting, setDeleting] = useState<EventRow | null>(null);
 
-  function load() {
-    setLoading(true);
-    apiFetch<EventRow[]>("/v1/api/event/list", { method: "POST" })
-      .then(setEvents)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }
-
-  useEffect(load, []);
-
-  function onUpdated(updated: EventRow) {
-    setEvents((prev) => prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e)));
-  }
-
-  function onDeleted(id: string) {
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-  }
-
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.text} />
@@ -83,10 +68,10 @@ export function EventsScreen() {
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
       <View style={styles.center}>
-        <Text style={styles.error}>{error}</Text>
+        <Text style={styles.error}>{error?.message ?? "Failed to load events"}</Text>
       </View>
     );
   }
@@ -104,6 +89,7 @@ export function EventsScreen() {
         data={events}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}
         ListEmptyComponent={<Text style={styles.hint}>No Events yet.</Text>}
         renderItem={({ item }) => {
           const status = deriveStatus(item.date);
@@ -146,7 +132,7 @@ export function EventsScreen() {
         visible={addOpen}
         mode="create"
         onClose={() => setAddOpen(false)}
-        onSaved={load}
+        onSaved={() => refetch()}
         colors={colors}
         styles={styles}
       />
@@ -155,16 +141,14 @@ export function EventsScreen() {
         mode="edit"
         event={editing}
         onClose={() => setEditing(null)}
-        onSaved={(updated) => onUpdated(updated)}
+        onSaved={() => refetch()}
         colors={colors}
         styles={styles}
       />
       <DeleteEventModal
         event={deleting}
         onClose={() => setDeleting(null)}
-        onDeleted={() => {
-          if (deleting) onDeleted(deleting.id);
-        }}
+        onDeleted={() => refetch()}
         colors={colors}
         styles={styles}
       />

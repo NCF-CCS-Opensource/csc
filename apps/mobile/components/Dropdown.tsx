@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, Modal, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Check, ChevronDown } from "lucide-react-native";
 import { useTheme } from "../lib/theme-context";
 import { neoShadow, type ThemeColors } from "../lib/theme";
@@ -10,12 +10,18 @@ export function Dropdown<T extends string>({
   value,
   options,
   onChange,
+  refreshing,
+  onRefresh,
 }: {
   label: string;
   placeholder: string;
   value: T | null;
   options: { label: string; value: T }[];
   onChange: (value: T) => void;
+  // Optional: lets a caller whose options come from a query (e.g. the shared
+  // Events query) offer pull-to-refresh on the option list itself.
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -39,6 +45,11 @@ export function Dropdown<T extends string>({
             <FlatList
               data={options}
               keyExtractor={(o) => o.value}
+              refreshControl={
+                onRefresh ? (
+                  <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} />
+                ) : undefined
+              }
               ListEmptyComponent={<Text style={styles.empty}>No options</Text>}
               renderItem={({ item }) => (
                 <TouchableOpacity

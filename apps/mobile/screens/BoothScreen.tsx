@@ -76,7 +76,7 @@ export function BoothScreen({
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
-  const { data: events = [], isError: eventsFailed } = useMyEvents();
+  const { data: events = [], isError: eventsFailed, isFetching: eventsFetching, refetch: refetchEvents } = useMyEvents();
   const [eventId, setEventId] = useState<string | null>(null);
   const [mode, setMode] = useState<BoothMode | null>(null);
   const [scanned, setScanned] = useState<ScannedResult | null>(null);
@@ -291,6 +291,8 @@ export function BoothScreen({
             value={eventId}
             options={events.map((e) => ({ label: e.name, value: e.id }))}
             onChange={setEventId}
+            refreshing={eventsFetching}
+            onRefresh={refetchEvents}
           />
           <Dropdown
             label="Time"
