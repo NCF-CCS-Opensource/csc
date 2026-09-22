@@ -1,15 +1,11 @@
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import type {
-  SemesterResponse,
   StudentLedgerResponse,
   StudentListResponse,
 } from "@attendance/contracts";
 import { apiFetch, apiPost } from "@/lib/api-client";
+import { getOpenSemester } from "@/lib/queries/open-semester";
 import { ClearanceView } from "./clearance-view";
-
-function findOpenSemester(): Promise<SemesterResponse | null> {
-  return apiFetch<SemesterResponse | null>("/v1/api/semester/current");
-}
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +18,7 @@ export default async function ClearancePage({
   const { q } = await searchParams;
 
   const [openSemester, allStudents] = await Promise.all([
-    findOpenSemester(),
+    getOpenSemester(),
     apiPost<StudentListResponse>("student/list").then(({ students }) => students),
   ]);
 
