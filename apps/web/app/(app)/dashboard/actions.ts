@@ -2,16 +2,12 @@
 
 import { requireCapability } from "@/lib/auth";
 import type {
-  ProgramListDetailedResponse,
   SemesterLedgerResponse,
-  SemesterResponse,
   StudentListResponse,
 } from "@attendance/contracts";
 import { apiFetch, apiPost } from "@/lib/api-client";
-
-function findOpenSemester(): Promise<SemesterResponse | null> {
-  return apiFetch<SemesterResponse | null>("/v1/api/semester/current");
-}
+import { getOpenSemester } from "@/lib/queries/open-semester";
+import { getProgramList } from "@/lib/queries/program-list";
 
 export type RecentScanItem = {
   id: string;
@@ -42,7 +38,7 @@ export async function dashboardSnapshot(): Promise<DashboardSnapshot> {
   // then branch once each result actually lands.
   const [student, openSemester] = await Promise.all([
     requireCapability("manage_operations"),
-    findOpenSemester(),
+    getOpenSemester(),
   ]);
 
   const ledgerP = openSemester
@@ -52,7 +48,7 @@ export async function dashboardSnapshot(): Promise<DashboardSnapshot> {
     student.role === "governor"
       ? Promise.all([
           apiPost<StudentListResponse>("student/list"),
-          apiPost<ProgramListDetailedResponse>("program/list-detailed"),
+          getProgramList(),
         ])
       : Promise.resolve(null);
 
