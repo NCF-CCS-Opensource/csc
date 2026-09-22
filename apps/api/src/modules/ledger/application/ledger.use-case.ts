@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { PaymentHistoryEntry, SemesterLedgerResponse, StudentLedgerResponse } from "@attendance/contracts";
+import type { PaymentHistoryEntry, SemesterLedgerResponse, SemesterOutstandingResponse, StudentLedgerResponse } from "@attendance/contracts";
 import { LEDGER_REPOSITORY, type LedgerRepository } from "../domain/ledger-repository";
 import { computeLedger } from "../domain/ledger";
 
@@ -19,6 +19,15 @@ export class LedgerUseCase {
     const ledger = computeLedger(input);
     const details = await this.ledgerRepository.eventDetails(semesterId);
     return { events: ledger.events.map((event) => ({ ...event, name: details.get(event.eventId)!.name, venue: details.get(event.eventId)!.venue })), totals: ledger.totals };
+  }
+
+  // Bulk-computes every student's outstanding balance in one ledgerInput fetch,
+  // instead of one fetch per student (avoids the N+1 that timed out /clearance).
+  async semesterOutstanding(semesterId: string): Promise<SemesterOutstandingResponse> {
+    const input = await this.ledgerRepository.ledgerInput(semesterId);
+    if (!input) return {};
+    const { students } = computeLedger(input);
+    return Object.fromEntries([...students].map(([id, standing]) => [id, standing.outstanding]));
   }
 
   async paymentHistory(studentId: string): Promise<PaymentHistoryEntry[]> {

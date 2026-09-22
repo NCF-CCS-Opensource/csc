@@ -12,3 +12,5 @@ export interface SemesterLedgerEvent {
 }
 export interface SemesterLedgerResponse { events: SemesterLedgerEvent[]; totals: { present: number; absent: number; rate: number; collected: number }; }
 export interface PaymentHistoryEntry { id: string; amount: string; paidAt: string; }
+/** studentId -> outstanding balance, for every student in the semester (one bulk computation). */
+export type SemesterOutstandingResponse = Record<string, number>;

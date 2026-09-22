@@ -1,7 +1,7 @@
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import type {
+  SemesterOutstandingResponse,
   SemesterResponse,
-  StudentLedgerResponse,
   StudentListResponse,
 } from "@attendance/contracts";
 import { apiFetch, apiPost } from "@/lib/api-client";
@@ -26,19 +26,18 @@ export default async function ClearancePage({
     apiPost<StudentListResponse>("student/list").then(({ students }) => students),
   ]);
 
-  const results = await Promise.all(
-    allStudents.map(async (student) => ({
-      student,
-      outstanding: openSemester
-        ? (
-            await apiFetch<StudentLedgerResponse>("/v1/api/ledger/student", {
-              semesterId: openSemester.id,
-              studentId: student.id,
-            })
-          ).outstanding
-        : 0,
-    })),
-  );
+  // One bulk fetch for every student's outstanding balance, not one per student
+  // (that N+1 pattern used to time out the page for real student counts).
+  const outstandingByStudent = openSemester
+    ? await apiFetch<SemesterOutstandingResponse>("/v1/api/ledger/semester/outstanding", {
+        semesterId: openSemester.id,
+      })
+    : {};
+
+  const results = allStudents.map((student) => ({
+    student,
+    outstanding: outstandingByStudent[student.id] ?? 0,
+  }));
 
   return (
     <ClearanceView
