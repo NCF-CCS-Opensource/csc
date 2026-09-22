@@ -1,7 +1,11 @@
 import React from "react";
-import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Font, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import type { DocumentProps } from "@react-pdf/renderer";
 import type { QrCardModel } from "@/lib/qr";
+
+// react-pdf hyphenates a word that doesn't fit its line by default (e.g.
+// "Alforte" -> "Al-" / "forte"). Names should wrap whole, at spaces only.
+Font.registerHyphenationCallback((word) => [word]);
 
 // 8-up on A4, ~credit-card sized, with cut guides — one document shape for a
 // single card or a bulk run (spec #116/#118): 2 columns wrap naturally at this
@@ -35,7 +39,10 @@ const styles = StyleSheet.create({
     height: "35mm",
   },
   details: {
-    flexShrink: 1,
+    // Explicit width (card 85mm − 2×6mm padding − 35mm QR − 4mm gap) so
+    // long names wrap inside this box instead of overflowing past the
+    // card border — flex-shrink alone left the text at its unwrapped width.
+    width: "34mm",
   },
   name: {
     fontSize: 10,
