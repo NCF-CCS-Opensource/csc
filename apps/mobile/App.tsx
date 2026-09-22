@@ -30,6 +30,7 @@ import {
   rememberedOfficerIdentity,
   type OfficerIdentity,
 } from "./lib/api";
+import { resolveAdmission, type AdmissionOutcome } from "./lib/admission";
 import { clerk } from "./lib/clerk";
 import { BoothScreen } from "./screens/BoothScreen";
 import { EventsScreen } from "./screens/EventsScreen";
@@ -233,6 +234,14 @@ function BoothApp() {
         return;
       }
 
+      // Never force a logout purely for elapsed offline time (issue #266):
+      // skip the identity round-trip entirely while offline and keep the
+      // remembered admission state — a stale token can only be misread as a
+      // server-issued revocation once it actually reaches the server.
+      const netState = await NetInfo.fetch();
+      if (netState.isConnected === false) return;
+
+      let outcome: AdmissionOutcome;
       try {
         const student = await apiFetch<{
           studentId: string;
@@ -244,31 +253,30 @@ function BoothApp() {
         }
         // The server found this row by the Clerk user id on the Bearer token,
         // so `authUserId` is that id — one identity, not a second source.
-        const fresh: OfficerIdentity = {
-          authUserId: student.authUserId,
-          studentId: student.studentId,
+        outcome = {
+          type: "success",
+          identity: { authUserId: student.authUserId, studentId: student.studentId },
         };
-        await rememberOfficerIdentity(fresh);
-        await claimLegacyScans(fresh.authUserId);
-        await refreshQueue(fresh.authUserId);
-        if (current) {
-          setIdentity(fresh);
-          setAdmission({ allowed: true });
-        }
       } catch (error: unknown) {
         const denied =
           error instanceof ApiError && (error.status === 401 || error.status === 403);
-        if (denied) await rememberOfficerIdentity(null);
-        if (current && denied) setIdentity(null);
-        if (current && (denied || !remembered)) {
-          setAdmission({
-            allowed: false,
-            message:
-              error instanceof Error
-                ? error.message
-                : "Unable to verify mobile booth access",
-          });
-        }
+        const message =
+          error instanceof Error ? error.message : "Unable to verify mobile booth access";
+        outcome = denied ? { type: "denied", message } : { type: "error", message };
+      }
+
+      if (outcome.type === "success") {
+        await rememberOfficerIdentity(outcome.identity);
+        await claimLegacyScans(outcome.identity.authUserId);
+        await refreshQueue(outcome.identity.authUserId);
+      } else if (outcome.type === "denied") {
+        await rememberOfficerIdentity(null);
+      }
+
+      const resolved = resolveAdmission({ remembered, isOffline: false, outcome });
+      if (current) {
+        setIdentity(resolved.identity);
+        setAdmission(resolved.admission);
       }
     })();
     return () => {
