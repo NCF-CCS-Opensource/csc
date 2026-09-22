@@ -22,6 +22,7 @@ import { Dropdown } from "../components/Dropdown";
 import { ApiError, apiFetch } from "../lib/api";
 import { colorOf, initialsOf } from "../lib/avatar";
 import { parseQrPayload } from "../lib/qr";
+import { isPermanentScanFailure } from "../lib/scanErrors";
 import {
   addRecentScan,
   enqueue,
@@ -173,11 +174,7 @@ export function BoothScreen({
         pendingVerification: false,
       });
     } catch (error) {
-      const retryable =
-        !(error instanceof ApiError) ||
-        error.status === 408 ||
-        error.status === 429 ||
-        error.status >= 500;
+      const retryable = !isPermanentScanFailure(error);
       const offlineStudent = retryable ? parseQrPayload(result.data) : null;
       const pendingVerification = offlineStudent !== null;
       const failed: ScannedResult = {
