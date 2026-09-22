@@ -39,4 +39,12 @@ export class LedgerController {
     }
     return this.ledger.semester(body.semesterId);
   }
+  @Post("students")
+  @RequireCapability("manage_operations")
+  students(@Body() body: { semesterId?: string; studentIds?: string[] }) {
+    if (!body.semesterId) {
+      throw new HttpException("Invalid request", 400);
+    }
+    return this.ledger.students(body.semesterId, body.studentIds);
+  }
 }
