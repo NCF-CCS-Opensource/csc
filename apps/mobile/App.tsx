@@ -15,6 +15,7 @@ import { Calendar, Circle, Inbox, ScanLine, Settings as SettingsIcon, X, type Lu
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
+  AppState,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -42,8 +43,14 @@ import { blockingScanCount, claimLegacyScans, queueSummary } from "./lib/scanQue
 import { unresolvedCount } from "./lib/pendingTab";
 import { flushQueue, stopQueueRetries } from "./lib/syncScans";
 import { BoothQueryProvider } from "./lib/queryClient";
+import { wireQueryLifecycle } from "./lib/queryLifecycle";
 import { ThemeProvider, useTheme } from "./lib/theme-context";
 import type { ThemeColors } from "./lib/theme";
+
+// Neither of React Query's refetch-on-focus/refetch-on-reconnect signals
+// fires on React Native without this — see lib/queryLifecycle.ts. Wired once
+// at module load, same as the NetInfo-driven queue retry below.
+wireQueryLifecycle(AppState, NetInfo);
 
 const Tab = createBottomTabNavigator();
 type MobileAdmission =

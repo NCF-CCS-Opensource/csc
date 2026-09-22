@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -58,7 +59,17 @@ export function EventsScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const queryClient = useQueryClient();
-  const { data: events = [], isLoading, isError, error } = useEvents();
+  // The shared Events query (lib/events.ts) also backs the Booth screen's
+  // event picker — reusing it here means this list picks up the same
+  // refetch-on-focus/refetch-on-reconnect safety net for free.
+  const {
+    data: events = [],
+    isLoading,
+    isError,
+    error,
+    isFetching,
+    refetch,
+  } = useEvents();
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [deleting, setDeleting] = useState<EventRow | null>(null);
@@ -94,6 +105,7 @@ export function EventsScreen() {
         data={events}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}
         ListEmptyComponent={<Text style={styles.hint}>No Events yet.</Text>}
         renderItem={({ item }) => {
           const status = deriveStatus(item.date);
