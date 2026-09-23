@@ -8,6 +8,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import { Request, Response, NextFunction } from "express";
 import { AppModule } from "./app.module";
 
 // Dev-only: prints the full stack for anything that isn't a handled
@@ -41,14 +42,14 @@ async function bootstrap() {
   app.setGlobalPrefix("v1/api");
 
   // Request/response logging
-  app.use((req, res, next) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     const logger = new Logger("HTTP");
     const start = Date.now();
     res.on("finish", () => {
       const duration = Date.now() - start;
       logger.log(`${req.method} ${req.url} ${res.statusCode} ${duration}ms`);
     });
-    res.on("error", (err) => {
+    res.on("error", (err: Error) => {
       const logger = new Logger("HTTPError");
       logger.error(`${req.method} ${req.url}: ${err.message}`, err.stack);
     });
