@@ -39,9 +39,28 @@ class DevErrorLoggerFilter implements ExceptionFilter {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix("v1/api");
+
+  // Request/response logging
+  app.use((req, res, next) => {
+    const logger = new Logger("HTTP");
+    const start = Date.now();
+    res.on("finish", () => {
+      const duration = Date.now() - start;
+      logger.log(`${req.method} ${req.url} ${res.statusCode} ${duration}ms`);
+    });
+    res.on("error", (err) => {
+      const logger = new Logger("HTTPError");
+      logger.error(`${req.method} ${req.url}: ${err.message}`, err.stack);
+    });
+    next();
+  });
+
   if (process.env.NODE_ENV !== "production") app.useGlobalFilters(new DevErrorLoggerFilter());
   const port = process.env.PORT ? Number(process.env.PORT) : 3001;
-  await app.listen(port, "0.0.0.0");
+  const host = "0.0.0.0";
+  await app.listen(port, host);
+  const logger = new Logger("Bootstrap");
+  logger.log(`Listening on ${host}:${port}`);
 }
 
 bootstrap();
