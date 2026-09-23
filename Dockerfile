@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for Next.js Web App in pnpm Monorepo
+# Dockerfile for NestJS API - Backend Only
 FROM node:22-alpine AS base
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
@@ -10,55 +10,51 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY packages/db/package.json ./packages/db/
-COPY apps/web/package.json ./apps/web/
+COPY packages/contracts/package.json ./packages/contracts/
+COPY apps/api/package.json ./apps/api/
 
 RUN pnpm install --frozen-lockfile
 
-# Stage 2: Build the web application
+# Stage 2: Build the API
 FROM base AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=deps /app/packages/contracts/node_modules ./packages/contracts/node_modules
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY packages/db ./packages/db
-COPY apps/web ./apps/web
+COPY packages/contracts ./packages/contracts
+COPY apps/api ./apps/api
 
-ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Default build arguments for Next.js compilation
-ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_Zm9vLWJhci0xMy5jbGVyay5hY2NvdW50cy5kZXYk"
-ARG CLERK_SECRET_KEY="sk_test_mock_secret_key_for_docker_build_00000000000000000000000000"
-ARG DATABASE_URL="postgresql://postgres:postgres@db:54322/postgres"
-
-ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-ENV CLERK_SECRET_KEY=$CLERK_SECRET_KEY
-ENV DATABASE_URL=$DATABASE_URL
-
-RUN pnpm --filter web build
+RUN pnpm turbo run build --filter=api...
 
 # Stage 3: Production runner
 FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy standalone build output and static assets
-COPY --from=builder /app/apps/web/public ./apps/web/public
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+# Copy only API dist and package.json
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/package.json ./apps/api/
+
+# Copy minimal node_modules (only production dependencies)
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder /app/packages/db/node_modules ./packages/db/node_modules
+COPY --from=builder /app/packages/contracts/node_modules ./packages/contracts/node_modules
 
 USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "apps/api/dist/main.js"]
