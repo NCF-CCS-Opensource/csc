@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableSkeletonBody } from "@/components/ui/table-skeleton";
 
 const COLUMNS = 5;
 const ROWS = 5;
@@ -25,17 +26,7 @@ export default function EventsLoading() {
                 <TableHead className="text-right">Attendance</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {Array.from({ length: ROWS }).map((_, row) => (
-                <TableRow key={row}>
-                  {Array.from({ length: COLUMNS }).map((_, col) => (
-                    <TableCell key={col}>
-                      <Skeleton className="h-4 w-full" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
+            <TableSkeletonBody rows={ROWS} columns={COLUMNS} />
           </Table>
         </CardContent>
       </Card>

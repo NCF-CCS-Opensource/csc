@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableSkeletonBody } from "@/components/ui/table-skeleton";
 
 // Student + two session columns (half-day shape) + Payment, matching the
 // narrower of the two real grids so the skeleton never overstates width.
@@ -28,17 +29,7 @@ export default function AttendanceLoading() {
                 <TableHead className="text-right">Payment</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {Array.from({ length: ROWS }).map((_, row) => (
-                <TableRow key={row}>
-                  {Array.from({ length: COLUMNS }).map((_, col) => (
-                    <TableCell key={col}>
-                      <Skeleton className="h-4 w-full" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
+            <TableSkeletonBody rows={ROWS} columns={COLUMNS} />
           </Table>
         </CardContent>
       </Card>
