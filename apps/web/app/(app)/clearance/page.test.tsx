@@ -110,3 +110,42 @@ describe("ClearancePage Ledger loading (issue #282)", () => {
     expect(screen.getByTestId("clearance-row-s1")).toHaveTextContent("₱0.00");
   });
 });
+
+describe("ClearancePage fetch waterfall (issue #313)", () => {
+  it("issues the batched Ledger request as soon as the open Semester resolves, without waiting for the Student list", async () => {
+    let resolveSemester!: (value: typeof mockSemester) => void;
+    let resolveStudents!: (value: typeof mockStudents) => void;
+
+    getOpenSemesterMock.mockReset();
+    getOpenSemesterMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSemester = resolve;
+      }),
+    );
+
+    apiPostMock.mockReset();
+    apiPostMock.mockImplementation((endpoint: string) => {
+      if (endpoint === "student/list") {
+        return new Promise((resolve) => {
+          resolveStudents = resolve;
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    const pagePromise = ClearancePage({ searchParams: Promise.resolve({}) });
+
+    // Resolve the Semester first; the Student list is still pending.
+    resolveSemester(mockSemester);
+    await vi.waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith("/v1/api/ledger/students", { semesterId: "sem-1" });
+    });
+
+    // Only now let the Student list resolve so the page can finish rendering.
+    resolveStudents(mockStudents);
+    const page = await pagePromise;
+    render(page);
+
+    expect(screen.getByTestId("clearance-row-s1")).toHaveTextContent("₱0.00");
+  });
+});
