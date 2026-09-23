@@ -25,7 +25,17 @@ export class ApiError extends Error {
 export async function apiFetch<T>(path: string, body: unknown = {}): Promise<T> {
   const { getToken } = await auth();
   const token = await getToken();
+  return apiFetchWithToken<T>(path, body, token);
+}
 
+// Split out so callers wrapped in unstable_cache/"use cache" can fetch the
+// token with auth() *outside* the cached scope (Clerk forbids calling it
+// inside one) and pass it in here instead.
+export async function apiFetchWithToken<T>(
+  path: string,
+  body: unknown,
+  token: string | null,
+): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
     headers: {
