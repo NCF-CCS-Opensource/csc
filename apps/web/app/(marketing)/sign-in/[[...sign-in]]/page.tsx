@@ -1,6 +1,7 @@
 "use client";
 
-import { useSignIn } from "@clerk/nextjs";
+import { useAuth, useSignIn } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 // One route for both first-time and returning people (ADR-0012): Clerk's
@@ -10,14 +11,21 @@ import { useEffect } from "react";
 // Google" button to click through.
 export default function SignInPage() {
   const { signIn } = useSignIn();
+  const { isLoaded, isSignedIn } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
+    if (!isLoaded) return;
+    if (isSignedIn) {
+      router.replace("/dashboard");
+      return;
+    }
     signIn.sso({
       strategy: "oauth_google",
       redirectCallbackUrl: "/sso-callback",
       redirectUrl: "/dashboard",
     });
-  }, [signIn]);
+  }, [isLoaded, isSignedIn, router, signIn]);
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
