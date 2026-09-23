@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   date,
+  index,
   numeric,
   pgEnum,
   pgTable,
@@ -122,7 +123,10 @@ export const attendanceSessions = pgTable(
     timeOut: timestamp("time_out", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [unique().on(table.eventId, table.studentId, table.half)],
+  (table) => [
+    unique().on(table.eventId, table.studentId, table.half),
+    index("attendance_sessions_student_id_idx").on(table.studentId),
+  ],
 );
 
 export const scanResultEnum = pgEnum("scan_result", ["approved", "rejected"]);
@@ -140,57 +144,75 @@ export const boothModeEnum = pgEnum("booth_mode", [
 // Rejections are logged here but never touch an Attendance Session.
 // studentId is null when the QR payload doesn't resolve to a registered
 // Student (e.g. tampered/forged QR).
-export const scans = pgTable("scans", {
-  id: uuid("id").primaryKey(),
-  eventId: uuid("event_id")
-    .notNull()
-    .references(() => events.id, { onDelete: "cascade" }),
-  studentId: uuid("student_id").references(() => students.id),
-  qrPayload: text("qr_payload").notNull(),
-  result: scanResultEnum("result").notNull(),
-  // Which booth mode was selected. Null for an explicit rejection; retained
-  // on invalid approval attempts so replay preserves the original decision.
-  mode: boothModeEnum("mode"),
-  officerId: uuid("officer_id")
-    .notNull()
-    .references(() => students.id),
-  // The Officer's device capture time — not server receipt time.
-  scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const scans = pgTable(
+  "scans",
+  {
+    id: uuid("id").primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id").references(() => students.id),
+    qrPayload: text("qr_payload").notNull(),
+    result: scanResultEnum("result").notNull(),
+    // Which booth mode was selected. Null for an explicit rejection; retained
+    // on invalid approval attempts so replay preserves the original decision.
+    mode: boothModeEnum("mode"),
+    officerId: uuid("officer_id")
+      .notNull()
+      .references(() => students.id),
+    // The Officer's device capture time — not server receipt time.
+    scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("scans_event_id_idx").on(table.eventId),
+    index("scans_student_id_idx").on(table.studentId),
+    index("scans_officer_id_idx").on(table.officerId),
+    // Backs the rejections log's filter-by-result + sort-by-scannedAt query.
+    index("scans_result_scanned_at_idx").on(table.result, table.scannedAt),
+  ],
+);
 
 // One row per absent Attendance Session — see CONTEXT.md's Penalty entry.
 // Auto-synced by lib/penalties.ts's computeSessionPenalty() whenever a
 // session is written, never set manually; deleted when the session becomes
 // present again. A whole-day absence is just the sum of both halves' rows —
 // no separate aggregate is stored.
-export const penalties = pgTable("penalties", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  attendanceSessionId: uuid("attendance_session_id")
-    .notNull()
-    .unique()
-    .references(() => attendanceSessions.id, { onDelete: "cascade" }),
-  studentId: uuid("student_id")
-    .notNull()
-    .references(() => students.id),
-  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const penalties = pgTable(
+  "penalties",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    attendanceSessionId: uuid("attendance_session_id")
+      .notNull()
+      .unique()
+      .references(() => attendanceSessions.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id),
+    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("penalties_student_id_idx").on(table.studentId)],
+);
 
 // One Payment per Penalty (unique on penaltyId — a Penalty is paid in full,
 // not partially) — see CONTEXT.md's Payment entry. Insert-only: there is no
 // update/delete path anywhere in the app. A correction is a new row, not an
 // edit to this one. amount is snapshotted at payment time rather than
 // re-read from the Penalty, so the transaction record can't drift later.
-export const payments = pgTable("payments", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  penaltyId: uuid("penalty_id")
-    .notNull()
-    .unique()
-    .references(() => penalties.id, { onDelete: "cascade" }),
-  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
-  officerId: uuid("officer_id")
-    .notNull()
-    .references(() => students.id),
-  paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const payments = pgTable(
+  "payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    penaltyId: uuid("penalty_id")
+      .notNull()
+      .unique()
+      .references(() => penalties.id, { onDelete: "cascade" }),
+    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+    officerId: uuid("officer_id")
+      .notNull()
+      .references(() => students.id),
+    paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("payments_officer_id_idx").on(table.officerId)],
+);

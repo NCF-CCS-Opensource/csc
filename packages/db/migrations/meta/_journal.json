@@ -57,6 +57,13 @@
       "when": 1789094464970,
       "tag": "0007_living_black_bird",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790145973432,
+      "tag": "0008_loud_manta",
+      "breakpoints": true
     }
   ]
 }
