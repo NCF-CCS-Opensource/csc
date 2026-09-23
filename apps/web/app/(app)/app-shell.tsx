@@ -67,7 +67,7 @@ export function AppShell({
               {identity ? identity.email : ""}
             </span>
             {identity && (
-              <SignOutButton redirectUrl="/sign-in">
+              <SignOutButton redirectUrl="/">
                 <Button
                   variant="ghost"
                   size="icon-sm"

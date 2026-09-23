@@ -4,7 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // app/(app)/events/actions.test.ts): mock the API client, then assert the
 // fetcher hits the right endpoint and the query key stays stable.
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }));
-vi.mock("@/lib/api-client", () => ({ apiFetch }));
+vi.mock("@/lib/api-client", () => ({
+  apiFetchWithToken: (path: string, _body: unknown, _token: string | null) => apiFetch(path),
+}));
+
+// auth() mints the token getOpenSemester passes into the cached fetcher —
+// mocked here since it can't run outside a real Clerk request context.
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: vi.fn().mockResolvedValue({ getToken: vi.fn().mockResolvedValue("test-token") }),
+}));
 
 // unstable_cache has no meaningful behavior outside a real Next.js server
 // (no Data Cache to dedupe against), so it's mocked as a passthrough here —
