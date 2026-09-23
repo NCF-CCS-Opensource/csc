@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidateTag } from "next/cache";
 import { requireGovernor } from "@/lib/auth";
 import { apiPost, ApiError } from "@/lib/api-client";
 
@@ -20,6 +21,7 @@ export async function createSemester(formData: FormData) {
     if (error instanceof ApiError) fail(error.message);
     throw error;
   }
+  revalidateTag("open-semester", "max");
   redirect("/admin");
 }
 
@@ -36,6 +38,7 @@ export async function editSemester(formData: FormData) {
     if (error instanceof ApiError) fail(error.message);
     throw error;
   }
+  revalidateTag("open-semester", "max");
   redirect("/admin");
 }
 
@@ -49,6 +52,7 @@ export async function closeSemester(formData: FormData) {
     if (error instanceof ApiError) fail(error.message);
     throw error;
   }
+  revalidateTag("open-semester", "max");
   redirect("/admin");
 }
 
@@ -62,6 +66,7 @@ export async function deleteSemester(formData: FormData) {
     if (error instanceof ApiError) fail(error.message);
     throw error;
   }
+  revalidateTag("open-semester", "max");
   redirect("/admin");
 }
 
