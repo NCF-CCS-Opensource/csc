@@ -64,7 +64,10 @@ describe("Rate limiting (M-3)", () => {
       app = await createTestApp(
         [EnrollmentRosterController],
         [
-          { provide: TOKEN_VERIFIER, useValue: { verify: async () => ({ authUserId: "user_1" }) } },
+          // Keyed on the bearer token so a test can prove the limit tracks
+          // per-caller identity, not the shared loopback IP every supertest
+          // request arrives from (the validation finding this guards against).
+          { provide: TOKEN_VERIFIER, useValue: { verify: async (token: string) => ({ authUserId: token }) } },
           { provide: ClaimRosterUseCase, useValue: { execute: async () => { throw new Error("no-match"); } } },
           TokenAuthGuard,
           Reflector,
@@ -74,13 +77,26 @@ describe("Rate limiting (M-3)", () => {
     });
     afterAll(async () => app.close());
 
+    const claimAs = (server: () => import("http").Server, authUserId: string) =>
+      request(server()).post("/enrollment-roster/claim").set("Authorization", `Bearer ${authUserId}`).send({ studentId: "24-001" });
+
     it("throttles after 5 requests per minute", async () => {
       const server = () => app.getHttpServer();
-      const call = () => request(server()).post("/enrollment-roster/claim").set("Authorization", bearer).send({ studentId: "24-001" });
       for (let i = 0; i < 5; i++) {
-        await call().expect(500);
+        await claimAs(server, "user_1").expect(500);
       }
-      await call().expect(429);
+      await claimAs(server, "user_1").expect(429);
+    });
+
+    it("tracks the limit per caller identity, not per IP (IdentityThrottlerGuard)", async () => {
+      const server = () => app.getHttpServer();
+      for (let i = 0; i < 5; i++) {
+        await claimAs(server, "user_2").expect(500);
+      }
+      await claimAs(server, "user_2").expect(429);
+      // A different caller, same loopback IP as every request above, still
+      // has a fresh budget — proves the key is identity, not IP.
+      await claimAs(server, "user_3").expect(500);
     });
   });
 });
