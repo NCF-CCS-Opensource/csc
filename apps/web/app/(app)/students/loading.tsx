@@ -41,7 +41,7 @@ export default function StudentsLoading() {
               <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
                 <TableRow className="hover:bg-transparent">
                   {Array.from({ length: COLUMN_COUNT }).map((_, index) => (
-                    <TableHead key={index}>
+                    <TableHead key={`students-loading-head-${index}`}>
                       <Skeleton className="h-4 w-16" />
                     </TableHead>
                   ))}
@@ -49,9 +49,9 @@ export default function StudentsLoading() {
               </TableHeader>
               <TableBody>
                 {Array.from({ length: ROW_COUNT }).map((_, rowIndex) => (
-                  <TableRow key={rowIndex} className="border-b border-border/20">
+                  <TableRow key={`students-loading-row-${rowIndex}`} className="border-b border-border/20">
                     {Array.from({ length: COLUMN_COUNT }).map((_, colIndex) => (
-                      <TableCell key={colIndex}>
+                      <TableCell key={`students-loading-row-${rowIndex}-col-${colIndex}`}>
                         <Skeleton className="h-4 w-full" />
                       </TableCell>
                     ))}

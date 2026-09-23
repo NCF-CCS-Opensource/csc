@@ -44,10 +44,11 @@ export function NavProgressBar() {
   if (!visible) return null;
 
   return (
-    <div
-      role="progressbar"
+    <progress
       aria-label="Page loading"
-      className="fixed top-0 left-0 z-50 h-0.5 w-full animate-pulse bg-[var(--color-yellow)]"
+      value={1}
+      max={1}
+      className="fixed top-0 left-0 z-50 h-0.5 w-full animate-pulse appearance-none bg-transparent [&::-webkit-progress-bar]:bg-transparent [&::-webkit-progress-value]:bg-[var(--color-yellow)] [&::-moz-progress-bar]:bg-[var(--color-yellow)]"
     />
   );
 }

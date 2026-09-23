@@ -13,7 +13,7 @@ it("renders a grid-shaped skeleton with the real columns and placeholder rows", 
   render(<AttendanceLoading />);
 
   expect(screen.getByText("Student")).toBeInTheDocument();
-  expect(screen.getAllByText("Session").length).toBe(2);
+  expect(screen.getAllByText("Session")).toHaveLength(2);
   expect(screen.getByText("Payment")).toBeInTheDocument();
 
   expect(document.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
