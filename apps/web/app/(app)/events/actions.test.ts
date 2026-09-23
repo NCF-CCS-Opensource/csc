@@ -31,7 +31,13 @@ const redirect = vi.hoisted(() => vi.fn((url: string) => {
 vi.mock("next/navigation", () => ({ redirect }));
 
 const revalidatePath = vi.hoisted(() => vi.fn());
-vi.mock("next/cache", () => ({ revalidatePath }));
+// getOpenSemester (imported transitively via eventsSnapshot) wraps itself
+// in unstable_cache — mocked as a passthrough here for the same reason as
+// lib/queries/open-semester.test.ts.
+vi.mock("next/cache", () => ({
+  revalidatePath,
+  unstable_cache: (fn: (...args: unknown[]) => unknown) => fn,
+}));
 
 import { createEvent, deleteEvent, eventsSnapshot, updateEvent } from "./actions";
 
