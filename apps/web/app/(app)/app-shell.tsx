@@ -13,6 +13,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FloatingNavbar, type NavLink } from "@/components/floating-navbar";
 import { ModeToggle } from "@/components/mode-toggle";
+import { NavProgressBar } from "@/components/nav-progress-bar";
 import { Button } from "@/components/ui/button";
 import type { Identity } from "@/lib/auth";
 import { getIdentity } from "@/lib/queries/identity";
@@ -57,6 +58,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-[var(--bg-page)]">
+      <NavProgressBar />
       <FloatingNavbar
         links={navForRole(identity?.role ?? null)}
         right={
@@ -65,7 +67,7 @@ export function AppShell({
               {identity ? identity.email : ""}
             </span>
             {identity && (
-              <SignOutButton redirectUrl="/sign-in">
+              <SignOutButton redirectUrl="/">
                 <Button
                   variant="ghost"
                   size="icon-sm"

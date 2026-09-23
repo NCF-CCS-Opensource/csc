@@ -20,7 +20,17 @@ const { apiFetch, MockApiError } = vi.hoisted(() => {
   }
   return { apiFetch: vi.fn(), MockApiError };
 });
-vi.mock("@/lib/api-client", () => ({ apiFetch, ApiError: MockApiError }));
+vi.mock("@/lib/api-client", () => ({
+  apiFetch,
+  apiFetchWithToken: (path: string, _body: unknown, _token: string | null) => apiFetch(path),
+  ApiError: MockApiError,
+}));
+
+// getOpenSemester (via eventsSnapshot) mints a Clerk token outside its cached
+// scope — mocked the same way as lib/queries/open-semester.test.ts.
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: vi.fn().mockResolvedValue({ getToken: vi.fn().mockResolvedValue("test-token") }),
+}));
 
 // Next's real redirect() throws a control-flow signal so it never returns
 // (actions.ts relies on that: fail() is typed `never`). The mock must do the
@@ -31,7 +41,13 @@ const redirect = vi.hoisted(() => vi.fn((url: string) => {
 vi.mock("next/navigation", () => ({ redirect }));
 
 const revalidatePath = vi.hoisted(() => vi.fn());
-vi.mock("next/cache", () => ({ revalidatePath }));
+// getOpenSemester (imported transitively via eventsSnapshot) wraps itself
+// in unstable_cache — mocked as a passthrough here for the same reason as
+// lib/queries/open-semester.test.ts.
+vi.mock("next/cache", () => ({
+  revalidatePath,
+  unstable_cache: (fn: (...args: unknown[]) => unknown) => fn,
+}));
 
 import { createEvent, deleteEvent, eventsSnapshot, updateEvent } from "./actions";
 
@@ -48,22 +64,29 @@ beforeEach(() => {
 
 describe("eventsSnapshot", () => {
   it("requires the capability, then reads the open Semester and Events from the API", async () => {
-    apiFetch.mockResolvedValueOnce({
-      id: "sem-1",
-      startDate: "2026-06-01",
-      endDate: "2026-10-31",
-      closedAt: null,
+    // getOpenSemester and getEventList run concurrently (Promise.all), and
+    // getOpenSemester's real auth() round-trip resolves its apiFetch call
+    // after getEventList's — so responses are keyed by path, not call order.
+    apiFetch.mockImplementation((path: string) => {
+      if (path === "/v1/api/semester/current") {
+        return Promise.resolve({
+          id: "sem-1",
+          startDate: "2026-06-01",
+          endDate: "2026-10-31",
+          closedAt: null,
+        });
+      }
+      return Promise.resolve([
+        {
+          id: "evt-1",
+          name: "Foundation Day",
+          date: "2026-07-15",
+          type: "half_day",
+          halfDayPenaltyAmount: "50.00",
+          wholeDayPenalty: 100,
+        },
+      ]);
     });
-    apiFetch.mockResolvedValueOnce([
-      {
-        id: "evt-1",
-        name: "Foundation Day",
-        date: "2026-07-15",
-        type: "half_day",
-        halfDayPenaltyAmount: "50.00",
-        wholeDayPenalty: 100,
-      },
-    ]);
 
     const snapshot = await eventsSnapshot();
 
@@ -84,8 +107,9 @@ describe("eventsSnapshot", () => {
   });
 
   it("reports no open Semester as null", async () => {
-    apiFetch.mockResolvedValueOnce(null);
-    apiFetch.mockResolvedValueOnce([]);
+    apiFetch.mockImplementation((path: string) =>
+      Promise.resolve(path === "/v1/api/semester/current" ? null : []),
+    );
 
     const snapshot = await eventsSnapshot();
     expect(snapshot.openSemester).toBeNull();

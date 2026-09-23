@@ -1,8 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { updateTag } from "next/cache";
 import { requireGovernor } from "@/lib/auth";
 import { apiPost, ApiError } from "@/lib/api-client";
+import { OPEN_SEMESTER_CACHE_TAG } from "@/lib/queries/open-semester.query-key";
 
 function fail(message: string): never {
   redirect(`/admin?error=${encodeURIComponent(message)}`);
@@ -20,6 +22,7 @@ export async function createSemester(formData: FormData) {
     if (error instanceof ApiError) fail(error.message);
     throw error;
   }
+  updateTag(OPEN_SEMESTER_CACHE_TAG);
   redirect("/admin");
 }
 
@@ -36,6 +39,7 @@ export async function editSemester(formData: FormData) {
     if (error instanceof ApiError) fail(error.message);
     throw error;
   }
+  updateTag(OPEN_SEMESTER_CACHE_TAG);
   redirect("/admin");
 }
 
@@ -49,6 +53,7 @@ export async function closeSemester(formData: FormData) {
     if (error instanceof ApiError) fail(error.message);
     throw error;
   }
+  updateTag(OPEN_SEMESTER_CACHE_TAG);
   redirect("/admin");
 }
 
@@ -62,6 +67,7 @@ export async function deleteSemester(formData: FormData) {
     if (error instanceof ApiError) fail(error.message);
     throw error;
   }
+  updateTag(OPEN_SEMESTER_CACHE_TAG);
   redirect("/admin");
 }
 
