@@ -29,11 +29,11 @@ export class AttendanceController {
 
   @Post("correct")
   @RequireCapability("manage_operations")
-  async correct(@Body() body: CorrectAttendanceRequest) {
+  async correct(@CallerActor() actor: Actor, @Body() body: CorrectAttendanceRequest) {
     if (!body?.sessionId || !["timeIn", "timeOut"].includes(body.field) || typeof body.present !== "boolean") {
       throw new HttpException("Invalid request", 400);
     }
-    return this.attendance.correct(body);
+    return this.attendance.correct(body, actor.id);
   }
 
   @Post("payments")

@@ -14,8 +14,8 @@ export class AttendanceUseCase {
     return this.attendance.materializeNoShows(eventId);
   }
 
-  correct(input: CorrectAttendanceRequest): Promise<{ eventId: string }> {
-    return this.attendance.correct(input);
+  correct(input: CorrectAttendanceRequest, actorId: string): Promise<{ eventId: string }> {
+    return this.attendance.correct(input, actorId);
   }
 
   recordPayments(penaltyIds: string[], officerId: string): Promise<void> {

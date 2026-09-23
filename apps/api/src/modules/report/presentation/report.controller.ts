@@ -1,4 +1,5 @@
 import { Body, Controller, HttpException, Inject, Post, UseGuards } from "@nestjs/common";
+import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import { AuthGuard } from "../../../shared/presentation/auth.guard";
 import { CapabilityGuard } from "../../../shared/presentation/capability.guard";
 import { RequireCapability } from "../../../shared/presentation/capability.decorator";
@@ -6,8 +7,11 @@ import { ReportUseCase } from "../application/report.use-case";
 
 // All four Report types are Officer/Governor-only, same capability as the
 // Ledger's semester/student actions (spec #168).
+// M-3: each call renders a PDF and, on the web BFF side, calls Gemini — real
+// per-request cost — so throttle it tighter than the module default.
 @Controller("report")
-@UseGuards(AuthGuard, CapabilityGuard)
+@UseGuards(AuthGuard, CapabilityGuard, ThrottlerGuard)
+@Throttle({ default: { limit: 10, ttl: 60_000 } })
 export class ReportController {
   constructor(@Inject(ReportUseCase) private readonly report: ReportUseCase) {}
 
