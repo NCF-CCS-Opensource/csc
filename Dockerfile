@@ -54,8 +54,7 @@ COPY --from=builder /app/packages/contracts ./packages/contracts
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 
-# Copy pnpm workspace structure and node_modules
-COPY --from=builder /app/.pnpm ./.pnpm
+# Copy node_modules (includes workspace symlinks)
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/packages/db/node_modules ./packages/db/node_modules
