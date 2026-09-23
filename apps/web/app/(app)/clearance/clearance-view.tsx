@@ -19,17 +19,22 @@ import {
 
 export interface ClearanceItem {
   student: StudentSummary;
-  outstanding: number;
+  // null = no Ledger entry (unknown balance) — treated as not cleared.
+  outstanding: number | null;
 }
 
 export interface ClearanceViewProps {
   openSemester: SemesterResponse | null;
+  // The Semester whose Ledger produced the balances — the most recently
+  // closed one when no Semester is open.
+  ledgerSemester?: SemesterResponse | null;
   initialQuery?: string;
   initialResults?: ClearanceItem[];
 }
 
 export function ClearanceView({
   openSemester,
+  ledgerSemester = null,
   initialQuery = "",
   initialResults = [],
 }: Readonly<ClearanceViewProps>) {
@@ -69,7 +74,9 @@ export function ClearanceView({
           className="rounded-[10px] border-2 border-border bg-card p-4 shadow-[var(--shadow-sm)]"
         >
           <p className="text-muted-foreground text-sm font-medium">
-            No open Semester — nothing to clear.
+            {ledgerSemester
+              ? `No open Semester — showing unpaid balances from the most recent Semester (${ledgerSemester.startDate} – ${ledgerSemester.endDate}).`
+              : "No open Semester — nothing to clear."}
           </p>
         </div>
       )}
@@ -145,7 +152,7 @@ export function ClearanceView({
                           </span>
                         </TableCell>
                         <TableCell className="font-bold text-foreground tabular-nums py-3">
-                          ₱{outstanding.toFixed(2)}
+                          {outstanding === null ? "—" : `₱${outstanding.toFixed(2)}`}
                         </TableCell>
                         <TableCell className="text-right py-3">
                           <Badge
