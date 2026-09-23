@@ -43,11 +43,18 @@ ENV PORT=3000
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy only API dist and package.json
+# Copy root package files
+COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
+
+# Copy workspace packages source (needed for workspace resolution)
+COPY --from=builder /app/packages/db ./packages/db
+COPY --from=builder /app/packages/contracts ./packages/contracts
+
+# Copy API dist and package.json
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 
-# Copy minimal node_modules (only production dependencies)
+# Copy node_modules
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/packages/db/node_modules ./packages/db/node_modules
