@@ -5,12 +5,12 @@ import { redirect } from "next/navigation";
 import { alreadyStudent } from "@/lib/student-identity";
 import { claimRosterByStudentId } from "@/lib/enrollment-roster";
 import { ApiError } from "@/lib/api-client";
-import { isSchoolEmail, verifiedPrimaryEmail, type ValidationError } from "@/lib/onboarding";
-
-const ONBOARDING_TEST_EMAILS = (process.env.ONBOARDING_TEST_EMAILS ?? "")
-  .split(",")
-  .map((email) => email.trim())
-  .filter(Boolean);
+import {
+  isSchoolEmail,
+  ONBOARDING_TEST_EMAILS,
+  verifiedPrimaryEmail,
+  type ValidationError,
+} from "@/lib/onboarding";
 
 export type OnboardingState = { errors: ValidationError[] };
 

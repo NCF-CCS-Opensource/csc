@@ -1,5 +1,13 @@
 const SCHOOL_EMAIL_DOMAIN = "@gbox.ncf.edu.ph";
 
+// Shared with page.tsx and actions.ts so the allowlist has one source of
+// truth — a mismatch between the two would reopen the gap this file exists
+// to close.
+export const ONBOARDING_TEST_EMAILS = (process.env.ONBOARDING_TEST_EMAILS ?? "")
+  .split(",")
+  .map((email) => email.trim())
+  .filter(Boolean);
+
 export type OnboardingInput = {
   // Clerk's *verified primary* address, passed in as a plain string by the
   // caller — never a user-editable field, never a Clerk object (ADR 0012).
