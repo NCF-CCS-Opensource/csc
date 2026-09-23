@@ -25,8 +25,8 @@ const redirect = vi.hoisted(() =>
 );
 vi.mock("next/navigation", () => ({ redirect }));
 
-const revalidateTag = vi.hoisted(() => vi.fn());
-vi.mock("next/cache", () => ({ revalidateTag }));
+const updateTag = vi.hoisted(() => vi.fn());
+vi.mock("next/cache", () => ({ updateTag }));
 
 import { closeSemester, createSemester, deleteSemester, editSemester } from "./actions";
 
@@ -52,11 +52,11 @@ describe.each([
 
     await expect(action(semesterFormData(fields))).rejects.toThrow("NEXT_REDIRECT:/admin");
 
-    expect(revalidateTag).toHaveBeenCalledWith("open-semester", "max");
+    expect(updateTag).toHaveBeenCalledWith("open-semester");
     expect(redirect).toHaveBeenCalledWith("/admin");
-    const revalidateOrder = revalidateTag.mock.invocationCallOrder[0];
+    const updateOrder = updateTag.mock.invocationCallOrder[0];
     const redirectOrder = redirect.mock.invocationCallOrder[0];
-    expect(revalidateOrder).toBeLessThan(redirectOrder);
+    expect(updateOrder).toBeLessThan(redirectOrder);
   });
 
   it("leaves the cache untouched when the API call fails", async () => {
@@ -64,6 +64,6 @@ describe.each([
 
     await expect(action(semesterFormData(fields))).rejects.toThrow("NEXT_REDIRECT:");
 
-    expect(revalidateTag).not.toHaveBeenCalled();
+    expect(updateTag).not.toHaveBeenCalled();
   });
 });
