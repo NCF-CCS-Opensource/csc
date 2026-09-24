@@ -71,10 +71,10 @@ export class DrizzleSemesterRepository implements SemesterRepository {
       // A recorded SAF Fee Payment snapshotted the amount; changing it now
       // would split Students across two prices. Voided Payments don't count.
       if (Number(input.safFeeAmount) !== Number(semester.safFeeAmount)) {
-        const safPayment = await transaction.query.payments.findFirst({
+        const safFeePayment = await transaction.query.payments.findFirst({
           where: and(eq(payments.semesterId, id), isNull(payments.voidedAt)),
         });
-        if (safPayment) {
+        if (safFeePayment) {
           throw new SemesterLifecycleError(
             "The SAF Fee amount can't change once a SAF Fee Payment is recorded",
             409,

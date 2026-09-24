@@ -77,7 +77,7 @@ function base(): LedgerInput {
     penalties: [],
     payments: [],
     safFeeAmount: null,
-    safPayments: [],
+    safFeePayments: [],
   };
 }
 

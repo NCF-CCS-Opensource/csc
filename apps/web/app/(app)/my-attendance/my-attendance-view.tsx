@@ -151,13 +151,18 @@ export function MyAttendanceView({
                   ₱{outstanding.toFixed(2)}
                 </div>
                 <div className="text-xs text-muted-foreground font-medium sm:text-right">
-                  Total penalties accrued:{" "}
+                  {ledger.saf ? "Total charged" : "Total penalties accrued"}:{" "}
                   <span
                     data-testid="total-penalties-amount"
                     className="font-bold text-foreground tabular-nums"
                   >
                     ₱{totalPenalty.toFixed(2)}
                   </span>
+                  {ledger.saf ? (
+                    <div data-testid="saf-fee-line">
+                      incl. SAF Fee ₱{ledger.saf.amount.toFixed(2)} ({ledger.saf.paid ? "paid" : "unpaid"})
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ) : (

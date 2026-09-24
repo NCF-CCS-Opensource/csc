@@ -13,7 +13,7 @@ export type LedgerInput = {
   payments: { penaltyId: string; amount: string; voidedAt?: Date | null }[];
   // Null for a Semester closed before SAF tracking began (ADR 0024): no SAF line.
   safFeeAmount: string | null;
-  safPayments: { id: string; studentId: string; voidedAt?: Date | null }[];
+  safFeePayments: { id: string; studentId: string; voidedAt?: Date | null }[];
 };
 export type LedgerSession = { eventId: string; eventName: string; eventDate: string; half: Half; timeIn: Date | null; timeOut: Date | null; status: SessionStatus; amount: number; paid: boolean };
 // paymentId is the un-voided SAF Fee Payment, so the Clearance page can undo it.
@@ -140,7 +140,7 @@ function recordMissingSessions(input: LedgerInput, context: LedgerContext, stude
 // registrants included — see CONTEXT.md's SAF Fee entry.
 function recordSafFees(input: LedgerInput, students: Map<string, StudentStanding>) {
   if (input.safFeeAmount === null) return;
-  const paymentByStudent = new Map(input.safPayments.map((payment) => [payment.studentId, payment.id]));
+  const paymentByStudent = new Map(input.safFeePayments.map((payment) => [payment.studentId, payment.id]));
   for (const student of input.students) {
     if (!isStudentLiable(student, input.semesterEndDate)) continue;
     const paymentId = paymentByStudent.get(student.id) ?? null;
@@ -226,7 +226,7 @@ function buildEventStats(input: LedgerInput, context: LedgerContext, completed: 
 }
 
 export function computeLedger(ledgerInput: LedgerInput): Ledger {
-  const input = { ...ledgerInput, payments: ledgerInput.payments.filter((payment) => !payment.voidedAt), safPayments: ledgerInput.safPayments.filter((payment) => !payment.voidedAt) };
+  const input = { ...ledgerInput, payments: ledgerInput.payments.filter((payment) => !payment.voidedAt), safFeePayments: ledgerInput.safFeePayments.filter((payment) => !payment.voidedAt) };
   const context = buildContext(input);
   const students = new Map<string, StudentStanding>(input.students.map((student) => [student.id, { total: 0, outstanding: 0, sessions: [], saf: null }]));
   const halves = new Map<string, Set<Half>>();

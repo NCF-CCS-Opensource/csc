@@ -4,7 +4,7 @@ import { computeLedger } from "./ledger";
 describe("computeLedger", () => {
   it("includes both virtual halves for a whole-day no-show", () => {
     const ledger = computeLedger({
-      campusDate: "2026-09-19", semesterEndDate: "2026-12-31", safFeeAmount: null, safPayments: [],
+      campusDate: "2026-09-19", semesterEndDate: "2026-12-31", safFeeAmount: null, safFeePayments: [],
       events: [{ id: "event", name: "Assembly", date: "2026-09-18", type: "whole_day", halfDayPenaltyAmount: "50.00" }],
       students: [{ id: "student", createdAt: new Date("2026-01-01T00:00:00Z") }], sessions: [], penalties: [], payments: [],
     });
@@ -14,7 +14,7 @@ describe("computeLedger", () => {
 
   it("computes every requested student's standing in one pass, including full no-shows with no stored session rows", () => {
     const ledger = computeLedger({
-      campusDate: "2026-09-19", semesterEndDate: "2026-12-31", safFeeAmount: null, safPayments: [],
+      campusDate: "2026-09-19", semesterEndDate: "2026-12-31", safFeeAmount: null, safFeePayments: [],
       events: [{ id: "event", name: "Assembly", date: "2026-09-18", type: "half_day", halfDayPenaltyAmount: "50.00" }],
       students: [
         { id: "attended", createdAt: new Date("2026-01-01T00:00:00Z") },
@@ -36,7 +36,7 @@ describe("computeLedger", () => {
 
   it("treats a voided Payment as unpaid and excludes it from collected totals", () => {
     const ledger = computeLedger({
-      campusDate: "2026-09-19", semesterEndDate: "2026-12-31", safFeeAmount: null, safPayments: [],
+      campusDate: "2026-09-19", semesterEndDate: "2026-12-31", safFeeAmount: null, safFeePayments: [],
       events: [{ id: "event", name: "Assembly", date: "2026-09-18", type: "half_day", halfDayPenaltyAmount: "50.00" }],
       students: [{ id: "student", createdAt: new Date("2026-01-01T00:00:00Z") }],
       sessions: [{ id: "session", eventId: "event", studentId: "student", half: "am", timeIn: null, timeOut: null }],
@@ -54,7 +54,7 @@ describe("computeLedger", () => {
       campusDate: "2026-09-19", semesterEndDate: "2026-12-31",
       events: [{ id: "event", name: "Assembly", date: "2026-09-18", type: "half_day" as const, halfDayPenaltyAmount: "50.00" }],
       students: [{ id: "student", createdAt: new Date("2026-01-01T00:00:00Z") }], sessions: [], penalties: [], payments: [],
-      safFeeAmount: "500.00", safPayments: [],
+      safFeeAmount: "500.00", safFeePayments: [],
     };
 
     it("adds an unpaid SAF line to total and outstanding", () => {
@@ -64,13 +64,13 @@ describe("computeLedger", () => {
     });
 
     it("counts a paid SAF Fee in total but not outstanding, with its Payment for undo", () => {
-      const standing = computeLedger({ ...base, safPayments: [{ id: "payment", studentId: "student", voidedAt: null }] }).students.get("student")!;
+      const standing = computeLedger({ ...base, safFeePayments: [{ id: "payment", studentId: "student", voidedAt: null }] }).students.get("student")!;
       expect(standing.saf).toEqual({ amount: 500, paid: true, paymentId: "payment" });
       expect(standing).toMatchObject({ total: 550, outstanding: 50 });
     });
 
     it("treats a voided SAF Payment as unpaid", () => {
-      const standing = computeLedger({ ...base, safPayments: [{ id: "payment", studentId: "student", voidedAt: new Date() }] }).students.get("student")!;
+      const standing = computeLedger({ ...base, safFeePayments: [{ id: "payment", studentId: "student", voidedAt: new Date() }] }).students.get("student")!;
       expect(standing.saf).toEqual({ amount: 500, paid: false, paymentId: null });
       expect(standing.outstanding).toBe(550);
     });

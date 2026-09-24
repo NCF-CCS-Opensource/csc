@@ -198,6 +198,16 @@ describe("MyAttendanceView Bento Layout (Issue #204)", () => {
     expect(clearanceBadge).toHaveAttribute("data-variant", "cleared");
   });
 
+  it("shows the SAF Fee inside the total it now contributes to (Issue #336)", () => {
+    renderView({
+      ...mockSnapshotWithDebt,
+      ledger: { ...mockSnapshotWithDebt.ledger, total: 650, saf: { amount: 500, paid: false, paymentId: null } },
+    });
+
+    expect(screen.getByText(/total charged/i)).toBeInTheDocument();
+    expect(screen.getByTestId("saf-fee-line")).toHaveTextContent("incl. SAF Fee ₱500.00 (unpaid)");
+  });
+
   it("renders informative status when no open semester is present", () => {
     renderView(mockSnapshotNoOpenSemester);
 

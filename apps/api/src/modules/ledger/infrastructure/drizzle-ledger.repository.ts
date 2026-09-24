@@ -12,7 +12,7 @@ export class DrizzleLedgerRepository implements LedgerRepository {
   async ledgerInput(semesterId: string, studentId?: string): Promise<LedgerInput | null> {
     // A Payment's target columns are nullable (Penalty or SAF Fee); each query
     // filters on its own target, so the casts narrow them back to string.
-    const [semester, eventRows, studentRows, safPayments] = await Promise.all([
+    const [semester, eventRows, studentRows, safFeePayments] = await Promise.all([
       this.db.query.semesters.findFirst({ where: eq(semesters.id, semesterId) }),
       this.db.select({ id: events.id, name: events.name, date: events.date, type: events.type, halfDayPenaltyAmount: events.halfDayPenaltyAmount }).from(events).where(eq(events.semesterId, semesterId)),
       studentId ? this.db.select({ id: students.id, createdAt: students.createdAt }).from(students).where(eq(students.id, studentId)) : this.db.select({ id: students.id, createdAt: students.createdAt }).from(students),
@@ -25,7 +25,7 @@ export class DrizzleLedgerRepository implements LedgerRepository {
     const penaltyRows = sessionIds.length ? await this.db.select({ id: penalties.id, attendanceSessionId: penalties.attendanceSessionId, studentId: penalties.studentId, amount: penalties.amount }).from(penalties).where(inArray(penalties.attendanceSessionId, sessionIds)) : [];
     const penaltyIds = penaltyRows.map((penalty) => penalty.id);
     const paymentRows = penaltyIds.length ? await this.db.select({ penaltyId: sql<string>`${payments.penaltyId}`, amount: payments.amount, voidedAt: payments.voidedAt }).from(payments).where(inArray(payments.penaltyId, penaltyIds)) : [];
-    return { campusDate: currentCampusDate(), semesterEndDate: semester.endDate, events: eventRows, students: studentRows, sessions: sessionRows, penalties: penaltyRows, payments: paymentRows, safFeeAmount: semester.safFeeAmount, safPayments };
+    return { campusDate: currentCampusDate(), semesterEndDate: semester.endDate, events: eventRows, students: studentRows, sessions: sessionRows, penalties: penaltyRows, payments: paymentRows, safFeeAmount: semester.safFeeAmount, safFeePayments };
   }
 
   async eventDetails(semesterId: string): Promise<Map<string, { name: string; venue: string | null }>> {
