@@ -1,5 +1,7 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { clerk, clerkHydrated } from "./clerk";
+import { queryCachePersisterKey, queryClient } from "./queryClient";
 
 // The API owns the versioned contract. Accept either its origin or its full
 // versioned base in the build setting without doubling the path below.
@@ -52,10 +54,20 @@ export async function rememberedOfficerIdentity(): Promise<OfficerIdentity | nul
 
 // The only way the stamp is cleared. Signing out without forgetting it would
 // leave the next Officer on this device holding the previous one's identity.
+//
+// Also wipes the persisted TanStack Query cache (read-only server data, e.g.
+// ["scan","rejections"]) so the next Officer on a shared booth device never
+// sees a stale screen with the previous Officer's names/IDs before their own
+// data refetches. This is safe by construction: callers (SettingsScreen)
+// already refuse to invoke this while the Offline Scan Queue has
+// pending/Needs-Review entries, and the queue itself is a separate
+// AsyncStorage key untouched here — it must survive sign-out per CONTEXT.md.
 export async function endOfficerSession(
   signOut: () => Promise<unknown>,
 ): Promise<void> {
   await rememberOfficerIdentity(null);
+  queryClient.clear();
+  await AsyncStorage.removeItem(queryCachePersisterKey).catch(() => {});
   await signOut();
 }
 

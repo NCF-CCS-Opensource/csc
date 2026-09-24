@@ -121,6 +121,11 @@ export const attendanceSessions = pgTable(
     half: halfEnum("half").notNull(),
     timeIn: timestamp("time_in", { withTimezone: true }),
     timeOut: timestamp("time_out", { withTimezone: true }),
+    // TM-3: who made the most recent manual grid correction (Present/Absent
+    // override), if any. Null for a row that has only ever received booth
+    // scans, or predates this column. Not touched by scan writes — only by
+    // DrizzleAttendanceRepository#correct.
+    correctedBy: uuid("corrected_by").references(() => students.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

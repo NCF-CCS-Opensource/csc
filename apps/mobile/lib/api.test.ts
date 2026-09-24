@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import {
   ApiError,
   apiFetch,
+  endOfficerSession,
   rememberOfficerIdentity,
   rememberedOfficerIdentity,
 } from "./api";
 import { clerk, clerkHydrated } from "./clerk";
+import { queryCachePersisterKey, queryClient } from "./queryClient";
 
 vi.mock("./clerk", () => ({
   clerk: {
@@ -16,6 +19,22 @@ vi.mock("./clerk", () => ({
   // Resolves once Clerk has rehydrated its stored session; apiFetch must not
   // read `clerk.user` before then.
   clerkHydrated: vi.fn(() => Promise.resolve()),
+}));
+
+const asyncStorageBacking = vi.hoisted(() => new Map<string, string>());
+
+vi.mock("@react-native-async-storage/async-storage", () => ({
+  default: {
+    getItem: vi.fn((key: string) => Promise.resolve(asyncStorageBacking.get(key) ?? null)),
+    setItem: vi.fn((key: string, value: string) => {
+      asyncStorageBacking.set(key, value);
+      return Promise.resolve();
+    }),
+    removeItem: vi.fn((key: string) => {
+      asyncStorageBacking.delete(key);
+      return Promise.resolve();
+    }),
+  },
 }));
 
 vi.mock("expo-secure-store", () => {
@@ -171,5 +190,24 @@ describe("offline Officer identity", () => {
     vi.mocked(SecureStore.getItemAsync).mockResolvedValueOnce("not json");
 
     await expect(rememberedOfficerIdentity()).resolves.toBeNull();
+  });
+});
+
+// L-1 (.security-hardening/01-vulnerability-scan.md): the next Officer on a
+// shared booth device must never see the previous Officer's cached
+// server data (e.g. ["scan","rejections"]).
+describe("endOfficerSession", () => {
+  it("clears the persisted query cache in addition to the identity stamp", async () => {
+    queryClient.setQueryData(["scan", "rejections"], [{ id: "leaked" }]);
+    await AsyncStorage.setItem(queryCachePersisterKey, "stale-cache-blob");
+    await rememberOfficerIdentity({ authUserId: "officer-a", studentId: "student-1" });
+
+    const signOut = vi.fn().mockResolvedValue(undefined);
+    await endOfficerSession(signOut);
+
+    expect(queryClient.getQueryData(["scan", "rejections"])).toBeUndefined();
+    await expect(AsyncStorage.getItem(queryCachePersisterKey)).resolves.toBeNull();
+    await expect(rememberedOfficerIdentity()).resolves.toBeNull();
+    expect(signOut).toHaveBeenCalled();
   });
 });

@@ -85,14 +85,21 @@ export class DrizzleAttendanceRepository {
     return { event: { id: event.id, name: event.name, halfDayPenaltyAmount: event.halfDayPenaltyAmount }, rows };
   }
 
-  async correct(input: CorrectAttendanceRequest): Promise<{ eventId: string }> {
+  async correct(input: CorrectAttendanceRequest, actorId: string): Promise<{ eventId: string }> {
     return this.db.transaction(async (transaction) => {
       const session = await transaction.query.attendanceSessions.findFirst({ where: eq(attendanceSessions.id, input.sessionId) });
       if (!session) throw new HttpException("Attendance Session not found", 404);
+      // TM-2: no separation of duties on money — an Officer must not be able
+      // to mark their own Attendance Session present/absent, since that
+      // directly zeroes or creates their own Penalty.
+      if (session.studentId === actorId) {
+        throw new HttpException("Officers cannot correct their own Attendance Session", 403);
+      }
       const event = await transaction.query.events.findFirst({ where: eq(events.id, session.eventId) });
       if (!event) throw new HttpException("Event not found", 404);
       const sentinel = input.present ? new Date(`${event.date}T12:00:00+08:00`) : null;
-      await transaction.update(attendanceSessions).set(input.field === "timeIn" ? { timeIn: sentinel } : { timeOut: sentinel }).where(eq(attendanceSessions.id, session.id));
+      // TM-3: record who made this manual correction alongside the value.
+      await transaction.update(attendanceSessions).set(input.field === "timeIn" ? { timeIn: sentinel, correctedBy: actorId } : { timeOut: sentinel, correctedBy: actorId }).where(eq(attendanceSessions.id, session.id));
       await this.syncPenalty(session.id, transaction);
       return { eventId: event.id };
     });
@@ -101,6 +108,13 @@ export class DrizzleAttendanceRepository {
   async recordPayments(penaltyIds: string[], officerId: string): Promise<void> {
     if (!penaltyIds.length) return;
     const rows = await this.db.query.penalties.findMany({ where: inArray(penalties.id, penaltyIds) });
+    // TM-2: no separation of duties on money — an Officer must not be able
+    // to record a payment against their own Penalty. Reject the whole batch
+    // rather than silently skipping one id, so a partial success can't hide
+    // the attempt.
+    if (rows.some((penalty) => penalty.studentId === officerId)) {
+      throw new HttpException("Officers cannot record a payment for their own Penalty", 403);
+    }
     if (rows.length) await this.db.insert(payments).values(rows.map((penalty) => ({ penaltyId: penalty.id, amount: penalty.amount, officerId }))).onConflictDoNothing({ target: payments.penaltyId });
   }
 }
