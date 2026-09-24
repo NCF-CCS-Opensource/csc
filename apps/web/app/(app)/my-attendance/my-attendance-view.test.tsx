@@ -215,6 +215,7 @@ describe("MyAttendanceView Bento Layout (Issue #204)", () => {
     });
 
     expect(screen.getByTestId("saf-fee-line")).toHaveTextContent("incl. SAF Fee ₱500.00 (paid)");
+    expect(screen.getByTestId("outstanding-balance-amount")).toHaveTextContent("₱50.00");
   });
 
   it("shows no SAF line when the Semester has no SAF Fee amount (Issue #337)", () => {
