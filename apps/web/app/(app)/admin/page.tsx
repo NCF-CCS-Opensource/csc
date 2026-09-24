@@ -160,11 +160,27 @@ export default async function AdminPage({
                               className="w-36 text-xs border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
                             />
                           </div>
+                          <div className="flex flex-col gap-0.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">
+                              SAF Fee (₱)
+                            </Label>
+                            {/* Empty for a Semester closed before SAF tracking (ADR 0024). */}
+                            <Input
+                              type="number"
+                              name="safFeeAmount"
+                              min="0.01"
+                              step="0.01"
+                              required
+                              defaultValue={semester.safFeeAmount ?? ""}
+                              aria-label="SAF Fee amount"
+                              className="w-28 text-xs border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
+                            />
+                          </div>
                         </div>
                         <ConfirmSubmitButton
                           formId={`edit-semester-${semester.id}`}
-                          title="Save these date boundaries?"
-                          description="Updates the Start and End dates for this Semester."
+                          title="Save this Semester?"
+                          description="Updates the Start and End dates and the SAF Fee amount for this Semester."
                           confirmLabel="Save"
                           triggerLabel="Save"
                           triggerVariant="ghost"
@@ -243,6 +259,21 @@ export default async function AdminPage({
                   name="endDate"
                   required
                   className="w-40 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="safFeeAmount" className="text-xs font-bold text-foreground">
+                  SAF Fee (₱)
+                </Label>
+                <Input
+                  id="safFeeAmount"
+                  type="number"
+                  name="safFeeAmount"
+                  min="0.01"
+                  step="0.01"
+                  required
+                  defaultValue="500"
+                  className="w-32 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
                 />
               </div>
               <ConfirmSubmitButton

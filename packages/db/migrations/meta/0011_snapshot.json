@@ -1,6 +1,6 @@
 {
-  "id": "4ef390df-74c5-4f08-a0fa-ba4d5a051cb4",
-  "prevId": "be3e9ef8-7404-4468-880a-9b95e7fff989",
+  "id": "d5868a68-a58e-48d5-8caa-78afc6327102",
+  "prevId": "4ef390df-74c5-4f08-a0fa-ba4d5a051cb4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -345,6 +345,18 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "voided_at": {
+          "name": "voided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "voided_by": {
+          "name": "voided_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -359,6 +371,22 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payments_one_unvoided_per_penalty": {
+          "name": "payments_one_unvoided_per_penalty",
+          "columns": [
+            {
+              "expression": "penalty_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"payments\".\"voided_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -390,18 +418,23 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "payments_voided_by_students_id_fk": {
+          "name": "payments_voided_by_students_id_fk",
+          "tableFrom": "payments",
+          "tableTo": "students",
+          "columnsFrom": [
+            "voided_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "payments_penalty_id_unique": {
-          "name": "payments_penalty_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "penalty_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

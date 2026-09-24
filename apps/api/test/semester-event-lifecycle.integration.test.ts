@@ -129,14 +129,25 @@ describe("Semester and Event lifecycle (e2e)", () => {
     return request(server())
       .post("/semester/create")
       .set("Authorization", bearer)
-      .send({ startDate: "2026-01-01", endDate: "2026-05-31", ...overrides });
+      .send({
+        startDate: "2026-01-01",
+        endDate: "2026-05-31",
+        safFeeAmount: "500.00",
+        ...overrides,
+      });
   }
 
   function updateSemester(id: string, overrides: Record<string, unknown> = {}) {
     return request(server())
       .post("/semester/update")
       .set("Authorization", bearer)
-      .send({ id, startDate: "2026-01-01", endDate: "2026-05-31", ...overrides });
+      .send({
+        id,
+        startDate: "2026-01-01",
+        endDate: "2026-05-31",
+        safFeeAmount: "500.00",
+        ...overrides,
+      });
   }
 
   function closeSemester(id: string) {
@@ -164,6 +175,57 @@ describe("Semester and Event lifecycle (e2e)", () => {
       expect(response.body.message).toBe(
         "Close the current Semester before opening a new one",
       );
+    });
+
+    it("stores the SAF Fee amount the Governor sets on create and edit", async () => {
+      const governor = await seedActor("governor");
+      authAs(governor);
+
+      const created = await createSemester({ safFeeAmount: "500" });
+      expect(created.status).toBe(201);
+      expect(created.body.safFeeAmount).toBe("500.00");
+
+      const updated = await updateSemester(created.body.id, { safFeeAmount: "450.50" });
+      expect(updated.status).toBe(201);
+      expect(updated.body.safFeeAmount).toBe("450.50");
+    });
+
+    it.each([
+      ["zero", { safFeeAmount: "0" }],
+      ["negative", { safFeeAmount: "-500" }],
+      ["missing", { safFeeAmount: undefined }],
+      ["non-numeric", { safFeeAmount: "abc" }],
+    ])("rejects a %s SAF Fee amount on create and edit", async (_label, overrides) => {
+      const governor = await seedActor("governor");
+      authAs(governor);
+      const [semester] = await db
+        .insert(semesters)
+        .values({ startDate: "2025-06-01", endDate: "2025-10-31", safFeeAmount: "500.00" })
+        .returning();
+
+      const created = await createSemester(overrides);
+      expect(created.status).toBe(400);
+      expect(created.body.message).toBe("SAF Fee amount must be greater than 0");
+
+      const updated = await updateSemester(semester.id, overrides);
+      expect(updated.status).toBe(400);
+      expect(updated.body.message).toBe("SAF Fee amount must be greater than 0");
+      expect(
+        (await db.query.semesters.findFirst({ where: eq(semesters.id, semester.id) }))
+          ?.safFeeAmount,
+      ).toBe("500.00");
+    });
+
+    it("forbids an Officer from setting the SAF Fee amount", async () => {
+      const officer = await seedActor("officer");
+      authAs(officer);
+      const [semester] = await db
+        .insert(semesters)
+        .values({ startDate: "2025-06-01", endDate: "2025-10-31", safFeeAmount: "500.00" })
+        .returning();
+
+      expect((await createSemester()).status).toBe(403);
+      expect((await updateSemester(semester.id, { safFeeAmount: "1.00" })).status).toBe(403);
     });
 
     it("keeps every existing Event inside an edited date range", async () => {
@@ -224,6 +286,8 @@ describe("Semester and Event lifecycle (e2e)", () => {
         newer.id,
         older.id,
       ]);
+      // A Semester closed before SAF tracking keeps a null amount (ADR 0024).
+      expect(response.body.semesters[1].safFeeAmount).toBeNull();
     });
 
     // Known Gap #2 (PR #184).

@@ -69,6 +69,9 @@ export const semesters = pgTable(
     startDate: date("start_date").notNull(),
     endDate: date("end_date").notNull(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    // Null only for Semesters closed before SAF tracking began (ADR 0024);
+    // the API requires an amount above zero on create and edit.
+    safFeeAmount: numeric("saf_fee_amount", { precision: 10, scale: 2 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

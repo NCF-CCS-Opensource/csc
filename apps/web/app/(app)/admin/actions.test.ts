@@ -42,8 +42,8 @@ beforeEach(() => {
 });
 
 describe.each([
-  ["createSemester", createSemester, { startDate: "2026-08-15", endDate: "2026-12-15" }],
-  ["editSemester", editSemester, { id: "sem-1", startDate: "2026-08-15", endDate: "2026-12-15" }],
+  ["createSemester", createSemester, { startDate: "2026-08-15", endDate: "2026-12-15", safFeeAmount: "500" }],
+  ["editSemester", editSemester, { id: "sem-1", startDate: "2026-08-15", endDate: "2026-12-15", safFeeAmount: "500" }],
   ["closeSemester", closeSemester, { id: "sem-1" }],
   ["deleteSemester", deleteSemester, { id: "sem-1" }],
 ])("%s", (_name, action, fields) => {
@@ -66,4 +66,16 @@ describe.each([
 
     expect(updateTag).not.toHaveBeenCalled();
   });
+});
+
+it.each([
+  ["createSemester", createSemester, "semester/create", {}],
+  ["editSemester", editSemester, "semester/update", { id: "sem-1" }],
+] as const)("%s forwards the SAF Fee amount", async (_name, action, endpoint, extra) => {
+  apiPost.mockResolvedValueOnce({});
+  const fields = { ...extra, startDate: "2026-08-15", endDate: "2026-12-15", safFeeAmount: "450" };
+
+  await expect(action(semesterFormData(fields))).rejects.toThrow("NEXT_REDIRECT:/admin");
+
+  expect(apiPost).toHaveBeenCalledWith(endpoint, fields);
 });
