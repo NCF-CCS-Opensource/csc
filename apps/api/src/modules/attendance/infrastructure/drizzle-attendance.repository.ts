@@ -122,6 +122,23 @@ export class DrizzleAttendanceRepository {
     if (rows.length) await this.db.insert(payments).values(rows.map((penalty) => ({ penaltyId: penalty.id, amount: penalty.amount, officerId }))).onConflictDoNothing({ target: payments.penaltyId, where: isNull(payments.voidedAt) });
   }
 
+  // Pays one Student's SAF Fee for one Semester in full, at the Semester's
+  // current amount (snapshotted). Allowed in closed Semesters, like Penalty
+  // Payments. The Semester row is share-locked so the Governor can't change
+  // the amount between reading it here and the Payment landing.
+  async recordSafFeePayment(studentId: string, semesterId: string, officerId: string): Promise<void> {
+    await this.db.transaction(async (transaction) => {
+      const [semester] = await transaction.select().from(semesters).where(eq(semesters.id, semesterId)).limit(1).for("share");
+      if (!semester) throw new HttpException("Semester not found", 404);
+      if (!await transaction.query.students.findFirst({ where: eq(students.id, studentId) })) throw new HttpException("Student not found", 404);
+      // TM-2: no separation of duties on money.
+      if (studentId === officerId) throw new HttpException("Officers cannot record a payment for their own SAF Fee", 403);
+      if (semester.safFeeAmount === null) throw new HttpException("This Semester has no SAF Fee", 400);
+      const [inserted] = await transaction.insert(payments).values({ studentId, semesterId, amount: semester.safFeeAmount, officerId }).onConflictDoNothing({ target: [payments.studentId, payments.semesterId], where: isNull(payments.voidedAt) }).returning({ id: payments.id });
+      if (!inserted) throw new HttpException("SAF Fee is already paid", 409);
+    });
+  }
+
   // The one update a Payment ever takes: stamp who voided it and when. The row
   // is kept for audit, and the Penalty becomes payable again.
   async voidPayment(paymentId: string, officerId: string): Promise<void> {

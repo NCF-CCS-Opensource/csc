@@ -3,7 +3,11 @@ export interface LedgerSession {
   timeIn: string | null; timeOut: string | null;
   status: "present" | "incomplete" | "absent"; amount: number; paid: boolean;
 }
-export interface StudentLedgerResponse { total: number; outstanding: number; sessions: LedgerSession[]; }
+// The Semester's SAF Fee for this Student; null when none is owed (a Semester
+// closed before SAF tracking, or a Student registered after it ended).
+// paymentId is the un-voided SAF Fee Payment; Undo voids it.
+export interface SafLine { amount: number; paid: boolean; paymentId: string | null; }
+export interface StudentLedgerResponse { total: number; outstanding: number; sessions: LedgerSession[]; saf: SafLine | null; }
 export type BatchStudentLedgerResponse = Record<string, StudentLedgerResponse>;
 export interface SemesterLedgerEvent {
   eventId: string; name: string; venue: string | null; date: string; type: "half_day" | "whole_day";

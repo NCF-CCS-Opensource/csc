@@ -34,6 +34,12 @@ export interface RecordPaymentsRequest {
   penaltyIds: string[];
 }
 
+// One Student's SAF Fee for one Semester, paid in full at the Semester's amount.
+export interface RecordSafFeePaymentRequest {
+  studentId: string;
+  semesterId: string;
+}
+
 export interface VoidPaymentRequest {
   paymentId: string;
 }

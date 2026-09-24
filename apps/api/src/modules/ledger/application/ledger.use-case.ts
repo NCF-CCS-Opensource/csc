@@ -3,7 +3,7 @@ import type { BatchStudentLedgerResponse, PaymentHistoryEntry, SemesterLedgerRes
 import { LEDGER_REPOSITORY, type LedgerRepository } from "../domain/ledger-repository";
 import { computeLedger, type StudentStanding } from "../domain/ledger";
 
-const EMPTY_STANDING: StudentLedgerResponse = { total: 0, outstanding: 0, sessions: [] };
+const EMPTY_STANDING: StudentLedgerResponse = { total: 0, outstanding: 0, sessions: [], saf: null };
 
 function toResponse(standing: StudentStanding | null | undefined): StudentLedgerResponse {
   return standing ? { ...standing, sessions: standing.sessions.map((session) => ({ ...session, timeIn: session.timeIn?.toISOString() ?? null, timeOut: session.timeOut?.toISOString() ?? null })) } : EMPTY_STANDING;
