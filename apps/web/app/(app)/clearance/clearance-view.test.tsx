@@ -15,6 +15,7 @@ const mockSemester: SemesterResponse = {
   startDate: "2026-08-01",
   endDate: "2026-12-15",
   closedAt: null,
+  safFeeAmount: "500.00",
 };
 
 const mockResults: ClearanceItem[] = [

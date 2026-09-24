@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { readFileSync } from "node:fs";
+import { eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { createDb } from "../src/client";
 import { programs, semesters, students } from "../src/schema";
@@ -71,5 +72,39 @@ describe("disposable Postgres", () => {
         endDate: "2026-10-31",
       }),
     ).rejects.toMatchObject({ code: "23505" });
+  });
+
+  // Replays the real migration file inside a rolled-back transaction, against
+  // a table that looks like it did just before the migration shipped.
+  it("gives only the open Semester a ₱500 SAF Fee at rollout (ADR 0024)", async () => {
+    const migration = readFileSync(
+      new URL("../migrations/0010_long_nextwave.sql", import.meta.url),
+      "utf8",
+    );
+    const rollback = new Error("rollback");
+
+    await expect(
+      db.transaction(async (transaction) => {
+        await transaction.execute(sql`truncate semesters cascade`);
+        await transaction.execute(sql`alter table semesters drop column saf_fee_amount`);
+        await transaction.execute(sql`
+          insert into semesters (start_date, end_date, closed_at) values
+            ('2025-06-01', '2025-10-31', now()),
+            ('2026-01-01', '2026-05-31', null)`);
+
+        for (const statement of migration.split("--> statement-breakpoint")) {
+          await transaction.execute(sql.raw(statement));
+        }
+
+        const rows = await transaction.execute<{ closed: boolean; saf_fee_amount: string | null }>(
+          sql`select closed_at is not null as closed, saf_fee_amount from semesters order by start_date`,
+        );
+        expect(rows.map((row) => ({ ...row }))).toEqual([
+          { closed: true, saf_fee_amount: null },
+          { closed: false, saf_fee_amount: "500.00" },
+        ]);
+        throw rollback;
+      }),
+    ).rejects.toBe(rollback);
   });
 });

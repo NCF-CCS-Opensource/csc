@@ -15,9 +15,10 @@ export async function createSemester(formData: FormData) {
 
   const startDate = String(formData.get("startDate") ?? "");
   const endDate = String(formData.get("endDate") ?? "");
+  const safFeeAmount = String(formData.get("safFeeAmount") ?? "");
 
   try {
-    await apiPost("semester/create", { startDate, endDate });
+    await apiPost("semester/create", { startDate, endDate, safFeeAmount });
   } catch (error) {
     if (error instanceof ApiError) fail(error.message);
     throw error;
@@ -32,9 +33,10 @@ export async function editSemester(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const startDate = String(formData.get("startDate") ?? "");
   const endDate = String(formData.get("endDate") ?? "");
+  const safFeeAmount = String(formData.get("safFeeAmount") ?? "");
 
   try {
-    await apiPost("semester/update", { id, startDate, endDate });
+    await apiPost("semester/update", { id, startDate, endDate, safFeeAmount });
   } catch (error) {
     if (error instanceof ApiError) fail(error.message);
     throw error;

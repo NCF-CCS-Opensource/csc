@@ -6,17 +6,22 @@ export interface SemesterResponse {
   startDate: string;
   endDate: string;
   closedAt: string | null;
+  // Peso amount as a numeric string ("500.00"). Null only for a Semester
+  // closed before SAF tracking began (ADR 0024).
+  safFeeAmount: string | null;
 }
 
 export interface CreateSemesterRequest {
   startDate: string;
   endDate: string;
+  safFeeAmount: string;
 }
 
 export interface UpdateSemesterDatesRequest {
   id: string;
   startDate: string;
   endDate: string;
+  safFeeAmount: string;
 }
 
 export interface CloseSemesterRequest {
