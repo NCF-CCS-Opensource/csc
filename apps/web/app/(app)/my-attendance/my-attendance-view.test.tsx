@@ -208,6 +208,23 @@ describe("MyAttendanceView Bento Layout (Issue #204)", () => {
     expect(screen.getByTestId("saf-fee-line")).toHaveTextContent("incl. SAF Fee ₱500.00 (unpaid)");
   });
 
+  it("shows the SAF Fee as paid when its Payment is settled (Issue #337)", () => {
+    renderView({
+      ...mockSnapshotWithDebt,
+      ledger: { ...mockSnapshotWithDebt.ledger, total: 650, outstanding: 50, saf: { amount: 500, paid: true, paymentId: "pay-saf-1" } },
+    });
+
+    expect(screen.getByTestId("saf-fee-line")).toHaveTextContent("incl. SAF Fee ₱500.00 (paid)");
+    expect(screen.getByTestId("outstanding-balance-amount")).toHaveTextContent("₱50.00");
+  });
+
+  it("shows no SAF line when the Semester has no SAF Fee amount (Issue #337)", () => {
+    renderView(mockSnapshotWithDebt);
+
+    expect(screen.queryByTestId("saf-fee-line")).not.toBeInTheDocument();
+    expect(screen.getByText(/total penalties accrued/i)).toBeInTheDocument();
+  });
+
   it("renders informative status when no open semester is present", () => {
     renderView(mockSnapshotNoOpenSemester);
 
