@@ -12,9 +12,10 @@ import type { EventGridRow } from "@attendance/contracts";
 // "Rows per page" Select throws.
 Element.prototype.scrollIntoView ??= () => {};
 
-const { setScanFieldMock, markPaidMock, eventGridMock } = vi.hoisted(() => ({
+const { setScanFieldMock, markPaidMock, voidPaymentsMock, eventGridMock } = vi.hoisted(() => ({
   setScanFieldMock: vi.fn(),
   markPaidMock: vi.fn(),
+  voidPaymentsMock: vi.fn(),
   eventGridMock: vi.fn(),
 }));
 
@@ -24,6 +25,7 @@ vi.mock("./actions", async (importOriginal) => {
     ...actual,
     setScanField: setScanFieldMock,
     markPaid: markPaidMock,
+    voidPayments: voidPaymentsMock,
     eventGrid: eventGridMock,
   };
 });
@@ -36,6 +38,7 @@ const mockRows: EventGridRow[] = [
     settled: false,
     outstanding: 100,
     unpaidPenaltyIds: ["pen-1", "pen-2"],
+    paidPaymentIds: [],
     cells: [
       { sessionId: "sess-1", field: "timeIn", label: "AM In", present: true },
       { sessionId: "sess-1", field: "timeOut", label: "AM Out", present: false },
@@ -48,6 +51,7 @@ const mockRows: EventGridRow[] = [
     settled: true,
     outstanding: 0,
     unpaidPenaltyIds: [],
+    paidPaymentIds: ["pay-1"],
     cells: [
       { sessionId: "sess-1", field: "timeIn", label: "AM In", present: true },
       { sessionId: "sess-1", field: "timeOut", label: "AM Out", present: true },
@@ -60,6 +64,7 @@ const mockRows: EventGridRow[] = [
     settled: false,
     outstanding: 0,
     unpaidPenaltyIds: [],
+    paidPaymentIds: [],
     cells: [
       { sessionId: "sess-1", field: "timeIn", label: "AM In", present: true },
       { sessionId: "sess-1", field: "timeOut", label: "AM Out", present: true },
@@ -86,6 +91,7 @@ beforeEach(() => {
   eventGridMock.mockResolvedValue(mockRows);
   setScanFieldMock.mockResolvedValue({ eventId: "ev-123" });
   markPaidMock.mockResolvedValue(undefined);
+  voidPaymentsMock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -244,6 +250,17 @@ describe("AttendanceGrid & Sentinel Controls", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers Undo on a paid row that voids its Payments after confirmation", async () => {
+    renderGrid();
+
+    const paidRow = screen.getByText("Maria Clara").closest("tr")!;
+    fireEvent.click(within(paidRow).getByRole("button", { name: "Undo" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Void Payment" }));
+
+    await waitFor(() => expect(voidPaymentsMock).toHaveBeenCalledWith(["pay-1"], "ev-123"));
+    expect(within(screen.getByText("Juan Dela Cruz").closest("tr")!).queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
+  });
+
   it("renders Paid badge for settled student and dash for 0 balance", () => {
     renderGrid();
 
@@ -303,6 +320,7 @@ describe("AttendanceGrid pagination (Issue #221)", () => {
       settled: false,
       outstanding: 0,
       unpaidPenaltyIds: [],
+      paidPaymentIds: [],
       cells: [
         { sessionId: "sess-1", field: "timeIn", label: "AM In", present: true },
         { sessionId: "sess-1", field: "timeOut", label: "AM Out", present: false },
