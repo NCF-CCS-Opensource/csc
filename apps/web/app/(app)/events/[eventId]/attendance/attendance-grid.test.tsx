@@ -6,7 +6,7 @@ import "@testing-library/jest-dom/vitest";
 import React from "react";
 
 import { AttendanceGrid } from "./attendance-grid";
-import type { EventGridRow } from "./actions";
+import type { EventGridRow } from "@attendance/contracts";
 
 // jsdom doesn't implement scrollIntoView; stub it or opening the Radix
 // "Rows per page" Select throws.

@@ -26,8 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type { EventGridCell } from "@attendance/contracts";
-import type { EventGridRow } from "./actions";
+import type { EventGridCell, EventGridRow } from "@attendance/contracts";
 import { useWebStore } from "@/lib/store";
 import { eventGrid, markPaid, setScanField } from "./actions";
 import { eventGridQueryKey } from "./query-key";
