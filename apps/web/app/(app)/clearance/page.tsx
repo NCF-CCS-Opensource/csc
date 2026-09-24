@@ -65,6 +65,7 @@ export default async function ClearancePage({
   const results = allStudents.map((student) => ({
     student,
     outstanding: ledgerByStudentId[student.id]?.outstanding ?? null,
+    saf: ledgerByStudentId[student.id]?.saf ?? null,
   }));
 
   return (

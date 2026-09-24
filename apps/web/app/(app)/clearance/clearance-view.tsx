@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
-import type { SemesterResponse, StudentSummary } from "@attendance/contracts";
+import type { SafLine, SemesterResponse, StudentSummary } from "@attendance/contracts";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
@@ -16,11 +17,64 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { markSafFeePaid, voidSafFeePayment } from "./actions";
 
 export interface ClearanceItem {
   student: StudentSummary;
   // null = no Ledger entry (unknown balance) — treated as not cleared.
   outstanding: number | null;
+  // The Ledger's SAF Fee line; null or absent when none is owed or unknown.
+  saf?: SafLine | null;
+}
+
+// Mark paid / Undo for one Student's SAF Fee. The action revalidates the
+// page, so the row (and its Clearance badge) updates from the fresh Ledger.
+function SafCell({ item, semesterId }: { item: ClearanceItem; semesterId: string | null }) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const { student, saf } = item;
+  if (!saf) return <span className="text-muted-foreground font-medium">—</span>;
+
+  const act = (action: () => Promise<{ error?: string }>) =>
+    startTransition(async () => setError((await action()).error ?? null));
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        {saf.paid ? (
+          <Badge variant="present" className="shadow-[var(--shadow-sm)]">Paid</Badge>
+        ) : (
+          <span className="font-bold tabular-nums text-red-600">₱{saf.amount.toFixed(2)}</span>
+        )}
+        {saf.paid && saf.paymentId ? (
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            disabled={pending}
+            aria-label={`Undo ${student.name}'s SAF Fee Payment`}
+            onClick={() => act(() => voidSafFeePayment(saf.paymentId!))}
+          >
+            {pending ? "Undoing…" : "Undo"}
+          </Button>
+        ) : null}
+        {!saf.paid && semesterId ? (
+          <Button
+            type="button"
+            size="xs"
+            disabled={pending}
+            aria-label={`Mark ${student.name}'s SAF Fee paid`}
+            onClick={() => act(() => markSafFeePaid(student.id, semesterId))}
+          >
+            {pending ? "Recording…" : "Mark paid"}
+          </Button>
+        ) : null}
+      </div>
+      {error ? (
+        <output className="text-xs text-red-600 dark:text-red-400 font-bold">{error}</output>
+      ) : null}
+    </div>
+  );
 }
 
 export interface ClearanceViewProps {
@@ -126,13 +180,17 @@ export function ClearanceView({
                     <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Outstanding Balance
                     </TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
+                      SAF Fee
+                    </TableHead>
                     <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Clearance Standing
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pagination.pageItems.map(({ student, outstanding }) => {
+                  {pagination.pageItems.map((item) => {
+                    const { student, outstanding } = item;
                     const isCleared = outstanding === 0;
                     return (
                       <TableRow
@@ -153,6 +211,9 @@ export function ClearanceView({
                         </TableCell>
                         <TableCell className="font-bold text-foreground tabular-nums py-3">
                           {outstanding === null ? "—" : `₱${outstanding.toFixed(2)}`}
+                        </TableCell>
+                        <TableCell className="py-3" data-testid={`clearance-saf-${student.id}`}>
+                          <SafCell item={item} semesterId={ledgerSemester?.id ?? null} />
                         </TableCell>
                         <TableCell className="text-right py-3">
                           <Badge

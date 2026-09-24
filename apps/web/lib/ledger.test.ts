@@ -76,6 +76,8 @@ function base(): LedgerInput {
     sessions: [],
     penalties: [],
     payments: [],
+    safFeeAmount: null,
+    safPayments: [],
   };
 }
 
@@ -324,7 +326,7 @@ describe("computeLedger", () => {
     const ledger = computeLedger(input);
     expect(ledger.events).toEqual([]);
     expect(ledger.totals).toEqual({ present: 0, absent: 0, rate: 0, collected: 0 });
-    expect(ledger.students.get("s1")).toEqual({ total: 0, outstanding: 0, sessions: [] });
+    expect(ledger.students.get("s1")).toEqual({ total: 0, outstanding: 0, sessions: [], saf: null });
   });
 
   it("counts present halves toward the attendance rate", () => {
@@ -358,7 +360,7 @@ describe("computeLedger", () => {
 
     const ledger = computeLedger(input);
 
-    expect(ledger.students.get("s1")).toEqual({ total: 0, outstanding: 0, sessions: [] });
+    expect(ledger.students.get("s1")).toEqual({ total: 0, outstanding: 0, sessions: [], saf: null });
     expect(ledger.events[0]).toMatchObject({
       eventId: "future",
       status: "upcoming",
