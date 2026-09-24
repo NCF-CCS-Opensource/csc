@@ -64,6 +64,13 @@
       "when": 1790140646280,
       "tag": "0008_black_lord_tyger",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790223380085,
+      "tag": "0009_loud_manta",
+      "breakpoints": true
     }
   ]
 }
