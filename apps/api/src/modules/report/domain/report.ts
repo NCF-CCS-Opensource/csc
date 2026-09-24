@@ -593,6 +593,9 @@ function financialPaymentLogSummary(
 
 // Every listed Student owes the SAF Fee once; collected sums the snapshotted
 // amounts of un-voided SAF Fee Payments (see the Ledger's recordSafFees).
+// charged = collected + outstanding holds because the schema allows one
+// un-voided SAF Fee Payment per (Student, Semester) and the amount locks once
+// one exists.
 function financialSaf(
   students: FinancialReportInput["students"],
   safFeeAmount: string | null,

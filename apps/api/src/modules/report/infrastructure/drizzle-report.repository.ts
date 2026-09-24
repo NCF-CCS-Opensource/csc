@@ -105,7 +105,8 @@ export class DrizzleReportRepository implements ReportRepository {
       sessions: filteredSessions,
       penalties: studentPenalties,
       payments: studentPayments,
-      safFeeAmount: semester.safFeeAmount,
+      // Same liability rule as the Ledger: a Student registered after the Semester ended owes no SAF Fee.
+      safFeeAmount: student.createdAt.toISOString().slice(0, 10) <= semester.endDate ? semester.safFeeAmount : null,
       safFeePayments,
       asOfTimestamp: asOfTimestamp(),
     };
