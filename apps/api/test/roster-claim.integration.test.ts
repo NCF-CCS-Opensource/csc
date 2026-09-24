@@ -33,6 +33,15 @@ beforeEach(async () => {
     section: "3A",
     studentId: "24-001",
   });
+  // No GBox address in the spreadsheet: only Student ID + name can claim it.
+  await db.insert(enrollmentRoster).values({
+    email: null,
+    firstName: "Ada",
+    lastName: "Lovelace",
+    program: "Computer Science",
+    section: "3A",
+    studentId: "24-002",
+  });
 });
 
 describe("Roster Claim", () => {
@@ -44,15 +53,45 @@ describe("Roster Claim", () => {
     expect(actor).toMatchObject({ studentId: "24-001", authUserId: "user_grace" });
   });
 
-  it("claims by Student ID plus a matching first/last name", async () => {
+  it("claims a roster row with no email by Student ID plus a matching first/last name", async () => {
     const useCase = useCaseWithProfile({
-      email: "unlisted@gbox.ncf.edu.ph",
+      email: "ada.personal@gbox.ncf.edu.ph",
+      name: "Ada Lovelace",
+    });
+
+    const actor = await useCase.execute("user_ada", "24-002");
+
+    expect(actor).toMatchObject({ studentId: "24-002", authUserId: "user_ada" });
+  });
+
+  // M-1: Student ID is on the victim's QR Card and the profile name is
+  // self-editable, so they must not claim a row that has its own email.
+  it("refuses a Student ID + renamed-profile claim on a roster row owned by another email", async () => {
+    const attacker = useCaseWithProfile({
+      email: "attacker@gbox.ncf.edu.ph",
       name: "Grace Hopper",
     });
 
-    const actor = await useCase.execute("user_grace", "24-001");
+    await expect(attacker.execute("user_attacker", "24-001")).rejects.toMatchObject({
+      reason: "no-match",
+    });
+    expect(await studentRepository.findByAuthUserId("user_attacker")).toBeNull();
 
-    expect(actor).toMatchObject({ studentId: "24-001", authUserId: "user_grace" });
+    // The real owner can still claim their row afterwards.
+    const owner = useCaseWithProfile({ email: "grace@gbox.ncf.edu.ph", name: "Grace Hopper" });
+    await expect(owner.execute("user_grace")).resolves.toMatchObject({ studentId: "24-001" });
+  });
+
+  it("refuses to claim an unclaimed roster row by name match alone, without its correct Student ID", async () => {
+    const useCase = useCaseWithProfile({
+      email: "ada.personal@gbox.ncf.edu.ph",
+      name: "Ada Lovelace",
+    });
+
+    await expect(useCase.execute("user_ada")).rejects.toMatchObject({ reason: "no-student-id" });
+    await expect(useCase.execute("user_ada", "24-999")).rejects.toMatchObject({ reason: "no-match" });
+    await expect(useCase.execute("user_ada", "24-001")).rejects.toMatchObject({ reason: "no-match" });
+    expect(await studentRepository.findByAuthUserId("user_ada")).toBeNull();
   });
 
   it("refuses a claim that matches no roster entry, leaving the caller Pending", async () => {

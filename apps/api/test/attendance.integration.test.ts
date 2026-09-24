@@ -108,6 +108,21 @@ describe("Attendance, Penalty and Payment (e2e)", () => {
     expect(await db.query.payments.findFirst()).toBeDefined();
   });
 
+  it("refuses an Officer correcting their own Attendance Session (TM-2)", async () => {
+    const { event, actor } = await fixture();
+    const [session] = await db.insert(attendanceSessions).values({ eventId: event.id, studentId: actor.id, half: "am" }).returning();
+    await post("/attendance/correct", { sessionId: session.id, field: "timeIn", present: true }).expect(403);
+    expect(await db.query.attendanceSessions.findFirst({ where: eq(attendanceSessions.id, session.id) })).toMatchObject({ timeIn: null });
+  });
+
+  it("refuses an Officer recording a payment against their own Penalty (TM-2)", async () => {
+    const { event, actor } = await fixture();
+    const [session] = await db.insert(attendanceSessions).values({ eventId: event.id, studentId: actor.id, half: "am" }).returning();
+    const [penalty] = await db.insert(penalties).values({ studentId: actor.id, attendanceSessionId: session.id, amount: "50.00" }).returning();
+    await post("/attendance/payments", { penaltyIds: [penalty.id] }).expect(403);
+    expect(await db.query.payments.findFirst()).toBeUndefined();
+  });
+
   it("refuses a Student actor", async () => {
     const { event } = await fixture("student");
     const response = await post("/attendance/grid", { eventId: event.id });

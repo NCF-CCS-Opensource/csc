@@ -1,6 +1,10 @@
 packages:
   - "apps/*"
   - "packages/*"
+overrides:
+  # M-5: qs DoS (GHSA-4mjr-xmp4-gh2g) reachable pre-auth via Nest's
+  # urlencoded body parser. Force the patched version transitively.
+  qs: ">=6.16.0"
 allowBuilds:
   # All five arrive with Clerk and none needs its build script to run:
   # @clerk/shared's only prints a telemetry notice, core-js's a funding

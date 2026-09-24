@@ -100,14 +100,75 @@ describe("ClearancePage Ledger loading (issue #282)", () => {
     expect(screen.getByTestId("clearance-row-s3")).toHaveTextContent("₱500.00");
   });
 
-  it("shows zero outstanding for every Student when there is no open Semester, without calling the Ledger", async () => {
+});
+
+describe("ClearancePage with no open Semester (TM-1: must fail closed)", () => {
+  const closedSemester = {
+    id: "sem-closed",
+    startDate: "2026-01-10",
+    endDate: "2026-05-30",
+    closedAt: "2026-06-01T00:00:00.000Z",
+  };
+
+  it("uses the most recently closed Semester's Ledger so real unpaid debt is not shown as Clearance-ready", async () => {
     getOpenSemesterMock.mockResolvedValue(null);
+    apiPostMock.mockImplementation((endpoint: string) => {
+      if (endpoint === "student/list") return Promise.resolve(mockStudents);
+      if (endpoint === "semester/list") {
+        return Promise.resolve({ semesters: [closedSemester, { ...closedSemester, id: "sem-older" }] });
+      }
+      return Promise.resolve({});
+    });
+
+    const page = await ClearancePage({ searchParams: Promise.resolve({}) });
+    render(page);
+
+    expect(apiFetchMock).toHaveBeenCalledWith("/v1/api/ledger/students", { semesterId: "sem-closed" });
+    expect(screen.getByTestId("clearance-row-s3")).toHaveTextContent("₱500.00");
+    expect(screen.getByTestId("clearance-badge-s3")).toHaveTextContent("Not ready");
+    expect(screen.getByTestId("clearance-badge-s1")).toHaveTextContent("Clearance-ready");
+    expect(screen.getByText(/most recent semester \(2026-01-10 – 2026-05-30\)/i)).toBeInTheDocument();
+  });
+
+  it("treats every Student as Not ready when no Semester exists at all, never as ₱0", async () => {
+    getOpenSemesterMock.mockResolvedValue(null);
+    apiPostMock.mockImplementation((endpoint: string) => {
+      if (endpoint === "student/list") return Promise.resolve(mockStudents);
+      if (endpoint === "semester/list") return Promise.resolve({ semesters: [] });
+      return Promise.resolve({});
+    });
 
     const page = await ClearancePage({ searchParams: Promise.resolve({}) });
     render(page);
 
     expect(apiFetchMock).not.toHaveBeenCalledWith("/v1/api/ledger/students", expect.anything());
-    expect(screen.getByTestId("clearance-row-s1")).toHaveTextContent("₱0.00");
+    expect(screen.getByTestId("clearance-row-s1")).not.toHaveTextContent("₱0.00");
+    expect(screen.getByTestId("clearance-badge-s1")).toHaveTextContent("Not ready");
+  });
+});
+
+describe("ClearancePage missing Ledger entry (TM-1)", () => {
+  it("shows a Student absent from the Ledger response as Not ready, not ₱0", async () => {
+    apiFetchMock.mockImplementation((path: string) => {
+      if (path === "/v1/api/ledger/students") {
+        return Promise.resolve({ s1: mockBatchLedger.s1, s2: mockBatchLedger.s2 });
+      }
+      return Promise.resolve(null);
+    });
+
+    const page = await ClearancePage({ searchParams: Promise.resolve({}) });
+    render(page);
+
+    expect(screen.getByTestId("clearance-row-s3")).not.toHaveTextContent("₱0.00");
+    expect(screen.getByTestId("clearance-badge-s3")).toHaveTextContent("Not ready");
+    expect(screen.getByTestId("clearance-badge-s1")).toHaveTextContent("Clearance-ready");
+  });
+
+  it("does not look up the Semester list when a Semester is open", async () => {
+    const page = await ClearancePage({ searchParams: Promise.resolve({}) });
+    render(page);
+
+    expect(apiPostMock).not.toHaveBeenCalledWith("semester/list");
   });
 });
 
