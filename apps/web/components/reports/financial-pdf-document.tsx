@@ -140,6 +140,7 @@ export function FinancialPdfDocument({ data }: { data: FinancialReportData }) {
     semester,
     asOfTimestamp,
     overview,
+    saf,
     programBreakdown,
     eventBreakdown,
     outstandingBalancesList,
@@ -193,6 +194,24 @@ export function FinancialPdfDocument({ data }: { data: FinancialReportData }) {
               <Text style={styles.label}>Collection Rate:</Text>
               <Text style={styles.value}>{overview.collectionRate.toFixed(1)}%</Text>
             </View>
+            {saf && (
+              <>
+                <View style={styles.gridItem}>
+                  <Text style={styles.label}>SAF Fees Charged:</Text>
+                  <Text style={styles.value}>₱{saf.charged.toFixed(2)}</Text>
+                </View>
+                <View style={styles.gridItem}>
+                  <Text style={styles.label}>SAF Fees Collected:</Text>
+                  <Text style={[styles.value, { color: "#15803d" }]}>₱{saf.collected.toFixed(2)}</Text>
+                </View>
+                <View style={styles.gridItem}>
+                  <Text style={styles.label}>SAF Fees Outstanding:</Text>
+                  <Text style={[styles.value, { fontFamily: "Helvetica-Bold", color: saf.outstanding > 0 ? "#b91c1c" : "#15803d" }]}>
+                    ₱{saf.outstanding.toFixed(2)}
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
         </View>
 

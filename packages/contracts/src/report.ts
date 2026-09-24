@@ -70,6 +70,8 @@ export type PerStudentReportData = {
     outstandingBalance: number;
   };
   clearanceStatus: string;
+  // Null for a Semester closed before SAF tracking began (ADR 0024).
+  saf: { amount: number; paid: boolean } | null;
   eventsBreakdown: StudentEventBreakdown[];
   aiNarrative?: string | null;
 };
@@ -152,6 +154,8 @@ export type FinancialReportData = {
     totalOutstandingBalance: number;
     collectionRate: number;
   };
+  // SAF Fees kept apart from the Penalty overview; null before SAF tracking (ADR 0024).
+  saf: { charged: number; collected: number; outstanding: number } | null;
   programBreakdown: FinancialProgramBreakdown[];
   eventBreakdown: FinancialEventBreakdown[];
   outstandingBalancesList: FinancialOutstandingBalance[];

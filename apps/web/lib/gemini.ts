@@ -105,7 +105,7 @@ ${clearanceText}
 }
 
 export function buildFinancialReportPrompt(data: FinancialReportData): string {
-  const { semester, overview, programBreakdown, eventBreakdown, paymentLogSummary } = data;
+  const { semester, overview, saf, programBreakdown, eventBreakdown, paymentLogSummary } = data;
 
   const progText = programBreakdown
     .map(
@@ -131,7 +131,12 @@ Financial Overview:
 - Total Payments Collected: ₱${overview.totalPaymentsCollected.toFixed(2)}
 - Total Outstanding Balance: ₱${overview.totalOutstandingBalance.toFixed(2)}
 - Collection Rate: ${overview.collectionRate.toFixed(1)}%
-
+${saf ? `
+SAF Fees (Student Assistance Fund, separate from Penalties):
+- Charged: ₱${saf.charged.toFixed(2)}
+- Collected: ₱${saf.collected.toFixed(2)}
+- Outstanding: ₱${saf.outstanding.toFixed(2)}
+` : ""}
 Program Financial Breakdown:
 ${progText}
 

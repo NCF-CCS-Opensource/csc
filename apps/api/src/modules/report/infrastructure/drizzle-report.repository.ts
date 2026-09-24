@@ -96,6 +96,7 @@ export class DrizzleReportRepository implements ReportRepository {
     const studentPayments = penaltyIds.length
       ? await this.db.select({ id: payments.id, penaltyId: sql<string>`${payments.penaltyId}`, amount: payments.amount }).from(payments).where(and(inArray(payments.penaltyId, penaltyIds), isNull(payments.voidedAt)))
       : [];
+    const safFeePayments = await this.db.select({ amount: payments.amount, voidedAt: payments.voidedAt }).from(payments).where(and(eq(payments.studentId, studentId), eq(payments.semesterId, semesterId)));
 
     return {
       student: { id: student.id, name: student.name, studentId: student.studentId, program: student.program },
@@ -104,6 +105,8 @@ export class DrizzleReportRepository implements ReportRepository {
       sessions: filteredSessions,
       penalties: studentPenalties,
       payments: studentPayments,
+      safFeeAmount: semester.safFeeAmount,
+      safFeePayments,
       asOfTimestamp: asOfTimestamp(),
     };
   }
@@ -139,6 +142,8 @@ export class DrizzleReportRepository implements ReportRepository {
       ? await this.db.select({ id: students.id, name: students.name }).from(students).where(inArray(students.id, officerIds))
       : [];
     const officerMap = new Map(officerRows.map((o) => [o.id, o.name]));
+    // student_id is set on every SAF Fee Payment (payments_one_target), so the cast narrows it.
+    const safFeePayments = await this.db.select({ studentId: sql<string>`${payments.studentId}`, amount: payments.amount, voidedAt: payments.voidedAt }).from(payments).where(eq(payments.semesterId, semesterId));
 
     const enrichedPayments = paymentRows.map((p) => ({
       id: p.id,
@@ -155,6 +160,8 @@ export class DrizzleReportRepository implements ReportRepository {
       penalties: penaltyRows,
       payments: enrichedPayments,
       programs: allPrograms.map((p) => p.name),
+      safFeeAmount: semester.safFeeAmount,
+      safFeePayments,
       asOfTimestamp: asOfTimestamp(),
     };
   }

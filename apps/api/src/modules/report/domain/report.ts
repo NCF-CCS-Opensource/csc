@@ -181,6 +181,9 @@ export type PerStudentReportInput = {
   sessions: { id: string; eventId: string; half: Half; timeIn: Date | null; timeOut: Date | null }[];
   penalties: { id: string; attendanceSessionId: string | null; studentId: string; amount: string }[];
   payments: { id: string; penaltyId: string; amount: string }[];
+  // Null for a Semester closed before SAF tracking began (ADR 0024).
+  safFeeAmount: string | null;
+  safFeePayments: { amount: string; voidedAt?: Date | null }[];
   asOfTimestamp: string;
 };
 
@@ -226,7 +229,7 @@ function studentEventBreakdown(
 }
 
 export function computePerStudentReport(input: PerStudentReportInput): PerStudentReportData {
-  const { student, semesterName, events, sessions, penalties, payments, asOfTimestamp } = input;
+  const { student, semesterName, events, sessions, penalties, payments, safFeeAmount, safFeePayments, asOfTimestamp } = input;
 
   const sessionsByEventHalf = new Map<string, SessionLike>();
   for (const s of sessions) {
@@ -247,7 +250,14 @@ export function computePerStudentReport(input: PerStudentReportInput): PerStuden
 
   const totalPenaltiesCharged = penalties.reduce((sum, p) => sum + Number(p.amount), 0);
   const totalPaymentsMade = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const outstandingBalance = Math.max(0, totalPenaltiesCharged - totalPaymentsMade);
+  // Same SAF line as the Ledger: a voided Payment settles nothing, and an
+  // unpaid SAF Fee counts toward the outstanding balance Clearance checks.
+  const saf =
+    safFeeAmount === null
+      ? null
+      : { amount: Number(safFeeAmount), paid: safFeePayments.some((payment) => !payment.voidedAt) };
+  const outstandingBalance =
+    Math.max(0, totalPenaltiesCharged - totalPaymentsMade) + (saf && !saf.paid ? saf.amount : 0);
 
   const clearanceStatus =
     outstandingBalance === 0
@@ -271,6 +281,7 @@ export function computePerStudentReport(input: PerStudentReportInput): PerStuden
       outstandingBalance,
     },
     clearanceStatus,
+    saf,
     eventsBreakdown,
   };
 }
@@ -440,6 +451,9 @@ export type FinancialReportInput = {
   penalties: { id: string; attendanceSessionId: string | null; studentId: string; amount: string }[];
   payments: { id: string; penaltyId: string; amount: string; officerName?: string; createdAt?: Date }[];
   programs: string[];
+  // Null for a Semester closed before SAF tracking began (ADR 0024).
+  safFeeAmount: string | null;
+  safFeePayments: { studentId: string; amount: string; voidedAt?: Date | null }[];
   asOfTimestamp: string;
 };
 
@@ -577,8 +591,27 @@ function financialPaymentLogSummary(
   return { totalTransactions: payments.length, dateRange, receivingOfficers: Array.from(officersSet) };
 }
 
+// Every listed Student owes the SAF Fee once; collected sums the snapshotted
+// amounts of un-voided SAF Fee Payments (see the Ledger's recordSafFees).
+function financialSaf(
+  students: FinancialReportInput["students"],
+  safFeeAmount: string | null,
+  safFeePayments: FinancialReportInput["safFeePayments"],
+): FinancialReportData["saf"] {
+  if (safFeeAmount === null) return null;
+  const studentIds = new Set(students.map((st) => st.id));
+  const valid = safFeePayments.filter((payment) => !payment.voidedAt && studentIds.has(payment.studentId));
+  const paidStudents = new Set(valid.map((payment) => payment.studentId));
+  const fee = Number(safFeeAmount);
+  return {
+    charged: fee * students.length,
+    collected: valid.reduce((sum, payment) => sum + Number(payment.amount), 0),
+    outstanding: fee * (students.length - paidStudents.size),
+  };
+}
+
 export function computeFinancialReport(input: FinancialReportInput): FinancialReportData {
-  const { semester, students, events, sessions, penalties, payments, programs, asOfTimestamp } = input;
+  const { semester, students, events, sessions, penalties, payments, programs, safFeeAmount, safFeePayments, asOfTimestamp } = input;
 
   const totalPenaltiesCharged = penalties.reduce((sum, p) => sum + Number(p.amount), 0);
   const totalPaymentsCollected = payments.reduce((sum, p) => sum + Number(p.amount), 0);
@@ -596,6 +629,7 @@ export function computeFinancialReport(input: FinancialReportInput): FinancialRe
       totalOutstandingBalance,
       collectionRate,
     },
+    saf: financialSaf(students, safFeeAmount, safFeePayments),
     programBreakdown: financialProgramBreakdown(students, penalties, payments, programs, penaltyToStudentMap),
     eventBreakdown: financialEventBreakdown(events, penalties, payments, penaltyToEventMap),
     outstandingBalancesList: financialOutstandingBalances(students, penalties, payments, penaltyToStudentMap),
