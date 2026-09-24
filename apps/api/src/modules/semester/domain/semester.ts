@@ -6,4 +6,6 @@ export interface Semester {
   startDate: string;
   endDate: string;
   closedAt: Date | null;
+  // Null only for a Semester closed before SAF tracking began (ADR 0024).
+  safFeeAmount: string | null;
 }

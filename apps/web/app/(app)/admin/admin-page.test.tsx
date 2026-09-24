@@ -27,6 +27,7 @@ const mockSemesters = {
       startDate: "2026-08-01",
       endDate: "2026-12-15",
       closedAt: null,
+      safFeeAmount: "450.00",
     },
   ],
 };
@@ -119,6 +120,14 @@ describe("AdminPage Bento Grid & Lifecycle Management (Issue #206)", () => {
 
     const endDateInput = screen.getByDisplayValue("2026-12-15");
     expect(endDateInput).toBeInTheDocument();
+  });
+
+  it("shows each Semester's SAF Fee and prefills a new Semester with ₱500", async () => {
+    const page = await AdminPage({ searchParams: Promise.resolve({}) });
+    renderAdmin(page);
+
+    expect(screen.getByDisplayValue("450.00")).toHaveAttribute("name", "safFeeAmount");
+    expect(screen.getByLabelText("SAF Fee (₱)")).toHaveValue(500);
   });
 
   it("displays program rosters inside the Academic Rosters Bento card", async () => {
