@@ -114,6 +114,8 @@ erDiagram
     ATTENDANCE_SESSIONS ||--o| PENALTIES : may_create
     STUDENTS ||--o{ PENALTIES : owes
     PENALTIES ||--o| PAYMENTS : settled_by
+    STUDENTS ||--o{ PAYMENTS : saf_fee_of
+    SEMESTERS ||--o{ PAYMENTS : saf_fee_for
     STUDENTS ||--o{ PAYMENTS : received_by_officer
 ```
 
@@ -122,7 +124,7 @@ Key invariants:
 - One Attendance Session exists per Event, Student, and AM/PM half.
 - Both Time-in and Time-out are required for an Attendance Session to be present.
 - One Penalty exists per absent Attendance Session and is recalculated from attendance.
-- One Payment settles one Penalty in full; Payments are insert-only.
+- One Payment settles exactly one thing in full: a Penalty, or one Student's SAF Fee for one Semester (`payments_one_target`). At most one un-voided Payment per target; Payments are insert-only apart from voiding.
 - An Event belongs to one Semester and one Asia/Manila calendar date.
 - A Student registered before a Semester ends owes for every Event in that Semester.
 - Event deletion cascades through its Scans, Attendance Sessions, Penalties, and Payments.

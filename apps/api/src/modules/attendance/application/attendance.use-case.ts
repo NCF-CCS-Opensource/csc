@@ -22,6 +22,10 @@ export class AttendanceUseCase {
     return this.attendance.recordPayments(penaltyIds, officerId);
   }
 
+  recordSafFeePayment(studentId: string, semesterId: string, officerId: string): Promise<void> {
+    return this.attendance.recordSafFeePayment(studentId, semesterId, officerId);
+  }
+
   voidPayment(paymentId: string, officerId: string): Promise<void> {
     return this.attendance.voidPayment(paymentId, officerId);
   }

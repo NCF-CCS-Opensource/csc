@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, desc, eq, gt, lt, or } from "drizzle-orm";
-import { events, semesters, type Database } from "@attendance/db";
+import { and, desc, eq, gt, isNull, lt, or } from "drizzle-orm";
+import { events, payments, semesters, type Database } from "@attendance/db";
 import { DB } from "../../../shared/infrastructure/db.module";
 import type { SemesterRepository } from "../domain/semester-repository";
 import { SemesterLifecycleError, type SemesterInput } from "../domain/semester-lifecycle";
@@ -66,6 +66,20 @@ export class DrizzleSemesterRepository implements SemesterRepository {
           "Semester dates must include every existing Event",
           409,
         );
+      }
+
+      // A recorded SAF Fee Payment snapshotted the amount; changing it now
+      // would split Students across two prices. Voided Payments don't count.
+      if (Number(input.safFeeAmount) !== Number(semester.safFeeAmount)) {
+        const safFeePayment = await transaction.query.payments.findFirst({
+          where: and(eq(payments.semesterId, id), isNull(payments.voidedAt)),
+        });
+        if (safFeePayment) {
+          throw new SemesterLifecycleError(
+            "The SAF Fee amount can't change once a SAF Fee Payment is recorded",
+            409,
+          );
+        }
       }
 
       const [updated] = await transaction

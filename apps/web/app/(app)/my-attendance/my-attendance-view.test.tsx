@@ -35,6 +35,7 @@ const mockSnapshotWithDebt: MyAttendanceSnapshot = {
   student: mockStudent,
   hasOpenSemester: true,
   ledger: {
+    saf: null,
     total: 150,
     outstanding: 50,
     sessions: [
@@ -86,6 +87,7 @@ const mockSnapshotCleared: MyAttendanceSnapshot = {
   student: mockStudent,
   hasOpenSemester: true,
   ledger: {
+    saf: null,
     total: 0,
     outstanding: 0,
     sessions: [
@@ -109,6 +111,7 @@ const mockSnapshotNoOpenSemester: MyAttendanceSnapshot = {
   student: mockStudent,
   hasOpenSemester: false,
   ledger: {
+    saf: null,
     total: 0,
     outstanding: 0,
     sessions: [],
@@ -193,6 +196,16 @@ describe("MyAttendanceView Bento Layout (Issue #204)", () => {
     expect(clearanceBadge).toBeInTheDocument();
     expect(clearanceBadge).toHaveTextContent(/Cleared|Ready/i);
     expect(clearanceBadge).toHaveAttribute("data-variant", "cleared");
+  });
+
+  it("shows the SAF Fee inside the total it now contributes to (Issue #336)", () => {
+    renderView({
+      ...mockSnapshotWithDebt,
+      ledger: { ...mockSnapshotWithDebt.ledger, total: 650, saf: { amount: 500, paid: false, paymentId: null } },
+    });
+
+    expect(screen.getByText(/total charged/i)).toBeInTheDocument();
+    expect(screen.getByTestId("saf-fee-line")).toHaveTextContent("incl. SAF Fee ₱500.00 (unpaid)");
   });
 
   it("renders informative status when no open semester is present", () => {
@@ -313,7 +326,7 @@ describe("MyAttendanceView session audit filter + pagination (Issue #219)", () =
     ];
     renderView({
       ...mockSnapshotWithDebt,
-      ledger: { total: 0, outstanding: 0, sessions },
+      ledger: { total: 0, outstanding: 0, sessions, saf: null },
     });
 
     expect(screen.getByTestId("status-badge-ev-1-am")).toBeInTheDocument();
@@ -336,7 +349,7 @@ describe("MyAttendanceView session audit filter + pagination (Issue #219)", () =
     ];
     renderView({
       ...mockSnapshotWithDebt,
-      ledger: { total: 0, outstanding: 0, sessions },
+      ledger: { total: 0, outstanding: 0, sessions, saf: null },
     });
 
     fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-09-05" } });
@@ -353,7 +366,7 @@ describe("MyAttendanceView session audit filter + pagination (Issue #219)", () =
     ];
     renderView({
       ...mockSnapshotWithDebt,
-      ledger: { total: 0, outstanding: 0, sessions },
+      ledger: { total: 0, outstanding: 0, sessions, saf: null },
     });
 
     fireEvent.click(screen.getByRole("combobox", { name: /filter by status/i }));
@@ -373,7 +386,7 @@ describe("MyAttendanceView session audit filter + pagination (Issue #219)", () =
     );
     renderView({
       ...mockSnapshotWithDebt,
-      ledger: { total: 0, outstanding: 0, sessions },
+      ledger: { total: 0, outstanding: 0, sessions, saf: null },
     });
 
     // Default page size is 20, so page 1 shows 20 rows and page 2 has the rest.

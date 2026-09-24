@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 // Radix Select scrolls the highlighted option into view on open; jsdom has no
 // scrollIntoView, so stub it or the Rows-per-page interaction throws.
 Element.prototype.scrollIntoView ??= () => {};
+
+const { markSafFeePaid, voidSafFeePayment } = vi.hoisted(() => ({
+  markSafFeePaid: vi.fn(),
+  voidSafFeePayment: vi.fn(),
+}));
+vi.mock("./actions", () => ({ markSafFeePaid, voidSafFeePayment }));
 
 import { ClearanceView, type ClearanceItem } from "./clearance-view";
 import type { SemesterResponse } from "@attendance/contracts";
@@ -45,12 +51,14 @@ const mockResults: ClearanceItem[] = [
 
 afterEach(() => {
   cleanup();
+  vi.clearAllMocks();
 });
 
 function renderClearance(initialResults: ClearanceItem[] = mockResults) {
   return render(
     <ClearanceView
       openSemester={mockSemester}
+      ledgerSemester={mockSemester}
       initialQuery=""
       initialResults={initialResults}
     />
@@ -200,5 +208,72 @@ describe("Clearance ledger pagination (Issue #220)", () => {
     expectRows(["Student 2"], ["Student 1", "Student 20"]);
     expect(screen.getByText("1 total")).toBeInTheDocument();
     expect(screen.getByText("Page 1 of 1")).toBeInTheDocument();
+  });
+});
+
+describe("Clearance SAF Fee column (Issue #336)", () => {
+  const student = (id: string, name: string): ClearanceItem["student"] => ({
+    id,
+    name,
+    email: `${id}@example.edu`,
+    studentId: `24-${id}`,
+    program: "Computer Science",
+    role: "student",
+  });
+  const results: ClearanceItem[] = [
+    { student: student("unpaid", "Una Paid"), outstanding: 500, saf: { amount: 500, paid: false, paymentId: null } },
+    { student: student("paid", "Pat Paid"), outstanding: 0, saf: { amount: 500, paid: true, paymentId: "pay-1" } },
+    { student: student("none", "Nora None"), outstanding: 0, saf: null },
+  ];
+
+  it("shows each Student's SAF Fee as unpaid, paid, or not owed", () => {
+    renderClearance(results);
+
+    expect(screen.getByTestId("clearance-saf-unpaid")).toHaveTextContent("₱500.00");
+    expect(screen.getByTestId("clearance-saf-paid")).toHaveTextContent("Paid");
+    expect(screen.getByTestId("clearance-saf-none")).toHaveTextContent("—");
+    expect(screen.getByTestId("clearance-badge-unpaid")).toHaveTextContent("Not ready");
+    expect(screen.getByTestId("clearance-badge-paid")).toHaveTextContent("Clearance-ready");
+  });
+
+  it("marks an unpaid SAF Fee paid for the ledger Semester", async () => {
+    markSafFeePaid.mockResolvedValue({});
+    renderClearance(results);
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark Una Paid's SAF Fee paid" }));
+
+    await waitFor(() => expect(markSafFeePaid).toHaveBeenCalledWith("unpaid", "sem-1"));
+  });
+
+  it("undoes a paid SAF Fee by voiding its Payment", async () => {
+    voidSafFeePayment.mockResolvedValue({});
+    renderClearance(results);
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo Pat Paid's SAF Fee Payment" }));
+
+    await waitFor(() => expect(voidSafFeePayment).toHaveBeenCalledWith("pay-1"));
+  });
+
+  it("shows the API's rejection message inline", async () => {
+    markSafFeePaid.mockResolvedValue({ error: "SAF Fee is already paid" });
+    renderClearance(results);
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark Una Paid's SAF Fee paid" }));
+
+    expect(await screen.findByText("SAF Fee is already paid")).toBeInTheDocument();
+  });
+
+  it("updates the row when the page hands it the refreshed Ledger", () => {
+    const { rerender } = renderClearance(results);
+    rerender(
+      <ClearanceView
+        openSemester={mockSemester}
+        ledgerSemester={mockSemester}
+        initialResults={[{ ...results[0], outstanding: 0, saf: { amount: 500, paid: true, paymentId: "pay-2" } }, ...results.slice(1)]}
+      />,
+    );
+
+    expect(screen.getByTestId("clearance-saf-unpaid")).toHaveTextContent("Paid");
+    expect(screen.getByTestId("clearance-badge-unpaid")).toHaveTextContent("Clearance-ready");
   });
 });

@@ -1,5 +1,5 @@
 import { Body, Controller, HttpException, Inject, Post, UseGuards } from "@nestjs/common";
-import type { CorrectAttendanceRequest, RecordPaymentsRequest, VoidPaymentRequest } from "@attendance/contracts";
+import type { CorrectAttendanceRequest, RecordPaymentsRequest, RecordSafFeePaymentRequest, VoidPaymentRequest } from "@attendance/contracts";
 import type { Actor } from "../../../shared/domain/actor";
 import { CallerActor } from "../../../shared/presentation/actor.decorator";
 import { AuthGuard } from "../../../shared/presentation/auth.guard";
@@ -43,6 +43,16 @@ export class AttendanceController {
       throw new HttpException("Invalid request", 400);
     }
     await this.attendance.recordPayments(body.penaltyIds, actor.id);
+    return { ok: true };
+  }
+
+  // 409 when an un-voided SAF Fee Payment already exists; 400 when the
+  // Semester has no SAF Fee amount (ADR 0024).
+  @Post("payments/saf")
+  @RequireCapability("manage_operations")
+  async safFeePayment(@CallerActor() actor: Actor, @Body() body: RecordSafFeePaymentRequest) {
+    if (typeof body?.studentId !== "string" || typeof body.semesterId !== "string") throw new HttpException("Invalid request", 400);
+    await this.attendance.recordSafFeePayment(body.studentId, body.semesterId, actor.id);
     return { ok: true };
   }
 

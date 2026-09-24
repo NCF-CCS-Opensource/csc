@@ -29,7 +29,7 @@ export async function myAttendanceSnapshot(): Promise<MyAttendanceSnapshot> {
   const [ledger, paymentHistory] = await Promise.all([
     openSemester
       ? getMyLedger(openSemester.id)
-      : Promise.resolve({ total: 0, outstanding: 0, sessions: [] } as StudentLedgerResponse),
+      : Promise.resolve({ total: 0, outstanding: 0, sessions: [], saf: null } as StudentLedgerResponse),
     apiFetch<PaymentHistoryEntry[]>("/v1/api/ledger/mine/history"),
   ]);
 

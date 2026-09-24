@@ -11,9 +11,14 @@ export type LedgerInput = {
   penalties: { id: string; attendanceSessionId: string; studentId: string; amount: string }[];
   // A voided Payment settles nothing: it is ignored everywhere below.
   payments: { penaltyId: string; amount: string; voidedAt?: Date | null }[];
+  // Null for a Semester closed before SAF tracking began (ADR 0024): no SAF line.
+  safFeeAmount: string | null;
+  safFeePayments: { id: string; studentId: string; voidedAt?: Date | null }[];
 };
 export type LedgerSession = { eventId: string; eventName: string; eventDate: string; half: Half; timeIn: Date | null; timeOut: Date | null; status: SessionStatus; amount: number; paid: boolean };
-export type StudentStanding = { total: number; outstanding: number; sessions: LedgerSession[] };
+// paymentId is the un-voided SAF Fee Payment, so the Clearance page can undo it.
+export type SafLine = { amount: number; paid: boolean; paymentId: string | null };
+export type StudentStanding = { total: number; outstanding: number; sessions: LedgerSession[]; saf: SafLine | null };
 export type EventStats = { eventId: string; date: string; type: EventType; status: EventStatus; sessions: { label: "AM" | "PM" | "Session"; present: number; incomplete: number; absent: number }[]; present: number; incomplete: number; absent: number; rate: number; collected: number };
 export type Ledger = { students: Map<string, StudentStanding>; events: EventStats[]; totals: { present: number; absent: number; rate: number; collected: number } };
 export type EventGridInput = { eventType: EventType; students: { id: string; name: string; studentId: string }[]; sessions: { id: string; studentId: string; half: Half; timeIn: Date | null; timeOut: Date | null }[]; penalties: { id: string; attendanceSessionId: string; amount: string }[]; payments: { penaltyId: string }[] };
@@ -65,7 +70,7 @@ function buildContext(input: LedgerInput): LedgerContext {
 function standingFor(students: Map<string, StudentStanding>, id: string): StudentStanding {
   const existing = students.get(id);
   if (existing) return existing;
-  const created: StudentStanding = { total: 0, outstanding: 0, sessions: [] };
+  const created: StudentStanding = { total: 0, outstanding: 0, sessions: [], saf: null };
   students.set(id, created);
   return created;
 }
@@ -131,11 +136,24 @@ function recordMissingSessions(input: LedgerInput, context: LedgerContext, stude
   }
 }
 
+// Every liable Student owes the full SAF Fee once per Semester, mid-Semester
+// registrants included — see CONTEXT.md's SAF Fee entry.
+function recordSafFees(input: LedgerInput, students: Map<string, StudentStanding>) {
+  if (input.safFeeAmount === null) return;
+  const paymentByStudent = new Map(input.safFeePayments.map((payment) => [payment.studentId, payment.id]));
+  for (const student of input.students) {
+    if (!isStudentLiable(student, input.semesterEndDate)) continue;
+    const paymentId = paymentByStudent.get(student.id) ?? null;
+    standingFor(students, student.id).saf = { amount: Number(input.safFeeAmount), paid: paymentId !== null, paymentId };
+  }
+}
+
 function finalizeStudentTotals(students: Map<string, StudentStanding>) {
   for (const standing of students.values()) {
     standing.sessions.sort((a, b) => a.eventDate.localeCompare(b.eventDate));
-    standing.total = standing.sessions.reduce((sum, session) => sum + session.amount, 0);
-    standing.outstanding = standing.sessions.reduce((sum, session) => sum + (session.paid ? 0 : session.amount), 0);
+    const saf = standing.saf?.amount ?? 0;
+    standing.total = standing.sessions.reduce((sum, session) => sum + session.amount, saf);
+    standing.outstanding = standing.sessions.reduce((sum, session) => sum + (session.paid ? 0 : session.amount), standing.saf?.paid ? 0 : saf);
   }
 }
 
@@ -208,14 +226,15 @@ function buildEventStats(input: LedgerInput, context: LedgerContext, completed: 
 }
 
 export function computeLedger(ledgerInput: LedgerInput): Ledger {
-  const input = { ...ledgerInput, payments: ledgerInput.payments.filter((payment) => !payment.voidedAt) };
+  const input = { ...ledgerInput, payments: ledgerInput.payments.filter((payment) => !payment.voidedAt), safFeePayments: ledgerInput.safFeePayments.filter((payment) => !payment.voidedAt) };
   const context = buildContext(input);
-  const students = new Map<string, StudentStanding>(input.students.map((student) => [student.id, { total: 0, outstanding: 0, sessions: [] }]));
+  const students = new Map<string, StudentStanding>(input.students.map((student) => [student.id, { total: 0, outstanding: 0, sessions: [], saf: null }]));
   const halves = new Map<string, Set<Half>>();
   const completed = new Map<string, { am: boolean; pm: boolean }>();
 
   recordActualSessions(input, context, students, halves, completed);
   recordMissingSessions(input, context, students, halves, completed);
+  recordSafFees(input, students);
   finalizeStudentTotals(students);
 
   const collected = buildCollectedByEvent(input, context);
