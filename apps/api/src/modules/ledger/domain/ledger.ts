@@ -9,7 +9,8 @@ export type LedgerInput = {
   students: { id: string; createdAt: Date }[];
   sessions: { id: string; eventId: string; studentId: string; half: Half; timeIn: Date | null; timeOut: Date | null }[];
   penalties: { id: string; attendanceSessionId: string; studentId: string; amount: string }[];
-  payments: { penaltyId: string; amount: string }[];
+  // A voided Payment settles nothing: it is ignored everywhere below.
+  payments: { penaltyId: string; amount: string; voidedAt?: Date | null }[];
 };
 export type LedgerSession = { eventId: string; eventName: string; eventDate: string; half: Half; timeIn: Date | null; timeOut: Date | null; status: SessionStatus; amount: number; paid: boolean };
 export type StudentStanding = { total: number; outstanding: number; sessions: LedgerSession[] };
@@ -206,7 +207,8 @@ function buildEventStats(input: LedgerInput, context: LedgerContext, completed: 
   return events.sort(compareEvents);
 }
 
-export function computeLedger(input: LedgerInput): Ledger {
+export function computeLedger(ledgerInput: LedgerInput): Ledger {
+  const input = { ...ledgerInput, payments: ledgerInput.payments.filter((payment) => !payment.voidedAt) };
   const context = buildContext(input);
   const students = new Map<string, StudentStanding>(input.students.map((student) => [student.id, { total: 0, outstanding: 0, sessions: [] }]));
   const halves = new Map<string, Set<Half>>();

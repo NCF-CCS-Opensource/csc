@@ -1,5 +1,5 @@
 import { Body, Controller, HttpException, Inject, Post, UseGuards } from "@nestjs/common";
-import type { CorrectAttendanceRequest, RecordPaymentsRequest } from "@attendance/contracts";
+import type { CorrectAttendanceRequest, RecordPaymentsRequest, VoidPaymentRequest } from "@attendance/contracts";
 import type { Actor } from "../../../shared/domain/actor";
 import { CallerActor } from "../../../shared/presentation/actor.decorator";
 import { AuthGuard } from "../../../shared/presentation/auth.guard";
@@ -43,6 +43,15 @@ export class AttendanceController {
       throw new HttpException("Invalid request", 400);
     }
     await this.attendance.recordPayments(body.penaltyIds, actor.id);
+    return { ok: true };
+  }
+
+  // Works in open and closed Semesters alike, like recording a Payment.
+  @Post("payments/void")
+  @RequireCapability("manage_operations")
+  async voidPayment(@CallerActor() actor: Actor, @Body() body: VoidPaymentRequest) {
+    if (typeof body?.paymentId !== "string") throw new HttpException("Invalid request", 400);
+    await this.attendance.voidPayment(body.paymentId, actor.id);
     return { ok: true };
   }
 }

@@ -1,7 +1,7 @@
 import { HttpException, Inject, Injectable } from "@nestjs/common";
 import type { AttendanceGridResponse, CorrectAttendanceRequest, EventGridCell, EventGridRow } from "@attendance/contracts";
 import { attendanceSessions, events, payments, penalties, semesters, students, type Database } from "@attendance/db";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { DB } from "../../../shared/infrastructure/db.module";
 import { currentCampusDate, isAbsent, owedHalves, type AttendanceHalf } from "../domain/attendance-rules";
 
@@ -60,9 +60,9 @@ export class DrizzleAttendanceRepository {
     const [sessions, penaltyRows, paymentRows] = await Promise.all([
       this.db.select({ id: attendanceSessions.id, studentId: attendanceSessions.studentId, half: attendanceSessions.half, timeIn: attendanceSessions.timeIn, timeOut: attendanceSessions.timeOut, name: students.name, studentIdText: students.studentId }).from(attendanceSessions).innerJoin(students, eq(attendanceSessions.studentId, students.id)).where(eq(attendanceSessions.eventId, event.id)),
       this.db.select({ id: penalties.id, attendanceSessionId: penalties.attendanceSessionId, amount: penalties.amount }).from(penalties).innerJoin(attendanceSessions, eq(penalties.attendanceSessionId, attendanceSessions.id)).where(eq(attendanceSessions.eventId, event.id)),
-      this.db.select({ penaltyId: payments.penaltyId }).from(payments).innerJoin(penalties, eq(payments.penaltyId, penalties.id)).innerJoin(attendanceSessions, eq(penalties.attendanceSessionId, attendanceSessions.id)).where(eq(attendanceSessions.eventId, event.id)),
+      this.db.select({ id: payments.id, penaltyId: payments.penaltyId }).from(payments).innerJoin(penalties, eq(payments.penaltyId, penalties.id)).innerJoin(attendanceSessions, eq(penalties.attendanceSessionId, attendanceSessions.id)).where(and(eq(attendanceSessions.eventId, event.id), isNull(payments.voidedAt))),
     ]);
-    const paid = new Set(paymentRows.map((payment) => payment.penaltyId));
+    const paid = new Map(paymentRows.map((payment) => [payment.penaltyId, payment.id]));
     const penaltyBySession = new Map(penaltyRows.map((penalty) => [penalty.attendanceSessionId, penalty]));
     const byStudentHalf = new Map(sessions.map((session) => [`${session.studentId}:${session.half}`, session]));
     const cells = (session: typeof sessions[number] | undefined, label: string, field: "timeIn" | "timeOut"): EventGridCell => ({ label, sessionId: session?.id ?? "", field, present: !!session?.[field] });
@@ -79,8 +79,12 @@ export class DrizzleAttendanceRepository {
         const penalty = penaltyBySession.get(session.id);
         return penalty && !paid.has(penalty.id) ? sum + Number(penalty.amount) : sum;
       }, 0);
+      const paidPaymentIds = ownSessions.flatMap((session) => {
+        const paymentId = paid.get(penaltyBySession.get(session.id)?.id ?? "");
+        return paymentId ? [paymentId] : [];
+      });
       const penaltyCount = ownSessions.filter((session) => penaltyBySession.has(session.id)).length;
-      return { studentId: student.studentId, name: student.name, studentIdText: student.studentIdText, cells: event.type === "half_day" ? [cells(am ?? pm, "Time-in", "timeIn"), cells(am ?? pm, "Time-out", "timeOut")] : [cells(am, "AM In", "timeIn"), cells(am, "AM Out", "timeOut"), cells(pm, "PM In", "timeIn"), cells(pm, "PM Out", "timeOut")], outstanding, unpaidPenaltyIds, settled: penaltyCount > 0 && unpaidPenaltyIds.length === 0 };
+      return { studentId: student.studentId, name: student.name, studentIdText: student.studentIdText, cells: event.type === "half_day" ? [cells(am ?? pm, "Time-in", "timeIn"), cells(am ?? pm, "Time-out", "timeOut")] : [cells(am, "AM In", "timeIn"), cells(am, "AM Out", "timeOut"), cells(pm, "PM In", "timeIn"), cells(pm, "PM Out", "timeOut")], outstanding, unpaidPenaltyIds, paidPaymentIds, settled: penaltyCount > 0 && unpaidPenaltyIds.length === 0 };
     });
     return { event: { id: event.id, name: event.name, halfDayPenaltyAmount: event.halfDayPenaltyAmount }, rows };
   }
@@ -115,6 +119,15 @@ export class DrizzleAttendanceRepository {
     if (rows.some((penalty) => penalty.studentId === officerId)) {
       throw new HttpException("Officers cannot record a payment for their own Penalty", 403);
     }
-    if (rows.length) await this.db.insert(payments).values(rows.map((penalty) => ({ penaltyId: penalty.id, amount: penalty.amount, officerId }))).onConflictDoNothing({ target: payments.penaltyId });
+    if (rows.length) await this.db.insert(payments).values(rows.map((penalty) => ({ penaltyId: penalty.id, amount: penalty.amount, officerId }))).onConflictDoNothing({ target: payments.penaltyId, where: isNull(payments.voidedAt) });
+  }
+
+  // The one update a Payment ever takes: stamp who voided it and when. The row
+  // is kept for audit, and the Penalty becomes payable again.
+  async voidPayment(paymentId: string, officerId: string): Promise<void> {
+    const [voided] = await this.db.update(payments).set({ voidedAt: new Date(), voidedBy: officerId }).where(and(eq(payments.id, paymentId), isNull(payments.voidedAt))).returning({ id: payments.id });
+    if (voided) return;
+    if (await this.db.query.payments.findFirst({ where: eq(payments.id, paymentId) })) throw new HttpException("Payment is already voided", 409);
+    throw new HttpException("Payment not found", 404);
   }
 }

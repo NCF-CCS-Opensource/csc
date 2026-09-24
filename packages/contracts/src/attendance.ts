@@ -14,6 +14,8 @@ export interface EventGridRow {
   cells: EventGridCell[];
   outstanding: number;
   unpaidPenaltyIds: string[];
+  // Un-voided Payments for this Event's Penalties; Undo voids these.
+  paidPaymentIds: string[];
   settled: boolean;
 }
 
@@ -30,4 +32,8 @@ export interface CorrectAttendanceRequest {
 
 export interface RecordPaymentsRequest {
   penaltyIds: string[];
+}
+
+export interface VoidPaymentRequest {
+  paymentId: string;
 }
