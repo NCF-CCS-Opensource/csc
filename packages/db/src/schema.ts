@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   date,
   index,
   numeric,
@@ -203,19 +204,22 @@ export const penalties = pgTable(
   (table) => [index("penalties_student_id_idx").on(table.studentId)],
 );
 
-// At most one un-voided Payment per Penalty (a partial unique index — a
-// Penalty is paid in full, not partially) — see CONTEXT.md's Payment entry.
-// Insert-only except for the one void update: voiding stamps voidedAt and
-// voidedBy and keeps the row for audit; it is never deleted. Paying again
-// after a void is a new row. amount is snapshotted at payment time rather
-// than re-read from the Penalty, so the transaction record can't drift later.
+// Settles exactly one thing: a Penalty (penaltyId) or one Student's SAF Fee
+// for one Semester (studentId + semesterId) — enforced by payments_one_target.
+// At most one un-voided Payment per Penalty and per (Student, Semester) SAF
+// Fee (partial unique indexes — both are paid in full, not partially) — see
+// CONTEXT.md's Payment entry. Insert-only except for the one void update:
+// voiding stamps voidedAt and voidedBy and keeps the row for audit; it is
+// never deleted. Paying again after a void is a new row. amount is
+// snapshotted at payment time rather than re-read from the Penalty or
+// Semester, so the transaction record can't drift later.
 export const payments = pgTable(
   "payments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    penaltyId: uuid("penalty_id")
-      .notNull()
-      .references(() => penalties.id, { onDelete: "cascade" }),
+    penaltyId: uuid("penalty_id").references(() => penalties.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id").references(() => students.id),
+    semesterId: uuid("semester_id").references(() => semesters.id),
     amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
     officerId: uuid("officer_id")
       .notNull()
@@ -229,5 +233,13 @@ export const payments = pgTable(
     uniqueIndex("payments_one_unvoided_per_penalty")
       .on(table.penaltyId)
       .where(sql`${table.voidedAt} is null`),
+    uniqueIndex("payments_one_unvoided_saf_fee")
+      .on(table.studentId, table.semesterId)
+      .where(sql`${table.voidedAt} is null`),
+    index("payments_semester_id_idx").on(table.semesterId),
+    check(
+      "payments_one_target",
+      sql`(${table.penaltyId} is not null and ${table.studentId} is null and ${table.semesterId} is null) or (${table.penaltyId} is null and ${table.studentId} is not null and ${table.semesterId} is not null)`,
+    ),
   ],
 );

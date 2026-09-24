@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { createDb } from "../src/client";
-import { programs, semesters, students } from "../src/schema";
+import { payments, programs, semesters, students } from "../src/schema";
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) throw new Error("TEST_DATABASE_URL is required");
@@ -103,6 +103,29 @@ describe("disposable Postgres", () => {
           { closed: true, saf_fee_amount: null },
           { closed: false, saf_fee_amount: "500.00" },
         ]);
+        throw rollback;
+      }),
+    ).rejects.toBe(rollback);
+  });
+  it("makes a Payment target exactly one Penalty or one (Student, Semester) SAF Fee, unpaid at most once", async () => {
+    const rollback = new Error("rollback");
+    await expect(
+      db.transaction(async (transaction) => {
+        const suffix = randomUUID();
+        const [student] = await transaction.insert(students).values({ authUserId: `user_${suffix}`, email: `${suffix}@gbox.ncf.edu.ph`, name: "Test Student", program: "Computer Science", studentId: suffix }).returning();
+        const [semester] = await transaction.insert(semesters).values({ startDate: "2020-01-01", endDate: "2020-05-31", closedAt: new Date(), safFeeAmount: "500" }).returning();
+        const saf = { studentId: student.id, semesterId: semester.id, amount: "500", officerId: student.id };
+
+        const violation = (values: typeof payments.$inferInsert) =>
+          transaction.transaction(async (savepoint) => { await savepoint.insert(payments).values(values); }).then(() => "inserted", (error) => error.code);
+        expect(await violation({ amount: "500", officerId: student.id })).toBe("23514");
+        expect(await violation({ ...saf, semesterId: null })).toBe("23514");
+        expect(await violation({ ...saf, penaltyId: randomUUID() })).toBe("23514");
+
+        const [first] = await transaction.insert(payments).values(saf).returning();
+        expect(await violation(saf)).toBe("23505");
+        await transaction.update(payments).set({ voidedAt: new Date() }).where(eq(payments.id, first.id));
+        expect(await violation(saf)).toBe("inserted");
         throw rollback;
       }),
     ).rejects.toBe(rollback);
