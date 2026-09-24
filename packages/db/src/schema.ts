@@ -203,24 +203,31 @@ export const penalties = pgTable(
   (table) => [index("penalties_student_id_idx").on(table.studentId)],
 );
 
-// One Payment per Penalty (unique on penaltyId — a Penalty is paid in full,
-// not partially) — see CONTEXT.md's Payment entry. Insert-only: there is no
-// update/delete path anywhere in the app. A correction is a new row, not an
-// edit to this one. amount is snapshotted at payment time rather than
-// re-read from the Penalty, so the transaction record can't drift later.
+// At most one un-voided Payment per Penalty (a partial unique index — a
+// Penalty is paid in full, not partially) — see CONTEXT.md's Payment entry.
+// Insert-only except for the one void update: voiding stamps voidedAt and
+// voidedBy and keeps the row for audit; it is never deleted. Paying again
+// after a void is a new row. amount is snapshotted at payment time rather
+// than re-read from the Penalty, so the transaction record can't drift later.
 export const payments = pgTable(
   "payments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     penaltyId: uuid("penalty_id")
       .notNull()
-      .unique()
       .references(() => penalties.id, { onDelete: "cascade" }),
     amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
     officerId: uuid("officer_id")
       .notNull()
       .references(() => students.id),
     paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: uuid("voided_by").references(() => students.id),
   },
-  (table) => [index("payments_officer_id_idx").on(table.officerId)],
+  (table) => [
+    index("payments_officer_id_idx").on(table.officerId),
+    uniqueIndex("payments_one_unvoided_per_penalty")
+      .on(table.penaltyId)
+      .where(sql`${table.voidedAt} is null`),
+  ],
 );

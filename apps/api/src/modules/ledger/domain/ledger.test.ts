@@ -33,4 +33,20 @@ describe("computeLedger", () => {
     expect(ledger.students.get("no-show")!.sessions).toHaveLength(1);
     expect(ledger.students.size).toBe(2);
   });
+
+  it("treats a voided Payment as unpaid and excludes it from collected totals", () => {
+    const ledger = computeLedger({
+      campusDate: "2026-09-19", semesterEndDate: "2026-12-31",
+      events: [{ id: "event", name: "Assembly", date: "2026-09-18", type: "half_day", halfDayPenaltyAmount: "50.00" }],
+      students: [{ id: "student", createdAt: new Date("2026-01-01T00:00:00Z") }],
+      sessions: [{ id: "session", eventId: "event", studentId: "student", half: "am", timeIn: null, timeOut: null }],
+      penalties: [{ id: "penalty", attendanceSessionId: "session", studentId: "student", amount: "50.00" }],
+      payments: [{ penaltyId: "penalty", amount: "50.00", voidedAt: new Date("2026-09-19T00:00:00Z") }],
+    });
+
+    expect(ledger.students.get("student")).toMatchObject({ total: 50, outstanding: 50 });
+    expect(ledger.students.get("student")!.sessions[0].paid).toBe(false);
+    expect(ledger.events[0].collected).toBe(0);
+    expect(ledger.totals.collected).toBe(0);
+  });
 });

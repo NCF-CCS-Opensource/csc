@@ -9,7 +9,7 @@ import {
   students,
   type Database,
 } from "@attendance/db";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { DB } from "../../../shared/infrastructure/db.module";
 import type { ReportRepository } from "../domain/report-repository";
 import type {
@@ -92,7 +92,7 @@ export class DrizzleReportRepository implements ReportRepository {
     const studentPenalties = await this.db.select({ id: penalties.id, attendanceSessionId: penalties.attendanceSessionId, studentId: penalties.studentId, amount: penalties.amount }).from(penalties).where(eq(penalties.studentId, studentId));
     const penaltyIds = studentPenalties.map((p) => p.id);
     const studentPayments = penaltyIds.length
-      ? await this.db.select({ id: payments.id, penaltyId: payments.penaltyId, amount: payments.amount }).from(payments).where(inArray(payments.penaltyId, penaltyIds))
+      ? await this.db.select({ id: payments.id, penaltyId: payments.penaltyId, amount: payments.amount }).from(payments).where(and(inArray(payments.penaltyId, penaltyIds), isNull(payments.voidedAt)))
       : [];
 
     return {
@@ -183,7 +183,7 @@ export class DrizzleReportRepository implements ReportRepository {
 
     const penaltyIds = penaltyRows.map((p) => p.id);
     const paymentRows = penaltyIds.length
-      ? await this.db.select({ id: payments.id, penaltyId: payments.penaltyId, amount: payments.amount, officerId: payments.officerId }).from(payments).where(inArray(payments.penaltyId, penaltyIds))
+      ? await this.db.select({ id: payments.id, penaltyId: payments.penaltyId, amount: payments.amount, officerId: payments.officerId }).from(payments).where(and(inArray(payments.penaltyId, penaltyIds), isNull(payments.voidedAt)))
       : [];
 
     return { eligibleStudents, allPrograms, semesterEvents, sessionRows, penaltyRows, paymentRows };

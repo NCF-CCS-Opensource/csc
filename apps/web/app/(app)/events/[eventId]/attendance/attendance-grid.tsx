@@ -28,7 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { EventGridCell, EventGridRow } from "@attendance/contracts";
 import { useWebStore } from "@/lib/store";
-import { eventGrid, markPaid, setScanField } from "./actions";
+import { eventGrid, markPaid, setScanField, voidPayments } from "./actions";
 import { eventGridQueryKey } from "./query-key";
 
 // Auto-saves the instant a sentinel button is clicked; the server action re-syncs the
@@ -164,6 +164,56 @@ function ScanCell({
   );
 }
 
+// Voids (never deletes) the row's Payments, so its Penalties are unpaid again.
+function UndoPayment({ row, eventId }: { row: EventGridRow; eventId: string }) {
+  const queryClient = useQueryClient();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button type="button" size="xs" variant="outline" disabled={pending}>
+            {pending ? "Undoing…" : "Undo"}
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Undo {row.name}&apos;s Payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The Payment is voided and kept for audit, with you recorded as the voiding Officer.
+              Its Penalty becomes unpaid and can be paid again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() =>
+                startTransition(async () => {
+                  try {
+                    await voidPayments(row.paidPaymentIds, eventId);
+                    await queryClient.invalidateQueries({ queryKey: eventGridQueryKey(eventId) });
+                    setError(null);
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Payment couldn't be voided.");
+                  }
+                })
+              }
+            >
+              Void Payment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {error ? (
+        <output className="text-xs text-red-600 dark:text-red-400 font-bold text-right">{error}</output>
+      ) : null}
+    </>
+  );
+}
+
 function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
   const queryClient = useQueryClient();
   const [pending, startTransition] = useTransition();
@@ -173,11 +223,20 @@ function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
   // system" error page regardless of the actual reason.
   const [error, setError] = useState<string | null>(null);
 
-  if (row.settled) return <Badge variant="present" className="shadow-[var(--shadow-sm)]">Paid</Badge>;
+  const undo = row.paidPaymentIds.length > 0 && <UndoPayment row={row} eventId={eventId} />;
+  if (row.settled) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <Badge variant="present" className="shadow-[var(--shadow-sm)]">Paid</Badge>
+        {undo}
+      </div>
+    );
+  }
   if (row.outstanding === 0) return <span className="text-muted-foreground font-medium">—</span>;
 
   return (
     <div className="flex flex-col items-end gap-1">
+      {undo}
       <div className="flex items-center justify-end gap-2">
         <span className="font-bold tabular-nums text-red-600">₱{row.outstanding}</span>
         <AlertDialog>
@@ -198,7 +257,7 @@ function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
               </AlertDialogTitle>
               <AlertDialogDescription className="text-xs text-muted-foreground">
                 Settles every unpaid Penalty {row.name} ({row.studentIdText}) owes for this Event.
-                There&apos;s no &quot;unmark paid&quot; action — undoing this means editing the database directly.
+                A mistaken Payment can be undone afterwards with Undo.
               </AlertDialogDescription>
             </AlertDialogHeader>
 

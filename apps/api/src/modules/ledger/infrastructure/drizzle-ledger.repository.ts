@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { attendanceSessions, events, payments, penalties, semesters, students, type Database } from "@attendance/db";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { DB } from "../../../shared/infrastructure/db.module";
 import type { LedgerRepository } from "../domain/ledger-repository";
 import { currentCampusDate, type LedgerInput } from "../domain/ledger";
@@ -21,7 +21,7 @@ export class DrizzleLedgerRepository implements LedgerRepository {
     const sessionIds = sessionRows.map((session) => session.id);
     const penaltyRows = sessionIds.length ? await this.db.select({ id: penalties.id, attendanceSessionId: penalties.attendanceSessionId, studentId: penalties.studentId, amount: penalties.amount }).from(penalties).where(inArray(penalties.attendanceSessionId, sessionIds)) : [];
     const penaltyIds = penaltyRows.map((penalty) => penalty.id);
-    const paymentRows = penaltyIds.length ? await this.db.select({ penaltyId: payments.penaltyId, amount: payments.amount }).from(payments).where(inArray(payments.penaltyId, penaltyIds)) : [];
+    const paymentRows = penaltyIds.length ? await this.db.select({ penaltyId: payments.penaltyId, amount: payments.amount, voidedAt: payments.voidedAt }).from(payments).where(inArray(payments.penaltyId, penaltyIds)) : [];
     return { campusDate: currentCampusDate(), semesterEndDate: semester.endDate, events: eventRows, students: studentRows, sessions: sessionRows, penalties: penaltyRows, payments: paymentRows };
   }
 
@@ -35,7 +35,7 @@ export class DrizzleLedgerRepository implements LedgerRepository {
       .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })
       .from(payments)
       .innerJoin(penalties, eq(payments.penaltyId, penalties.id))
-      .where(eq(penalties.studentId, studentId))
+      .where(and(eq(penalties.studentId, studentId), isNull(payments.voidedAt)))
       .orderBy(desc(payments.paidAt));
   }
 }
