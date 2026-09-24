@@ -230,6 +230,20 @@ describe("AttendanceGrid & Sentinel Controls", () => {
     expect(markPaidMock).toHaveBeenCalledWith(["pen-1", "pen-2"], "ev-123");
   });
 
+  it("shows markPaid's rejection message inline instead of crashing to the error boundary", async () => {
+    markPaidMock.mockRejectedValueOnce(
+      new Error("Officers cannot record a payment for their own Penalty"),
+    );
+    renderGrid();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark paid" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm Cash Payment" }));
+
+    expect(
+      await screen.findByText("Officers cannot record a payment for their own Penalty"),
+    ).toBeInTheDocument();
+  });
+
   it("renders Paid badge for settled student and dash for 0 balance", () => {
     renderGrid();
 
