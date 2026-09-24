@@ -5,8 +5,6 @@ import { revalidatePath } from "next/cache";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { apiFetch } from "@/lib/api-client";
 
-export type { EventGridRow };
-
 // This Event's grid, called by the server shell for the first paint and by the
 // client cache's queryFn afterwards (ADR 0013). apiFetch forwards the browser
 // session's identity token; the API remains the authorization and data owner.
