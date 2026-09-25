@@ -21,9 +21,11 @@ export class DepartmentFundUseCase {
   async execute(): Promise<DepartmentFundSummary> {
     const allSemesters = await this.semesters.findAll();
 
-    // ponytail: one financial computation per Semester — fine for a council's
-    // handful of Semesters. If the Semester count ever grows large, swap this
-    // for a single cross-Semester SUM of un-voided Payments.
+    // ponytail: one financial computation per Semester, and listForFund scans
+    // every Expense (incl. voided) all-time — fine for a council's handful of
+    // Semesters and hand-entered Expenses. If either grows large, swap for a
+    // single cross-Semester SUM of un-voided Payments and a SUM of un-voided
+    // Expenses.
     const [semesterReports, expenses] = await Promise.all([
       Promise.all(
         allSemesters.map(async (semester) => {

@@ -5,7 +5,7 @@ import type { DepartmentFundSummary } from "@attendance/contracts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { financeSummary } from "./actions";
-import { financeSummaryQueryKey } from "./query-key";
+import { financeQueryKey } from "./query-key";
 
 // Plain peso with two decimals; a negative amount keeps its minus sign, never
 // accounting-style parentheses (issue #346: a negative balance is shown plainly).
@@ -33,7 +33,7 @@ export function FinanceView({ initialData }: Readonly<{ initialData: DepartmentF
   // Seed the cache from the server shell's read; the queryFn re-runs on revisits
   // and whenever the key is invalidated (ADR 0013).
   const { data } = useQuery({
-    queryKey: financeSummaryQueryKey,
+    queryKey: financeQueryKey,
     queryFn: financeSummary,
     initialData,
   });
