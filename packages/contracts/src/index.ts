@@ -3,6 +3,7 @@ export * from "./semester.ts";
 export * from "./event.ts";
 export * from "./enrollment-roster.ts";
 export * from "./program.ts";
+export * from "./expense-category.ts";
 export * from "./student.ts";
 export * from "./scan.ts";
 export * from "./attendance.ts";

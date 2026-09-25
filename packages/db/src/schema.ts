@@ -23,6 +23,16 @@ export const programs = pgTable("programs", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Governor-managed Expense Category vocabulary — see CONTEXT.md's Expense
+// Category entry (issue #345). Mirrors programs: seeded with defaults in the
+// migration; the future expenses table references this by name so a Category
+// still in use can't be removed.
+export const expenseCategories = pgTable("expense_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const students = pgTable("students", {
   id: uuid("id").primaryKey().defaultRandom(),
   // Identity-provider user id. Text, not uuid — Clerk ids are prefixed strings

@@ -101,6 +101,50 @@ export async function removeProgram(formData: FormData) {
   redirect("/admin");
 }
 
+export async function addExpenseCategory(formData: FormData) {
+  await requireGovernor();
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) fail("Expense Category name is required");
+
+  try {
+    await apiPost("expense-category/create", { name });
+  } catch (error) {
+    if (error instanceof ApiError) fail(error.message);
+    throw error;
+  }
+  redirect("/admin");
+}
+
+export async function renameExpenseCategory(formData: FormData) {
+  await requireGovernor();
+
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) fail("Expense Category name is required");
+
+  try {
+    await apiPost("expense-category/rename", { id, name });
+  } catch (error) {
+    if (error instanceof ApiError) fail(error.message);
+    throw error;
+  }
+  redirect("/admin");
+}
+
+export async function removeExpenseCategory(formData: FormData) {
+  await requireGovernor();
+
+  const id = String(formData.get("id") ?? "");
+  try {
+    await apiPost("expense-category/delete", { id });
+  } catch (error) {
+    if (error instanceof ApiError) fail(error.message);
+    throw error;
+  }
+  redirect("/admin");
+}
+
 export async function promoteToOfficer(formData: FormData) {
   await requireGovernor();
 

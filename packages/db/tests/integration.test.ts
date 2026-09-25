@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { createDb } from "../src/client";
-import { payments, programs, semesters, students } from "../src/schema";
+import { expenseCategories, payments, programs, semesters, students } from "../src/schema";
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) throw new Error("TEST_DATABASE_URL is required");
@@ -29,6 +29,13 @@ describe("disposable Postgres", () => {
     expect(
       await db.query.programs.findFirst({ where: eq(programs.name, name) }),
     ).toBeUndefined();
+  });
+
+  it("seeds the default Expense Categories at migration time (issue #345)", async () => {
+    const names = (await db.select({ name: expenseCategories.name }).from(expenseCategories)).map(
+      (row) => row.name,
+    );
+    expect(names).toEqual(expect.arrayContaining(["Supplies", "Food", "Honoraria", "Transportation"]));
   });
 
   it("enforces schema constraints through Drizzle", async () => {
