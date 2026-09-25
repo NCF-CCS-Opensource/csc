@@ -10,6 +10,7 @@ import { ScanModule } from "./modules/scan/scan.module";
 import { AttendanceModule } from "./modules/attendance/attendance.module";
 import { LedgerModule } from "./modules/ledger/ledger.module";
 import { ReportModule } from "./modules/report/report.module";
+import { FinanceModule } from "./modules/finance/finance.module";
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ReportModule } from "./modules/report/report.module";
     AttendanceModule,
     LedgerModule,
     ReportModule,
+    FinanceModule,
   ],
 })
 export class AppModule {}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type {
+  ExpenseCategoryListDetailedResponse,
   ProgramListDetailedResponse,
   SemesterListResponse,
   StudentListResponse,
@@ -26,13 +27,16 @@ import { requireGovernor } from "@/lib/auth";
 import { apiPost } from "@/lib/api-client";
 import { AdminCacheSync } from "./admin-cache-sync";
 import {
+  addExpenseCategory,
   addProgram,
   closeSemester,
   createSemester,
   deleteSemester,
   editSemester,
   promoteToOfficer,
+  removeExpenseCategory,
   removeProgram,
+  renameExpenseCategory,
 } from "./actions";
 
 export default async function AdminPage({
@@ -43,12 +47,17 @@ export default async function AdminPage({
   await requireGovernor();
   const { error, q } = await searchParams;
 
-  const [{ semesters: allSemesters }, { programs: allPrograms }, { students: allStudents }] =
-    await Promise.all([
-      apiPost<SemesterListResponse>("semester/list"),
-      apiPost<ProgramListDetailedResponse>("program/list-detailed"),
-      apiPost<StudentListResponse>("student/list"),
-    ]);
+  const [
+    { semesters: allSemesters },
+    { programs: allPrograms },
+    { students: allStudents },
+    { categories: allCategories = [] },
+  ] = await Promise.all([
+    apiPost<SemesterListResponse>("semester/list"),
+    apiPost<ProgramListDetailedResponse>("program/list-detailed"),
+    apiPost<StudentListResponse>("student/list"),
+    apiPost<ExpenseCategoryListDetailedResponse>("expense-category/list-detailed"),
+  ]);
 
   const needle = q?.toLowerCase() ?? "";
   const searchResults: StudentSummary[] = q
@@ -78,7 +87,7 @@ export default async function AdminPage({
             governor admin
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Semester lifecycle management, program roster controls, and executive officer appointments.
+            Semester lifecycle management, program and expense-category controls, and executive officer appointments.
           </p>
         </div>
         <Button asChild variant="outline" size="sm" className="shadow-[var(--shadow-sm)]">
@@ -361,7 +370,103 @@ export default async function AdminPage({
           </form>
         </BentoCell>
 
-        {/* Cell 3: Officer Roster */}
+        {/* Cell 3: Expense Categories */}
+        <BentoCell
+          colSpan={2}
+          elevation="standard"
+          overline="EXPENSE CATEGORIES"
+          title="expense category vocabulary"
+          description="Governor-managed labels every recorded department Expense is classified by."
+          data-testid="expense-categories-cell"
+          className="flex flex-col justify-between gap-4"
+        >
+          <div className="rounded-[10px] border-2 border-border overflow-hidden bg-card shadow-[var(--shadow-sm)]">
+            <Table>
+              <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
+                    Category Name
+                  </TableHead>
+                  <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allCategories.map((category) => (
+                  <TableRow
+                    key={category.id}
+                    className="border-b border-border/20 hover:bg-[var(--bg-page)]/40 transition-colors"
+                  >
+                    <TableCell className="py-3">
+                      <form
+                        id={`rename-expense-category-${category.id}`}
+                        action={renameExpenseCategory}
+                        className="flex items-center gap-2"
+                      >
+                        <input type="hidden" name="id" value={category.id} />
+                        <Input
+                          name="name"
+                          defaultValue={category.name}
+                          required
+                          aria-label={`Rename ${category.name}`}
+                          className="flex-1 text-xs border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)]"
+                        />
+                        <ConfirmSubmitButton
+                          formId={`rename-expense-category-${category.id}`}
+                          title={`Rename ${category.name}?`}
+                          description="Every Expense already classified under this Category follows the new name, since Expenses reference it by name."
+                          confirmLabel="Rename"
+                          triggerLabel="Rename"
+                          triggerVariant="ghost"
+                          triggerClassName="font-bold"
+                        />
+                      </form>
+                    </TableCell>
+                    <TableCell className="text-right py-3">
+                      <form
+                        id={`remove-expense-category-${category.id}`}
+                        action={removeExpenseCategory}
+                      >
+                        <input type="hidden" name="id" value={category.id} />
+                      </form>
+                      <ConfirmSubmitButton
+                        formId={`remove-expense-category-${category.id}`}
+                        title={`Remove ${category.name}?`}
+                        description="This only succeeds if no Expense is recorded under it, so historical spending never loses its classification."
+                        confirmLabel="Remove"
+                        triggerLabel="Remove"
+                        triggerClassName="text-destructive"
+                        actionVariant="destructive"
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <form id="add-expense-category-form" action={addExpenseCategory} className="flex gap-2">
+            <Input
+              name="name"
+              placeholder="Category name"
+              required
+              aria-label="New expense category name"
+              className="flex-1 border-2 border-border rounded-[8px] bg-card focus-visible:ring-2 focus-visible:ring-[var(--color-coral)] focus-visible:border-[var(--color-coral)] shadow-[var(--shadow-sm)]"
+            />
+            <ConfirmSubmitButton
+              formId="add-expense-category-form"
+              title="Add this Expense Category?"
+              description="Makes it selectable when Officers record an Expense right away."
+              confirmLabel="Add Category"
+              triggerLabel="Add Category"
+              triggerVariant="default"
+              triggerSize="default"
+              triggerClassName="font-bold"
+            />
+          </form>
+        </BentoCell>
+
+        {/* Cell 4: Officer Roster */}
         <BentoCell
           colSpan={2}
           elevation="standard"
