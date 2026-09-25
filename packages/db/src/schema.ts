@@ -25,8 +25,12 @@ export const programs = pgTable("programs", {
 
 // Governor-managed Expense Category vocabulary — see CONTEXT.md's Expense
 // Category entry (issue #345). Mirrors programs: seeded with defaults in the
-// migration; the future expenses table references this by name so a Category
-// still in use can't be removed.
+// migration. The future expenses table (#346) references this by name; that
+// FK must be ON UPDATE CASCADE ON DELETE RESTRICT, so a rename propagates to
+// existing Expenses (they never lose their classification, matching the admin
+// rename copy) while a Category still in use can't be removed. Without the
+// cascade, renaming an in-use Category would raise 23503 the rename path does
+// not map.
 export const expenseCategories = pgTable("expense_categories", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull().unique(),
