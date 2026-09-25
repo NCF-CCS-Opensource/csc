@@ -9,6 +9,7 @@ import {
   LogOut,
   ShieldCheck,
   Users,
+  Wallet,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FloatingNavbar, type NavLink } from "@/components/floating-navbar";
@@ -29,6 +30,7 @@ const NAV_ITEMS: Record<AppDestination, NavLink> = {
     icon: ClipboardCheck,
   },
   "/clearance": { href: "/clearance", label: "Clearance", icon: ShieldCheck },
+  "/finance": { href: "/finance", label: "Finance", icon: Wallet },
   "/admin": { href: "/admin", label: "Administration", icon: ShieldCheck },
   "/students": { href: "/students", label: "Students", icon: Users },
   "/analytics": { href: "/analytics", label: "Reports", icon: FileText },

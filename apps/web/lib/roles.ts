@@ -9,6 +9,7 @@ export type AppDestination =
   | "/events"
   | "/my-attendance"
   | "/clearance"
+  | "/finance"
   | "/admin"
   | "/students"
   | "/analytics";
@@ -29,6 +30,7 @@ const DESTINATIONS: readonly [AppDestination, Capability][] = [
   ["/events", "manage_operations"],
   ["/my-attendance", "view_own_attendance"],
   ["/clearance", "manage_operations"],
+  ["/finance", "manage_operations"],
   ["/admin", "administer"],
   ["/students", "manage_operations"],
   ["/analytics", "manage_operations"],
