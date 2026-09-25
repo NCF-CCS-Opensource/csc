@@ -76,6 +76,10 @@ _Avoid_: Fine, fee
 A record of a Student settling a Penalty, logged as a transaction (amount, date, receiving Officer) for financial reporting. Recorded by an Officer.
 _Avoid_: Settlement
 
+**SAF Fee**:
+A per-Semester ₱500 Student Assistance Fund charge every liable Student owes once, mid-Semester registrants included. It is paid in full (not partially) through a Payment, and an unpaid SAF Fee counts toward a Student's outstanding balance and blocks Clearance, exactly like an unpaid Penalty. The Governor sets the amount per Semester and may edit it until the first SAF Fee Payment is recorded. A Semester closed before SAF tracking began carries no SAF Fee at all — an empty amount means "before tracking," not "free" (ADR 0024).
+_Avoid_: SAF, student fund, membership fee
+
 **Ledger**:
 A Student's computed penalty standing for one Semester: total charged, outstanding balance, and the per-Attendance-Session breakdown — including full no-shows that have no stored session row yet. Not a stored table; derived on read from Events, Attendance Sessions, Penalties, and Payments. The single read model behind the dashboard, Clearance, and Analytics, so every surface counts no-shows the same way. No-show Penalty rows are materialized (written) only when an Officer opens an Event's attendance table to record Payment.
 _Avoid_: Balance, statement, summary
@@ -83,6 +87,18 @@ _Avoid_: Balance, statement, summary
 **Clearance**:
 The end-of-semester gate requiring a Student's unpaid Penalty balance to be zero before an Officer signs their physical clearance paper. The system reports readiness only; it does not store a digital signing record.
 _Avoid_: Sign-off
+
+**Department Fund**:
+The council's single running cash balance: total collected SAF Fee Payments plus total collected Penalty Payments, minus total Expenses, across all time. Unlike Events, Penalties, and Ledgers, it is **not** scoped to a Semester and never resets — leftover cash carries forward as one continuous pot (ADR 0025). It counts money actually collected (un-voided Payments), never money merely charged; outstanding SAF and Penalties are receivables reported separately, not part of the balance. There is no stored opening balance — the balance is always exactly collected minus spent. A per-Semester spending breakdown still exists, since each Expense carries the Semester it was recorded in, but the headline balance is continuous.
+_Avoid_: Budget, treasury, balance, wallet
+
+**Expense**:
+A peso amount of department money spent, recorded by an Officer against the open Semester, carrying a description, an Officer-picked date it was incurred, and one Expense Category. It reduces the Department Fund. Like a Payment it is insert-only and may be voided but never edited or deleted: a voided Expense stops reducing the Fund yet stays visible for audit with who voided it and when. Recordable only while a Semester is open.
+_Avoid_: Spending, cost, disbursement, purchase
+
+**Expense Category**:
+A Governor-managed label classifying an Expense (e.g. supplies, food, honoraria, transportation). Every Expense has exactly one. The Governor creates, renames, and removes Categories; a Category still referenced by an Expense cannot be removed, so historical Expenses never lose their classification.
+_Avoid_: Type, tag, kind
 
 **Program**:
 One of a fixed set of courses a Student selects at registration: Computer Science, Information Technology, Information System, ACT (Associate in Computer Technology). Governor-managed list.
