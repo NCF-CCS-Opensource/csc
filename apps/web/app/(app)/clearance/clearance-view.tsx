@@ -40,7 +40,7 @@ function SafCell({ item, semesterId }: { item: ClearanceItem; semesterId: string
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {saf.paid ? (
           <Badge variant="present" className="shadow-[var(--shadow-sm)]">Paid</Badge>
         ) : (
@@ -108,7 +108,7 @@ export function ClearanceView({
   const pagination = usePagination(filteredResults);
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8 bg-[var(--bg-page)] min-h-[calc(100vh-3rem)]">
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8 bg-[var(--bg-page)] min-h-[calc(100vh-3rem)]">
       {/* Editorial Header */}
       <header className="flex flex-col gap-2">
         <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#888888]">
@@ -171,20 +171,20 @@ export function ClearanceView({
               <Table>
                 <TableHeader className="bg-[var(--bg-page)] border-b-2 border-border">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
+                    <TableHead className="whitespace-normal text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Student
                     </TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
+                    <TableHead className="whitespace-normal text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       Student ID
                     </TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
-                      Outstanding Balance
+                    <TableHead className="whitespace-normal text-xs font-bold uppercase tracking-[0.08em] text-foreground">
+                      Balance
                     </TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-[0.08em] text-foreground">
+                    <TableHead className="whitespace-normal text-xs font-bold uppercase tracking-[0.08em] text-foreground">
                       SAF Fee
                     </TableHead>
-                    <TableHead className="text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
-                      Clearance Standing
+                    <TableHead className="whitespace-normal text-right text-xs font-bold uppercase tracking-[0.08em] text-foreground">
+                      Standing
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -198,24 +198,24 @@ export function ClearanceView({
                         data-testid={`clearance-row-${student.id}`}
                         className="border-b border-border/20 hover:bg-[var(--bg-page)]/40 transition-colors"
                       >
-                        <TableCell className="font-medium text-foreground py-3">
+                        <TableCell className="whitespace-normal font-medium text-foreground py-3">
                           <div className="font-bold">{student.name}</div>
-                          <div className="text-xs text-muted-foreground font-mono">
+                          <div className="text-xs text-muted-foreground font-mono break-all">
                             {student.email}
                           </div>
                         </TableCell>
-                        <TableCell className="py-3">
+                        <TableCell className="whitespace-normal py-3">
                           <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-[6px] border border-border bg-[var(--bg-page)] text-foreground">
                             {student.studentId}
                           </span>
                         </TableCell>
-                        <TableCell className="font-bold text-foreground tabular-nums py-3">
+                        <TableCell className="whitespace-normal font-bold text-foreground tabular-nums py-3">
                           {outstanding === null ? "—" : `₱${outstanding.toFixed(2)}`}
                         </TableCell>
-                        <TableCell className="py-3" data-testid={`clearance-saf-${student.id}`}>
+                        <TableCell className="whitespace-normal py-3" data-testid={`clearance-saf-${student.id}`}>
                           <SafCell item={item} semesterId={ledgerSemester?.id ?? null} />
                         </TableCell>
-                        <TableCell className="text-right py-3">
+                        <TableCell className="whitespace-normal text-right py-3">
                           <Badge
                             variant={isCleared ? "cleared" : "absent"}
                             data-testid={`clearance-badge-${student.id}`}
