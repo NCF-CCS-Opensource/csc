@@ -4,6 +4,7 @@ export * from "./event.ts";
 export * from "./enrollment-roster.ts";
 export * from "./program.ts";
 export * from "./expense-category.ts";
+export * from "./expense.ts";
 export * from "./department-fund.ts";
 export * from "./student.ts";
 export * from "./scan.ts";
