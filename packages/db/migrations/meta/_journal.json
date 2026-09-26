@@ -99,6 +99,13 @@
       "when": 1790297354219,
       "tag": "0013_slim_killer_shrike",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790299086207,
+      "tag": "0014_young_scalphunter",
+      "breakpoints": true
     }
   ]
 }

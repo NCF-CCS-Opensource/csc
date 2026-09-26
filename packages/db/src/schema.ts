@@ -257,3 +257,41 @@ export const payments = pgTable(
     ),
   ],
 );
+
+// The Department Fund's money-out (issue #346), mirroring payments' insert-only
+// + void shape. An Expense is recorded by an Officer against a Semester, carries
+// a description, an Officer-picked date it was incurred, and exactly one Expense
+// Category — see CONTEXT.md's Expense entry. category references
+// expense_categories.name ON UPDATE CASCADE ON DELETE RESTRICT (the FK the #345
+// schema note anticipated): a Category rename propagates so historical Expenses
+// never lose their classification, while a Category still referenced can't be
+// removed. Insert-only except the one void update — voiding stamps voidedAt and
+// voidedBy and keeps the row for audit; a voided Expense stops reducing the Fund
+// but is never edited or deleted. amount is snapshotted like a Payment's. Starts
+// empty: the record/void UI is a later slice, this ticket needs the table only
+// so computeDepartmentFund sums real rows rather than a faked zero.
+export const expenses = pgTable(
+  "expenses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    semesterId: uuid("semester_id")
+      .notNull()
+      .references(() => semesters.id),
+    category: text("category")
+      .notNull()
+      .references(() => expenseCategories.name, { onUpdate: "cascade", onDelete: "restrict" }),
+    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+    description: text("description").notNull(),
+    incurredOn: date("incurred_on").notNull(),
+    officerId: uuid("officer_id")
+      .notNull()
+      .references(() => students.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: uuid("voided_by").references(() => students.id),
+  },
+  (table) => [
+    index("expenses_semester_id_idx").on(table.semesterId),
+    index("expenses_category_idx").on(table.category),
+  ],
+);
