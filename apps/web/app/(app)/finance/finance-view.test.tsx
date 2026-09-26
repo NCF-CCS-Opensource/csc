@@ -22,13 +22,26 @@ afterEach(() => {
   voidExpense.mockClear();
 });
 
-const summary: DepartmentFundSummary = { balance: 0, collectedSafFees: 0, collectedPenalties: 0, totalExpenses: 0 };
+// A zeroed Fund with the fields under test overridden — keeps each test to the
+// figures it asserts now that the summary carries breakdown + outstanding.
+function fund(overrides: Partial<DepartmentFundSummary> = {}): DepartmentFundSummary {
+  return {
+    balance: 0,
+    collectedSafFees: 0,
+    collectedPenalties: 0,
+    totalExpenses: 0,
+    semesterBreakdown: [],
+    outstanding: { safFees: 0, penalties: 0 },
+    ...overrides,
+  };
+}
 
 function renderView({
-  data = summary,
+  data = fund(),
   expenses = [] as ExpenseListItem[],
   categories = ["Supplies", "Events"] as string[],
 } = {}) {
+  // staleTime keeps the seeded initialData from triggering the mocked queryFn.
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   return render(
     <QueryClientProvider client={client}>
@@ -39,7 +52,7 @@ function renderView({
 
 describe("FinanceView", () => {
   it("renders the balance and the two money-in figures as pesos with two decimals", () => {
-    renderView({ data: { balance: 1349.5, collectedSafFees: 1500, collectedPenalties: 200, totalExpenses: 350.5 } });
+    renderView({ data: fund({ balance: 1349.5, collectedSafFees: 1500, collectedPenalties: 200, totalExpenses: 350.5 }) });
 
     expect(screen.getByTestId("fund-balance")).toHaveTextContent("₱1349.50");
     expect(screen.getByText("₱1500.00")).toBeInTheDocument();
@@ -48,7 +61,7 @@ describe("FinanceView", () => {
   });
 
   it("shows a negative balance plainly, in red", () => {
-    renderView({ data: { balance: -150, collectedSafFees: 100, collectedPenalties: 0, totalExpenses: 250 } });
+    renderView({ data: fund({ balance: -150, collectedSafFees: 100, collectedPenalties: 0, totalExpenses: 250 }) });
 
     const balance = screen.getByTestId("fund-balance");
     expect(balance).toHaveTextContent("-₱150.00");
@@ -58,6 +71,34 @@ describe("FinanceView", () => {
   it("renders an all-zero Fund without error", () => {
     renderView();
     expect(screen.getByTestId("fund-balance")).toHaveTextContent("₱0.00");
+  });
+
+  it("shows outstanding receivables as a separate line, split SAF vs Penalties", () => {
+    renderView({ data: fund({ outstanding: { safFees: 1000, penalties: 250 } }) });
+
+    const outstanding = screen.getByTestId("fund-outstanding");
+    expect(outstanding).toHaveTextContent("₱1250.00"); // combined total
+    expect(outstanding.parentElement).toHaveTextContent("SAF Fees ₱1000.00");
+    expect(outstanding.parentElement).toHaveTextContent("Penalties ₱250.00");
+  });
+
+  it("renders a per-Semester breakdown row per Semester with its collections and spend", () => {
+    renderView({
+      data: fund({
+        semesterBreakdown: [
+          { semesterId: "sem1", semesterName: "AY 2024 — 1st", collected: 600, spent: 50 },
+          { semesterId: "sem2", semesterName: "AY 2024 — 2nd", collected: 1300, spent: 70 },
+        ],
+      }),
+    });
+
+    const table = screen.getByTestId("fund-semester-breakdown");
+    expect(table).toHaveTextContent("AY 2024 — 1st");
+    expect(table).toHaveTextContent("₱600.00");
+    expect(table).toHaveTextContent("₱50.00");
+    expect(table).toHaveTextContent("AY 2024 — 2nd");
+    expect(table).toHaveTextContent("₱1300.00");
+    expect(table).toHaveTextContent("₱70.00");
   });
 
   it("submits a recorded Expense with the entered fields", async () => {

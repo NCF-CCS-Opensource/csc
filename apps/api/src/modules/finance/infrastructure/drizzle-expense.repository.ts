@@ -10,9 +10,9 @@ import type { ExpenseRepository } from "../domain/expense-repository";
 export class DrizzleExpenseRepository implements ExpenseRepository {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  async listForFund(): Promise<{ amount: string; voidedAt: Date | null }[]> {
+  async listForFund(): Promise<{ amount: string; voidedAt: Date | null; semesterId: string }[]> {
     return this.db
-      .select({ amount: expenses.amount, voidedAt: expenses.voidedAt })
+      .select({ amount: expenses.amount, voidedAt: expenses.voidedAt, semesterId: expenses.semesterId })
       .from(expenses);
   }
 

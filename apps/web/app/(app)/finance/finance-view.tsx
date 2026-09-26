@@ -329,6 +329,61 @@ export function FinanceView({
         <FigureCard label="Total Expenses" value={peso(data.totalExpenses)} />
       </div>
 
+      {/* Outstanding receivables — deliberately set apart from the balance cards
+          above and labelled expected-not-collected, so money owed is never read
+          as cash on hand (issue #348). */}
+      <Card className="border-2 border-dashed border-border rounded-[12px] bg-muted/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+            Outstanding — expected, not yet collected
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-1">
+          <p data-testid="fund-outstanding" className="font-heading text-2xl font-bold tabular-nums text-foreground">
+            {peso(data.outstanding.safFees + data.outstanding.penalties)}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            SAF Fees {peso(data.outstanding.safFees)} · Penalties {peso(data.outstanding.penalties)}. Receivables — NOT part of the running balance.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Per-Semester spending breakdown: each term's full collections beside the
+          Expenses tagged to it — a second lens, not expected to tie out to the
+          continuous balance (issue #348). */}
+      {data.semesterBreakdown.length > 0 && (
+        <Card className="border-2 border-border rounded-[12px] shadow-[var(--shadow-md)] bg-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+              Per-Semester breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <table className="w-full text-sm" data-testid="fund-semester-breakdown">
+              <thead>
+                <tr className="text-left text-muted-foreground">
+                  <th className="pb-2 font-semibold">Semester</th>
+                  <th className="pb-2 text-right font-semibold">Collected</th>
+                  <th className="pb-2 text-right font-semibold">Spent</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.semesterBreakdown.map((line) => (
+                  <tr key={line.semesterId} className="border-t border-border">
+                    <td className="py-2 text-foreground">{line.semesterName}</td>
+                    <td className="py-2 text-right tabular-nums text-foreground">{peso(line.collected)}</td>
+                    <td className="py-2 text-right tabular-nums text-foreground">{peso(line.spent)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="pt-3 text-sm text-muted-foreground">
+              A Semester&apos;s full collections, not the continuous balance — the two are not expected to match.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <RecordExpenseForm categories={categories} />
       <ExpenseList initialExpenses={initialExpenses} />
     </main>
