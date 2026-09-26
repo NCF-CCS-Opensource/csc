@@ -9,4 +9,21 @@ export interface DepartmentFundSummary {
   collectedSafFees: number;
   collectedPenalties: number;
   totalExpenses: number;
+  // Per-Semester spending breakdown (issue #348): each Semester's full
+  // collections beside the Expenses tagged to it, so an Officer can compare
+  // this term's outflow against previous terms. This is the second lens — a
+  // Semester's whole collections, not the continuous balance — so it is NOT
+  // expected to tie out to `balance`.
+  semesterBreakdown: DepartmentFundSemesterLine[];
+  // Still-expected receivables (issue #348): un-collected SAF and Penalty
+  // totals, reported separately and NEVER subtracted into `balance` — money
+  // owed is not cash on hand (CONTEXT.md Department Fund).
+  outstanding: { safFees: number; penalties: number };
+}
+
+export interface DepartmentFundSemesterLine {
+  semesterId: string;
+  semesterName: string;
+  collected: number; // collected SAF Fees + collected Penalties for the Semester
+  spent: number; // un-voided Expenses tagged to the Semester
 }

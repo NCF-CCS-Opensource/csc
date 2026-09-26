@@ -3,20 +3,34 @@ import type { FinancialReportData } from "@attendance/contracts";
 import { computeFinancialReport } from "../../report/domain/report";
 import { computeDepartmentFund } from "./department-fund";
 
-// A minimal FinancialReportData carrying only the two figures the Fund reads
-// (collected SAF + collected Penalties); the breakdown lists are irrelevant to
-// computeDepartmentFund, so they stay empty.
-function report(collectedPenalties: number, collectedSaf: number | null): FinancialReportData {
+// A minimal FinancialReportData carrying only the figures the Fund reads
+// (collected + outstanding SAF and Penalties, plus a Semester id/name for the
+// breakdown); the breakdown lists are irrelevant to computeDepartmentFund, so
+// they stay empty.
+function report(
+  collectedPenalties: number,
+  collectedSaf: number | null,
+  opts: { id?: string; name?: string; outstandingPenalties?: number; outstandingSaf?: number } = {},
+): FinancialReportData {
   return {
-    semester: { id: "sem", name: "S", startDate: "2024-01-01", endDate: "2024-05-31", closedAt: null },
+    semester: {
+      id: opts.id ?? "sem",
+      name: opts.name ?? "S",
+      startDate: "2024-01-01",
+      endDate: "2024-05-31",
+      closedAt: null,
+    },
     asOfTimestamp: "2024-03-20 10:00:00",
     overview: {
       totalPenaltiesCharged: 0,
       totalPaymentsCollected: collectedPenalties,
-      totalOutstandingBalance: 0,
+      totalOutstandingBalance: opts.outstandingPenalties ?? 0,
       collectionRate: 0,
     },
-    saf: collectedSaf === null ? null : { charged: 0, collected: collectedSaf, outstanding: 0 },
+    saf:
+      collectedSaf === null
+        ? null
+        : { charged: 0, collected: collectedSaf, outstanding: opts.outstandingSaf ?? 0 },
     programBreakdown: [],
     eventBreakdown: [],
     outstandingBalancesList: [],
@@ -29,8 +43,8 @@ describe("computeDepartmentFund", () => {
     const fund = computeDepartmentFund({
       semesterReports: [report(200, 1500)],
       expenses: [
-        { amount: "300.00", voidedAt: null },
-        { amount: "50.50", voidedAt: null },
+        { amount: "300.00", voidedAt: null, semesterId: "sem" },
+        { amount: "50.50", voidedAt: null, semesterId: "sem" },
       ],
     });
     expect(fund.collectedSafFees).toBe(1500);
@@ -68,8 +82,8 @@ describe("computeDepartmentFund", () => {
     const fund = computeDepartmentFund({
       semesterReports: [semesterReport],
       expenses: [
-        { amount: "100.00", voidedAt: null },
-        { amount: "999.00", voidedAt: new Date() }, // voided → ignored
+        { amount: "100.00", voidedAt: null, semesterId: "sem1" },
+        { amount: "999.00", voidedAt: new Date(), semesterId: "sem1" }, // voided → ignored
       ],
     });
 
@@ -85,7 +99,7 @@ describe("computeDepartmentFund", () => {
         report(100, 500), // Semester 1
         report(300, 1000), // Semester 2 — adds to, never replaces, Semester 1
       ],
-      expenses: [{ amount: "200.00", voidedAt: null }],
+      expenses: [{ amount: "200.00", voidedAt: null, semesterId: "sem" }],
     });
     expect(fund.collectedSafFees).toBe(1500); // 500 + 1000, carried forward
     expect(fund.collectedPenalties).toBe(400); // 100 + 300
@@ -104,14 +118,55 @@ describe("computeDepartmentFund", () => {
 
   it("is zero when there are no Semesters and no Expenses", () => {
     const fund = computeDepartmentFund({ semesterReports: [], expenses: [] });
-    expect(fund).toEqual({ balance: 0, collectedSafFees: 0, collectedPenalties: 0, totalExpenses: 0 });
+    expect(fund).toEqual({
+      balance: 0,
+      collectedSafFees: 0,
+      collectedPenalties: 0,
+      totalExpenses: 0,
+      semesterBreakdown: [],
+      outstanding: { safFees: 0, penalties: 0 },
+    });
   });
 
   it("goes negative when Expenses exceed money-in", () => {
     const fund = computeDepartmentFund({
       semesterReports: [report(0, 100)],
-      expenses: [{ amount: "250.00", voidedAt: null }],
+      expenses: [{ amount: "250.00", voidedAt: null, semesterId: "sem" }],
     });
     expect(fund.balance).toBe(-150);
+  });
+
+  it("attributes each Expense to its Semester in the breakdown, beside that Semester's full collections", () => {
+    const fund = computeDepartmentFund({
+      semesterReports: [
+        report(100, 500, { id: "sem1", name: "AY 2024 — 1st" }),
+        report(300, 1000, { id: "sem2", name: "AY 2024 — 2nd" }),
+      ],
+      expenses: [
+        { amount: "40.00", voidedAt: null, semesterId: "sem1" },
+        { amount: "10.00", voidedAt: null, semesterId: "sem1" },
+        { amount: "70.00", voidedAt: null, semesterId: "sem2" },
+        { amount: "999.00", voidedAt: new Date(), semesterId: "sem2" }, // voided → not attributed
+      ],
+    });
+
+    expect(fund.semesterBreakdown).toEqual([
+      { semesterId: "sem1", semesterName: "AY 2024 — 1st", collected: 600, spent: 50 }, // 500+100, 40+10
+      { semesterId: "sem2", semesterName: "AY 2024 — 2nd", collected: 1300, spent: 70 }, // 1000+300, voided excluded
+    ]);
+  });
+
+  it("reports outstanding SAF and Penalties separately, never subtracting them into the balance", () => {
+    const fund = computeDepartmentFund({
+      semesterReports: [
+        report(100, 500, { id: "sem1", outstandingPenalties: 25, outstandingSaf: 500 }),
+        report(0, 200, { id: "sem2", outstandingPenalties: 75, outstandingSaf: 0 }),
+      ],
+      expenses: [{ amount: "50.00", voidedAt: null, semesterId: "sem1" }],
+    });
+
+    expect(fund.outstanding).toEqual({ safFees: 500, penalties: 100 }); // 500+0, 25+75
+    // Balance stays collected − spent; outstanding never enters it.
+    expect(fund.balance).toBe(750); // (500+200) + (100+0) − 50
   });
 });
