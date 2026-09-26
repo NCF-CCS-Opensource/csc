@@ -1,4 +1,4 @@
-import type { ExpenseListItem } from "@attendance/contracts";
+import type { ExpenseListItem, RecordExpenseRequest } from "@attendance/contracts";
 
 // A repository interface, satisfied by infrastructure/. Hides Drizzle and the
 // expenses table shape from the use case, matching the seam used elsewhere
@@ -14,10 +14,7 @@ export interface ExpenseRepository {
   // Records against the open Semester in one transaction (open-Semester lookup
   // + insert), mirroring the Event create discipline; throws HttpException(409)
   // when no Semester is open, so spending is only recorded while one is (#347).
-  record(
-    input: { category: string; amount: string; description: string; incurredOn: string },
-    officerId: string,
-  ): Promise<void>;
+  record(input: RecordExpenseRequest, officerId: string): Promise<void>;
 
   // Stamps voidedAt/voidedBy and keeps the row; never edits or deletes. Throws
   // HttpException(404) for an unknown id, 409 when already voided.

@@ -2,7 +2,7 @@ import { HttpException, Inject, Injectable } from "@nestjs/common";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { expenses, semesters, students, type Database } from "@attendance/db";
-import type { ExpenseListItem } from "@attendance/contracts";
+import type { ExpenseListItem, RecordExpenseRequest } from "@attendance/contracts";
 import { DB } from "../../../shared/infrastructure/db.module";
 import type { ExpenseRepository } from "../domain/expense-repository";
 
@@ -16,10 +16,7 @@ export class DrizzleExpenseRepository implements ExpenseRepository {
       .from(expenses);
   }
 
-  async record(
-    input: { category: string; amount: string; description: string; incurredOn: string },
-    officerId: string,
-  ): Promise<void> {
+  async record(input: RecordExpenseRequest, officerId: string): Promise<void> {
     await this.db.transaction(async (transaction) => {
       // Lock the open Semester for the insert's lifetime, matching Event create:
       // a Semester can't close out from under a recording Officer mid-insert.

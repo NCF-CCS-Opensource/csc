@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import type { DepartmentFundSummary, ExpenseListItem } from "@attendance/contracts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,15 @@ import { expensesQueryKey, financeQueryKey } from "./query-key";
 function peso(amount: number): string {
   const sign = amount < 0 ? "-" : "";
   return `${sign}₱${Math.abs(amount).toFixed(2)}`;
+}
+
+// Recording or voiding an Expense moves the Fund and the list together, so
+// both caches refresh in the same round trip (ADR 0013).
+function refreshFinance(queryClient: QueryClient): Promise<unknown> {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: financeQueryKey }),
+    queryClient.invalidateQueries({ queryKey: expensesQueryKey }),
+  ]);
 }
 
 // Local calendar date (YYYY-MM-DD), not UTC — the council backdates in PH time,
@@ -72,10 +81,7 @@ function RecordExpenseForm({ categories }: Readonly<{ categories: string[] }>) {
       setAmount("");
       setDescription("");
       setIncurredOn(today());
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: financeQueryKey }),
-        queryClient.invalidateQueries({ queryKey: expensesQueryKey }),
-      ]);
+      await refreshFinance(queryClient);
     },
   });
 
@@ -185,10 +191,7 @@ function VoidButton({ expense }: Readonly<{ expense: ExpenseListItem }>) {
               return;
             }
             setError(null);
-            await Promise.all([
-              queryClient.invalidateQueries({ queryKey: financeQueryKey }),
-              queryClient.invalidateQueries({ queryKey: expensesQueryKey }),
-            ]);
+            await refreshFinance(queryClient);
           })
         }
       >
