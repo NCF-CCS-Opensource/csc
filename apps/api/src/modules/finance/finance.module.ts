@@ -18,7 +18,9 @@ import { ExpenseCategoryController } from "./presentation/expense-category.contr
 import { EXPENSE_REPOSITORY } from "./domain/expense-repository";
 import { DrizzleExpenseRepository } from "./infrastructure/drizzle-expense.repository";
 import { DepartmentFundUseCase } from "./application/department-fund.use-case";
+import { ExpenseUseCase } from "./application/expense.use-case";
 import { FinanceController } from "./presentation/finance.controller";
+import { ExpenseController } from "./presentation/expense.controller";
 import { REPORT_REPOSITORY } from "../report/domain/report-repository";
 import { DrizzleReportRepository } from "../report/infrastructure/drizzle-report.repository";
 import { SEMESTER_REPOSITORY } from "../semester/domain/semester-repository";
@@ -29,7 +31,7 @@ import { DrizzleSemesterRepository } from "../semester/infrastructure/drizzle-se
 // and the read-only Department Fund summary, which reuses the report module's
 // financial computation per Semester (REPORT_REPOSITORY) plus the Semester list.
 @Module({
-  controllers: [ExpenseCategoryController, FinanceController],
+  controllers: [ExpenseCategoryController, FinanceController, ExpenseController],
   providers: [
     { provide: TOKEN_VERIFIER, useClass: ClerkTokenVerifier },
     { provide: STUDENT_REPOSITORY, useClass: DrizzleStudentRepository },
@@ -43,6 +45,7 @@ import { DrizzleSemesterRepository } from "../semester/infrastructure/drizzle-se
     RenameExpenseCategoryUseCase,
     DeleteExpenseCategoryUseCase,
     DepartmentFundUseCase,
+    ExpenseUseCase,
     AuthGuard,
     CapabilityGuard,
   ],
