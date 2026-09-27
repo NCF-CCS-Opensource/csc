@@ -14,7 +14,7 @@
     "@attendance/contracts": "workspace:*",
     "@attendance/db": "workspace:*",
     "@clerk/backend": "^1.21.0",
-    "@nestjs/common": "^11.0.1",
+    "@nestjs/common": "^12.1.0",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/throttler": "^6.7.0",
