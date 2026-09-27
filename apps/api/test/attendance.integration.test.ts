@@ -159,8 +159,10 @@ describe("Attendance, Penalty and Payment (e2e)", () => {
     await post("/attendance/payments", { penaltyIds: [penalty.id] }).expect(201);
     const payment = (await db.query.payments.findFirst())!;
     await post("/attendance/payments/void", { paymentId: payment.id }).expect(201);
-    await post("/attendance/payments/void", { paymentId: payment.id }).expect(409);
-    await post("/attendance/payments/void", { paymentId: "00000000-0000-0000-0000-000000000000" }).expect(404);
+    const alreadyVoided = await post("/attendance/payments/void", { paymentId: payment.id });
+    expect(alreadyVoided.status).toBe(409);
+    const unknown = await post("/attendance/payments/void", { paymentId: "00000000-0000-0000-0000-000000000000" });
+    expect(unknown.status).toBe(404);
   });
 
   it("refuses to let a Student void a Payment", async () => {

@@ -165,7 +165,7 @@ function ScanCell({
 }
 
 // Voids (never deletes) the row's Payments, so its Penalties are unpaid again.
-function UndoPayment({ row, eventId }: { row: EventGridRow; eventId: string }) {
+function UndoPayment({ row, eventId }: Readonly<{ row: EventGridRow; eventId: string }>) {
   const queryClient = useQueryClient();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);

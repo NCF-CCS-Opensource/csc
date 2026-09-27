@@ -139,10 +139,11 @@ describe("Expense Categories (e2e)", () => {
 
   it("returns 404 renaming a Category that does not exist", async () => {
     await actAs("governor");
-    await post("/expense-category/rename", {
+    const res = await post("/expense-category/rename", {
       id: "00000000-0000-0000-0000-000000000000",
       name: "Nope",
-    }).expect(404);
+    });
+    expect(res.status).toBe(404);
   });
 
   it("refuses removing a Category an Expense references, leaving it in place (409)", async () => {
@@ -177,6 +178,7 @@ describe("Expense Categories (e2e)", () => {
 
   it("refuses a Student listing Categories with 403 (manage_operations required)", async () => {
     await actAs("student");
-    await post("/expense-category/list").expect(403);
+    const res = await post("/expense-category/list");
+    expect(res.status).toBe(403);
   });
 });

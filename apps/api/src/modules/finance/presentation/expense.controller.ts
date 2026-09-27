@@ -23,7 +23,7 @@ export class ExpenseController {
   @Post("record")
   @RequireCapability("manage_operations")
   async record(@CallerActor() actor: Actor, @Body() body: RecordExpenseRequest) {
-    const amount = typeof body?.amount === "string" ? Number(body.amount) : NaN;
+    const amount = typeof body?.amount === "string" ? Number(body.amount) : Number.NaN;
     if (!Number.isFinite(amount) || amount <= 0) throw new HttpException("Invalid amount", 400);
     if (typeof body.description !== "string" || !body.description.trim()) {
       throw new HttpException("Invalid description", 400);

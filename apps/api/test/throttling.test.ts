@@ -54,7 +54,8 @@ describe("Rate limiting (M-3)", () => {
       for (let i = 0; i < 10; i++) {
         await call().expect(201);
       }
-      await call().expect(429);
+      const throttled = await call();
+      expect(throttled.status).toBe(429);
     });
   });
 
@@ -85,7 +86,8 @@ describe("Rate limiting (M-3)", () => {
       for (let i = 0; i < 5; i++) {
         await claimAs(server, "user_1").expect(500);
       }
-      await claimAs(server, "user_1").expect(429);
+      const throttled = await claimAs(server, "user_1");
+      expect(throttled.status).toBe(429);
     });
 
     it("tracks the limit per caller identity, not per IP (IdentityThrottlerGuard)", async () => {
@@ -96,7 +98,8 @@ describe("Rate limiting (M-3)", () => {
       await claimAs(server, "user_2").expect(429);
       // A different caller, same loopback IP as every request above, still
       // has a fresh budget — proves the key is identity, not IP.
-      await claimAs(server, "user_3").expect(500);
+      const freshCaller = await claimAs(server, "user_3");
+      expect(freshCaller.status).toBe(500);
     });
   });
 });

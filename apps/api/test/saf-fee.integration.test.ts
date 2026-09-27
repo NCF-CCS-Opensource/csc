@@ -119,7 +119,8 @@ describe("SAF Fee Payments (e2e)", () => {
     const { semester, student } = await fixture();
     await pay("00000000-0000-0000-0000-000000000000", semester.id).expect(404);
     await pay(student.id, "00000000-0000-0000-0000-000000000000").expect(404);
-    await post("/attendance/payments/saf", { studentId: student.id }).expect(400);
+    const malformed = await post("/attendance/payments/saf", { studentId: student.id });
+    expect(malformed.status).toBe(400);
   });
 
   it("refuses an Officer paying their own SAF Fee (TM-2)", async () => {

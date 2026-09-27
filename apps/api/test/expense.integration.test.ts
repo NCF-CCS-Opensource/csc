@@ -117,8 +117,10 @@ describe("Expenses (e2e)", () => {
     await record().expect(201);
     const [row] = await db.select().from(expenses);
     await post("/expense/void", { expenseId: row.id }).expect(201);
-    await post("/expense/void", { expenseId: row.id }).expect(409);
-    await post("/expense/void", { expenseId: "00000000-0000-0000-0000-000000000000" }).expect(404);
+    const alreadyVoided = await post("/expense/void", { expenseId: row.id });
+    expect(alreadyVoided.status).toBe(409);
+    const unknown = await post("/expense/void", { expenseId: "00000000-0000-0000-0000-000000000000" });
+    expect(unknown.status).toBe(404);
   });
 
   it("rejects a malformed body and an unknown Category", async () => {

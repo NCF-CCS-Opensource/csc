@@ -20,7 +20,8 @@ export class DrizzleLedgerRepository implements LedgerRepository {
     ]);
     if (!semester || (studentId && !studentRows.length)) return null;
     const eventIds = eventRows.map((event) => event.id);
-    const sessionRows = !eventIds.length ? [] : await this.db.select({ id: attendanceSessions.id, eventId: attendanceSessions.eventId, studentId: attendanceSessions.studentId, half: attendanceSessions.half, timeIn: attendanceSessions.timeIn, timeOut: attendanceSessions.timeOut }).from(attendanceSessions).where(studentId ? and(eq(attendanceSessions.studentId, studentId), inArray(attendanceSessions.eventId, eventIds)) : inArray(attendanceSessions.eventId, eventIds));
+    const sessionWhere = studentId ? and(eq(attendanceSessions.studentId, studentId), inArray(attendanceSessions.eventId, eventIds)) : inArray(attendanceSessions.eventId, eventIds);
+    const sessionRows = !eventIds.length ? [] : await this.db.select({ id: attendanceSessions.id, eventId: attendanceSessions.eventId, studentId: attendanceSessions.studentId, half: attendanceSessions.half, timeIn: attendanceSessions.timeIn, timeOut: attendanceSessions.timeOut }).from(attendanceSessions).where(sessionWhere);
     const sessionIds = sessionRows.map((session) => session.id);
     const penaltyRows = sessionIds.length ? await this.db.select({ id: penalties.id, attendanceSessionId: penalties.attendanceSessionId, studentId: penalties.studentId, amount: penalties.amount }).from(penalties).where(inArray(penalties.attendanceSessionId, sessionIds)) : [];
     const penaltyIds = penaltyRows.map((penalty) => penalty.id);

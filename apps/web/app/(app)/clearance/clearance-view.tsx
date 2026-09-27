@@ -29,7 +29,7 @@ export interface ClearanceItem {
 
 // Mark paid / Undo for one Student's SAF Fee. The action revalidates the
 // page, so the row (and its Clearance badge) updates from the fresh Ledger.
-function SafCell({ item, semesterId }: { item: ClearanceItem; semesterId: string | null }) {
+function SafCell({ item, semesterId }: Readonly<{ item: ClearanceItem; semesterId: string | null }>) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const { student, saf } = item;
