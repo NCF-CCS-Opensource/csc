@@ -47,6 +47,7 @@ describe("role destinations", () => {
       "/events",
       "/my-attendance",
       "/clearance",
+      "/finance",
       "/students",
       "/analytics",
     ]);
@@ -55,6 +56,7 @@ describe("role destinations", () => {
       "/events",
       "/my-attendance",
       "/clearance",
+      "/finance",
       "/admin",
       "/students",
       "/analytics",

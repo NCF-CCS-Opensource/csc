@@ -26,10 +26,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type { EventGridCell } from "@attendance/contracts";
-import type { EventGridRow } from "./actions";
+import type { EventGridCell, EventGridRow } from "@attendance/contracts";
 import { useWebStore } from "@/lib/store";
-import { eventGrid, markPaid, setScanField } from "./actions";
+import { eventGrid, markPaid, setScanField, voidPayments } from "./actions";
 import { eventGridQueryKey } from "./query-key";
 
 // Auto-saves the instant a sentinel button is clicked; the server action re-syncs the
@@ -165,107 +164,183 @@ function ScanCell({
   );
 }
 
-function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
+// Voids (never deletes) the row's Payments, so its Penalties are unpaid again.
+function UndoPayment({ row, eventId }: Readonly<{ row: EventGridRow; eventId: string }>) {
   const queryClient = useQueryClient();
   const [pending, startTransition] = useTransition();
-
-  if (row.settled) return <Badge variant="present" className="shadow-[var(--shadow-sm)]">Paid</Badge>;
-  if (row.outstanding === 0) return <span className="text-muted-foreground font-medium">—</span>;
+  const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="flex items-center justify-end gap-2">
-      <span className="font-bold tabular-nums text-red-600">₱{row.outstanding}</span>
+    <>
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button
-            type="button"
-            size="sm"
-            disabled={pending}
-            className="shadow-[var(--shadow-sm)]"
-          >
-            Mark paid
+          <Button type="button" size="xs" variant="outline" disabled={pending}>
+            {pending ? "Undoing…" : "Undo"}
           </Button>
         </AlertDialogTrigger>
-        <AlertDialogContent className="border-2 border-border rounded-[12px] bg-card p-6 shadow-[var(--shadow-lg)]">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-heading text-lg font-bold text-foreground">
-              Cash Penalty Payment — {row.name}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-muted-foreground">
-              Settles every unpaid Penalty {row.name} ({row.studentIdText}) owes for this Event.
-              There&apos;s no &quot;unmark paid&quot; action — undoing this means editing the database directly.
+            <AlertDialogTitle>Undo {row.name}&apos;s Payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The Payment is voided and kept for audit, with you recorded as the voiding Officer.
+              Its Penalty becomes unpaid and can be paid again.
             </AlertDialogDescription>
           </AlertDialogHeader>
-
-          {/* Cash Penalty Payment Form */}
-          <div className="flex flex-col gap-3 py-2 text-left">
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor={`penalty-due-${row.studentId}`}
-                className="text-xs font-bold uppercase tracking-[0.08em] text-foreground"
-              >
-                Penalty Amount Due
-              </label>
-              <Input
-                id={`penalty-due-${row.studentId}`}
-                readOnly
-                defaultValue={`₱${row.outstanding}`}
-                className="rounded-[8px] border-2 border-border bg-muted/20 px-3 py-2 text-sm font-bold shadow-[var(--shadow-sm)] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor={`cash-tendered-${row.studentId}`}
-                className="text-xs font-bold uppercase tracking-[0.08em] text-foreground"
-              >
-                Cash Tendered (₱)
-              </label>
-              <Input
-                id={`cash-tendered-${row.studentId}`}
-                type="number"
-                defaultValue={row.outstanding}
-                placeholder="Amount received in cash"
-                className="rounded-[8px] border-2 border-border bg-card px-3 py-2 text-sm font-semibold shadow-[var(--shadow-sm)] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor={`receipt-notes-${row.studentId}`}
-                className="text-xs font-bold uppercase tracking-[0.08em] text-foreground"
-              >
-                Receipt Reference / Notes
-              </label>
-              <Input
-                id={`receipt-notes-${row.studentId}`}
-                placeholder="Optional OR number or notes"
-                className="rounded-[8px] border-2 border-border bg-card px-3 py-2 text-sm shadow-[var(--shadow-sm)] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
-              />
-            </div>
-          </div>
-
-          <AlertDialogFooter className="border-t-2 border-border bg-[var(--bg-page)] -mx-6 -mb-6 p-4 rounded-b-[10px]">
-            <AlertDialogCancel className="border-2 border-border shadow-[var(--shadow-sm)]">
-              Cancel
-            </AlertDialogCancel>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              variant="default"
-              disabled={pending}
+              variant="destructive"
               onClick={() =>
                 startTransition(async () => {
-                  await markPaid(row.unpaidPenaltyIds, eventId);
-                  await queryClient.invalidateQueries({
-                    queryKey: eventGridQueryKey(eventId),
-                  });
+                  try {
+                    await voidPayments(row.paidPaymentIds, eventId);
+                    await queryClient.invalidateQueries({ queryKey: eventGridQueryKey(eventId) });
+                    setError(null);
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Payment couldn't be voided.");
+                  }
                 })
               }
             >
-              {pending ? "Recording…" : "Confirm Cash Payment"}
+              Void Payment
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {error ? (
+        <output className="text-xs text-red-600 dark:text-red-400 font-bold text-right">{error}</output>
+      ) : null}
+    </>
+  );
+}
+
+function PaymentCell({ row, eventId }: { row: EventGridRow; eventId: string }) {
+  const queryClient = useQueryClient();
+  const [pending, startTransition] = useTransition();
+  // markPaid's rejections are business-rule messages from the API (e.g. an
+  // Officer can't pay off their own Penalty) — shown inline rather than left
+  // to throw, which would surface as the segment's generic "can't reach the
+  // system" error page regardless of the actual reason.
+  const [error, setError] = useState<string | null>(null);
+
+  const undo = row.paidPaymentIds.length > 0 && <UndoPayment row={row} eventId={eventId} />;
+  if (row.settled) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <Badge variant="present" className="shadow-[var(--shadow-sm)]">Paid</Badge>
+        {undo}
+      </div>
+    );
+  }
+  if (row.outstanding === 0) return <span className="text-muted-foreground font-medium">—</span>;
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      {undo}
+      <div className="flex items-center justify-end gap-2">
+        <span className="font-bold tabular-nums text-red-600">₱{row.outstanding}</span>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              disabled={pending}
+              className="shadow-[var(--shadow-sm)]"
+            >
+              Mark paid
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="border-2 border-border rounded-[12px] bg-card p-6 shadow-[var(--shadow-lg)]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-heading text-lg font-bold text-foreground">
+                Cash Penalty Payment — {row.name}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-xs text-muted-foreground">
+                Settles every unpaid Penalty {row.name} ({row.studentIdText}) owes for this Event.
+                A mistaken Payment can be undone afterwards with Undo.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            {/* Cash Penalty Payment Form */}
+            <div className="flex flex-col gap-3 py-2 text-left">
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor={`penalty-due-${row.studentId}`}
+                  className="text-xs font-bold uppercase tracking-[0.08em] text-foreground"
+                >
+                  Penalty Amount Due
+                </label>
+                <Input
+                  id={`penalty-due-${row.studentId}`}
+                  readOnly
+                  defaultValue={`₱${row.outstanding}`}
+                  className="rounded-[8px] border-2 border-border bg-muted/20 px-3 py-2 text-sm font-bold shadow-[var(--shadow-sm)] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor={`cash-tendered-${row.studentId}`}
+                  className="text-xs font-bold uppercase tracking-[0.08em] text-foreground"
+                >
+                  Cash Tendered (₱)
+                </label>
+                <Input
+                  id={`cash-tendered-${row.studentId}`}
+                  type="number"
+                  defaultValue={row.outstanding}
+                  placeholder="Amount received in cash"
+                  className="rounded-[8px] border-2 border-border bg-card px-3 py-2 text-sm font-semibold shadow-[var(--shadow-sm)] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor={`receipt-notes-${row.studentId}`}
+                  className="text-xs font-bold uppercase tracking-[0.08em] text-foreground"
+                >
+                  Receipt Reference / Notes
+                </label>
+                <Input
+                  id={`receipt-notes-${row.studentId}`}
+                  placeholder="Optional OR number or notes"
+                  className="rounded-[8px] border-2 border-border bg-card px-3 py-2 text-sm shadow-[var(--shadow-sm)] outline-none transition-all focus:border-[var(--color-coral)] focus:ring-2 focus:ring-[var(--color-coral)]"
+                />
+              </div>
+            </div>
+
+            <AlertDialogFooter className="border-t-2 border-border bg-[var(--bg-page)] -mx-6 -mb-6 p-4 rounded-b-[10px]">
+              <AlertDialogCancel className="border-2 border-border shadow-[var(--shadow-sm)]">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                variant="default"
+                disabled={pending}
+                onClick={() =>
+                  startTransition(async () => {
+                    try {
+                      await markPaid(row.unpaidPenaltyIds, eventId);
+                      await queryClient.invalidateQueries({
+                        queryKey: eventGridQueryKey(eventId),
+                      });
+                      setError(null);
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : "Payment couldn't be recorded.");
+                    }
+                  })
+                }
+              >
+                {pending ? "Recording…" : "Confirm Cash Payment"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+      {error ? (
+        <output className="text-xs text-red-600 dark:text-red-400 font-bold text-right">
+          {error}
+        </output>
+      ) : null}
     </div>
   );
 }

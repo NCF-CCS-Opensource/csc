@@ -44,11 +44,38 @@ export function watchForRedirectUrl(linking: LinkingLike) {
  * produces) and opaque ("attendkita:?query", what Clerk's redirect actually
  * sends — no "//" authority). A plain `startsWith(expectedPrefix)` only
  * matches the first shape, so a legitimate redirect in the second shape gets
- * silently rejected. Comparing parsed `protocol` handles both.
+ * silently rejected. Comparing parsed `protocol` handles both shapes, but
+ * `attendkita://` is a custom scheme, not an OS-verified App/Universal Link —
+ * any other app on the device can register the same scheme and race to
+ * deliver its own redirect. Checking only `protocol` would accept that,
+ * since a malicious sender can freely set host/pathname too. Requiring
+ * host and pathname to match the expected redirect (once normalized: an
+ * absent host/root pathname on either side counts as empty) closes that
+ * without breaking either legitimate shape, since expo-auth-session's
+ * generated `redirectUri` for this scheme carries no meaningful host/path
+ * of its own.
+ *
+ * This is a same-scheme-squatting mitigation, not the complete fix: a
+ * malicious app registering `attendkita://` can still send a URL with an
+ * empty host/path, which is indistinguishable from Clerk's real redirect at
+ * this layer (Clerk's own rotating-token nonce binding is what limits the
+ * damage from there — see L-2 in .security-hardening/01-vulnerability-scan.md).
+ * The complete fix is migrating to Android App Links / iOS Universal Links,
+ * which are OS-verified against a hosted assetlinks.json /
+ * apple-app-site-association and can't be squatted by another app declaring
+ * the same custom scheme; that needs a domain to host those files and is out
+ * of scope for this pass.
  */
 export function matchesRedirectScheme(url: string, redirectUri: string): boolean {
   try {
-    return new URL(url).protocol === new URL(redirectUri).protocol;
+    const actual = new URL(url);
+    const expected = new URL(redirectUri);
+    if (actual.protocol !== expected.protocol) return false;
+    const normalizedPath = (p: string) => (p === "/" ? "" : p);
+    return (
+      actual.host === expected.host &&
+      normalizedPath(actual.pathname) === normalizedPath(expected.pathname)
+    );
   } catch {
     return false;
   }

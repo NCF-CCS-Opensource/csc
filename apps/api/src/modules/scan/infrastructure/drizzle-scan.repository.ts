@@ -132,6 +132,14 @@ export class DrizzleScanRepository {
         return { outcome: "rejected" as const, error: rejection };
       }
 
+      // TM-2: no separation of duties on money — an Officer must not be able
+      // to approve a scan of their own QR, since that directly records their
+      // own Attendance Session and clears their own Penalty. (Reaching here
+      // means `type === "approve"`: the reject branch above already returned.)
+      if (student!.id === actorId) {
+        throw new ScanError("Officers cannot approve their own scan", 403);
+      }
+
       // Different decision UUIDs need the same lock too: this preserves the
       // first-vs-rescan response under simultaneous offline deliveries.
       const decisionLock = `${event.id}:${student!.id}:${mode}`;

@@ -93,6 +93,7 @@ describe("buildPerStudentReportPrompt", () => {
         outstandingBalance: 50,
       },
       clearanceStatus: "NOT CLEARED — Outstanding balance: ₱50.00",
+      saf: { amount: 500, paid: false },
       eventsBreakdown: [],
     };
 
@@ -100,6 +101,8 @@ describe("buildPerStudentReportPrompt", () => {
     expect(prompt).toContain("BSCS");
     expect(prompt).toContain("80.0%");
     expect(prompt).toContain("₱50.00");
+    // ADR 0011: the AI sees aggregate SAF totals only, never one Student's SAF line.
+    expect(prompt).not.toContain("SAF");
 
     expect(prompt).not.toContain("Alice Smith");
     expect(prompt).not.toContain("2024-0001");
@@ -161,6 +164,7 @@ describe("buildFinancialReportPrompt", () => {
         totalOutstandingBalance: 2500,
         collectionRate: 75,
       },
+      saf: { charged: 50000, collected: 30000, outstanding: 20000 },
       programBreakdown: [
         { program: "BSCS", totalPenalties: 5000, totalCollected: 4000, outstanding: 1000, collectionRate: 80 },
       ],
@@ -182,6 +186,9 @@ describe("buildFinancialReportPrompt", () => {
     expect(prompt).toContain("75.0%");
     expect(prompt).toContain("BSCS");
     expect(prompt).toContain("Assembly");
+    expect(prompt).toContain("- Charged: ₱50000.00");
+    expect(prompt).toContain("- Collected: ₱30000.00");
+    expect(prompt).toContain("- Outstanding: ₱20000.00");
     expect(prompt).not.toContain("Alice Smith");
     expect(prompt).not.toContain("2024-0001");
   });

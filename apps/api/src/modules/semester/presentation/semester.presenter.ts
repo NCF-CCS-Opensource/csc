@@ -7,5 +7,6 @@ export function presentSemester(semester: Semester): SemesterResponse {
     startDate: semester.startDate,
     endDate: semester.endDate,
     closedAt: semester.closedAt ? semester.closedAt.toISOString() : null,
+    safFeeAmount: semester.safFeeAmount,
   };
 }

@@ -16,12 +16,14 @@ export const boothQueryDefaults = {
   retry: 3,
 };
 
+export const queryCachePersisterKey = "attendance.queryCache.v1";
+
 const persister = createAsyncStoragePersister({
   storage: AsyncStorage,
-  key: "attendance.queryCache.v1",
+  key: queryCachePersisterKey,
 });
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   defaultOptions: { queries: boothQueryDefaults },
 });
 

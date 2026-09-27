@@ -41,13 +41,19 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix("v1/api");
 
-  // Request/response logging
+  // Request/response logging. Caller id is read after the handler runs
+  // (AuthGuard/TokenAuthGuard set request.actor/authUserId during it) so
+  // every 401/403/429 rejection is attributable, not just successes —
+  // otherwise this is the only durable record of who touched what
+  // (compliance finding: OWASP ASVS 7.1.3 / RA 10173 access logging).
   app.use((req: Request, res: Response, next: NextFunction) => {
     const logger = new Logger("HTTP");
     const start = Date.now();
     res.on("finish", () => {
       const duration = Date.now() - start;
-      logger.log(`${req.method} ${req.url} ${res.statusCode} ${duration}ms`);
+      const actor = (req as { actor?: { id?: string } }).actor;
+      const caller = actor?.id ?? (req as { authUserId?: string }).authUserId ?? "anon";
+      logger.log(`${req.method} ${req.url} ${res.statusCode} ${duration}ms caller=${caller}`);
     });
     res.on("error", (err: Error) => {
       const logger = new Logger("HTTPError");
@@ -56,7 +62,10 @@ async function bootstrap() {
     next();
   });
 
-  if (process.env.NODE_ENV !== "production") app.useGlobalFilters(new DevErrorLoggerFilter());
+  // Opt-in, not opt-out: only the explicit local-dev value gets the
+  // stack-trace-leaking filter, so an unset/staging/test NODE_ENV never
+  // does (L-9 — !== "production" would have let it through by accident).
+  if (process.env.NODE_ENV === "development") app.useGlobalFilters(new DevErrorLoggerFilter());
   const port = process.env.PORT ? Number(process.env.PORT) : 3001;
   const host = "0.0.0.0";
   await app.listen(port, host);

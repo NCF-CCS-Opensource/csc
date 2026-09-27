@@ -12,7 +12,7 @@ import {
   DMSans_800ExtraBold,
 } from "@expo-google-fonts/dm-sans";
 import { Calendar, Circle, Inbox, ScanLine, Settings as SettingsIcon, X, type LucideIcon } from "lucide-react-native";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -42,7 +42,7 @@ import { SettingsScreen } from "./screens/SettingsScreen";
 import { blockingScanCount, claimLegacyScans, queueSummary } from "./lib/scanQueue";
 import { unresolvedCount } from "./lib/pendingTab";
 import { flushQueue, stopQueueRetries } from "./lib/syncScans";
-import { BoothQueryProvider } from "./lib/queryClient";
+import { BoothQueryProvider, queryClient } from "./lib/queryClient";
 import { wireQueryLifecycle } from "./lib/queryLifecycle";
 import { ThemeProvider, useTheme } from "./lib/theme-context";
 import type { ThemeColors } from "./lib/theme";
@@ -213,6 +213,25 @@ function BoothApp() {
   // way out, so bound the wait on sign-in state and offer a retry.
   const [retryTick, setRetryTick] = useState(0);
   const [authTimedOut, setAuthTimedOut] = useState(false);
+
+  // L-1 (validation finding): endOfficerSession's cache-clear only covers an
+  // explicit Settings sign-out. Session expiry, dashboard revocation, and
+  // LoginScreen's own signOut() calls all end up here with a different (or
+  // no) identity without going through that function — clear whenever the
+  // resolved officer identity itself changes, so a shared booth device can
+  // never show one Officer's cached rejections under a different Officer
+  // no matter which path ended the previous session.
+  const previousOfficerIdRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const currentOfficerId = identity?.authUserId ?? null;
+    if (
+      previousOfficerIdRef.current !== undefined &&
+      previousOfficerIdRef.current !== currentOfficerId
+    ) {
+      queryClient.clear();
+    }
+    previousOfficerIdRef.current = currentOfficerId;
+  }, [identity]);
 
   const refreshQueue = useCallback(async (officerId: string) => {
     setPendingCount(await blockingScanCount(officerId));

@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
 });
 
 export function PerStudentPdfDocument({ data }: { data: PerStudentReportData }) {
-  const { student, semesterName, asOfTimestamp, standing, clearanceStatus, eventsBreakdown, aiNarrative } = data;
+  const { student, semesterName, asOfTimestamp, standing, clearanceStatus, saf, eventsBreakdown, aiNarrative } = data;
 
   return (
     <Document title={`Per-Student Report - ${student.name}`} author="CCS Attendance System">
@@ -201,6 +201,14 @@ export function PerStudentPdfDocument({ data }: { data: PerStudentReportData }) 
               <Text style={styles.label}>Payments Made:</Text>
               <Text style={styles.value}>₱{standing.totalPaymentsMade.toFixed(2)}</Text>
             </View>
+            {saf && (
+              <View style={styles.gridItem}>
+                <Text style={styles.label}>SAF Fee:</Text>
+                <Text style={[styles.value, { color: saf.paid ? "#15803d" : "#b91c1c" }]}>
+                  ₱{saf.amount.toFixed(2)} — {saf.paid ? "PAID" : "UNPAID"}
+                </Text>
+              </View>
+            )}
             <View style={styles.gridItem}>
               <Text style={styles.label}>Outstanding Balance:</Text>
               <Text style={[styles.value, { fontFamily: "Helvetica-Bold", color: standing.outstandingBalance > 0 ? "#b91c1c" : "#15803d" }]}>

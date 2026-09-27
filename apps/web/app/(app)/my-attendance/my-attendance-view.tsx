@@ -36,6 +36,37 @@ const ALL_STATUSES = "__all__";
 
 type AttendanceStatus = MyAttendanceSnapshot["ledger"]["sessions"][number]["status"];
 
+function clearanceConfigFor(hasOpenSemester: boolean, isCleared: boolean, outstanding: number) {
+  if (!hasOpenSemester) {
+    return {
+      variant: "outline" as const,
+      badgeText: "No open semester",
+      badgeIcon: null,
+      cardBg: "bg-muted/50",
+      description: "No open semester is currently accepting clearance submissions.",
+    };
+  }
+  if (isCleared) {
+    return {
+      variant: "cleared" as const,
+      badgeText: "Cleared & Ready",
+      badgeIcon: CheckCircle2,
+      cardBg: "bg-[var(--color-lavender)]/25",
+      description:
+        "All attendance requirements are satisfied and your penalty balance is zero. You are eligible for end-of-semester officer clearance sign-off.",
+    };
+  }
+  return {
+    variant: "absent" as const,
+    badgeText: "Action Required • Pending",
+    badgeIcon: AlertCircle,
+    cardBg: "bg-[var(--color-yellow)]/20",
+    description: `Please settle your outstanding balance of ₱${outstanding.toFixed(
+      2
+    )} with the council treasurer to unlock your official clearance sign-off.`,
+  };
+}
+
 export interface MyAttendanceViewProps {
   initialData: MyAttendanceSnapshot;
 }
@@ -72,32 +103,7 @@ export function MyAttendanceView({
   const isCleared = hasOpenSemester && outstanding === 0;
 
   // Consolidate clearance status configuration into a single declarative state
-  const clearanceConfig = !hasOpenSemester
-    ? {
-        variant: "outline" as const,
-        badgeText: "No open semester",
-        badgeIcon: null,
-        cardBg: "bg-muted/50",
-        description: "No open semester is currently accepting clearance submissions.",
-      }
-    : isCleared
-      ? {
-          variant: "cleared" as const,
-          badgeText: "Cleared & Ready",
-          badgeIcon: CheckCircle2,
-          cardBg: "bg-[var(--color-lavender)]/25",
-          description:
-            "All attendance requirements are satisfied and your penalty balance is zero. You are eligible for end-of-semester officer clearance sign-off.",
-        }
-      : {
-          variant: "absent" as const,
-          badgeText: "Action Required • Pending",
-          badgeIcon: AlertCircle,
-          cardBg: "bg-[var(--color-yellow)]/20",
-          description: `Please settle your outstanding balance of ₱${outstanding.toFixed(
-            2
-          )} with the council treasurer to unlock your official clearance sign-off.`,
-        };
+  const clearanceConfig = clearanceConfigFor(hasOpenSemester, isCleared, outstanding);
 
   const ClearanceIcon = clearanceConfig.badgeIcon;
 
@@ -151,13 +157,18 @@ export function MyAttendanceView({
                   ₱{outstanding.toFixed(2)}
                 </div>
                 <div className="text-xs text-muted-foreground font-medium sm:text-right">
-                  Total penalties accrued:{" "}
+                  {ledger.saf ? "Total charged" : "Total penalties accrued"}:{" "}
                   <span
                     data-testid="total-penalties-amount"
                     className="font-bold text-foreground tabular-nums"
                   >
                     ₱{totalPenalty.toFixed(2)}
                   </span>
+                  {ledger.saf ? (
+                    <div data-testid="saf-fee-line">
+                      incl. SAF Fee ₱{ledger.saf.amount.toFixed(2)} ({ledger.saf.paid ? "paid" : "unpaid"})
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ) : (

@@ -169,10 +169,13 @@ describe("computePerStudentReport", () => {
       sessions,
       penalties,
       payments,
+      safFeeAmount: null,
+      safFeePayments: [],
       asOfTimestamp: "2024-03-20 10:00:00",
     });
 
     expect(report.student).toEqual(student);
+    expect(report.saf).toBeNull();
     expect(report.standing.totalEvents).toBe(2);
     expect(report.standing.sessionsAttended).toBe(2);
     expect(report.standing.sessionsAbsent).toBe(1); // 1 half day missing
@@ -272,10 +275,13 @@ describe("computeFinancialReport", () => {
       penalties,
       payments,
       programs: ["BSCS", "BSIT"],
+      safFeeAmount: null,
+      safFeePayments: [],
       asOfTimestamp: "2024-03-20 10:00:00",
     });
 
     expect(report.semester).toEqual(semester);
+    expect(report.saf).toBeNull();
     expect(report.overview.totalPenaltiesCharged).toBe(50);
     expect(report.overview.totalPaymentsCollected).toBe(20);
     expect(report.overview.totalOutstandingBalance).toBe(30);
@@ -291,5 +297,58 @@ describe("computeFinancialReport", () => {
 
     expect(report.paymentLogSummary.totalTransactions).toBe(1);
     expect(report.paymentLogSummary.receivingOfficers).toContain("Officer Jane");
+  });
+});
+
+describe("SAF Fee in reports", () => {
+  const student = { id: "s1", name: "Alice Smith", studentId: "2024-0001", program: "BSCS" };
+  const perStudent = (safFeePayments: { amount: string; voidedAt?: Date | null }[]) =>
+    computePerStudentReport({
+      student,
+      semesterName: "2024-01-01 to 2024-05-31",
+      events: [],
+      sessions: [],
+      penalties: [{ id: "p1", attendanceSessionId: null, studentId: "s1", amount: "50.00" }],
+      payments: [{ id: "pay1", penaltyId: "p1", amount: "50.00" }],
+      safFeeAmount: "500.00",
+      safFeePayments,
+      asOfTimestamp: "2024-03-20 10:00:00",
+    });
+
+  it("per-Student: an unpaid SAF Fee is its own line and keeps the Student from clearing, like the Ledger", () => {
+    const report = perStudent([]);
+    expect(report.saf).toEqual({ amount: 500, paid: false });
+    expect(report.standing.totalPenaltiesCharged).toBe(50);
+    expect(report.standing.outstandingBalance).toBe(500);
+    expect(report.clearanceStatus).toBe("NOT CLEARED — Outstanding balance: ₱500.00");
+  });
+
+  it("per-Student: a voided SAF Fee Payment settles nothing; an un-voided one clears it", () => {
+    expect(perStudent([{ amount: "500.00", voidedAt: new Date() }]).saf).toEqual({ amount: 500, paid: false });
+    const paid = perStudent([{ amount: "500.00", voidedAt: new Date() }, { amount: "500.00", voidedAt: null }]);
+    expect(paid.saf).toEqual({ amount: 500, paid: true });
+    expect(paid.standing.outstandingBalance).toBe(0);
+    expect(paid.clearanceStatus).toBe("CLEARED");
+  });
+
+  it("financial: SAF charged, collected, and outstanding sit apart from Penalties, excluding voided Payments", () => {
+    const report = computeFinancialReport({
+      semester: { id: "sem1", name: "S", startDate: "2024-01-01", endDate: "2024-05-31", closedAt: null },
+      students: [student, { id: "s2", name: "Bob", studentId: "2024-0002", program: "BSIT" }, { id: "s3", name: "Cy", studentId: "2024-0003", program: "BSIT" }],
+      events: [],
+      sessions: [],
+      penalties: [],
+      payments: [],
+      programs: ["BSCS", "BSIT"],
+      safFeeAmount: "500.00",
+      safFeePayments: [
+        { studentId: "s1", amount: "500.00", voidedAt: null },
+        { studentId: "s2", amount: "500.00", voidedAt: new Date() },
+      ],
+      asOfTimestamp: "2024-03-20 10:00:00",
+    });
+    expect(report.saf).toEqual({ charged: 1500, collected: 500, outstanding: 1000 });
+    expect(report.overview.totalPenaltiesCharged).toBe(0);
+    expect(report.overview.totalPaymentsCollected).toBe(0);
   });
 });

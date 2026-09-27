@@ -97,6 +97,18 @@ describe("Scan Approval (e2e)", () => {
     expect(await db.query.penalties.findFirst()).toMatchObject({ studentId: student.id, amount: "50.00" });
   });
 
+  it("refuses an Officer approving a scan of their own QR (TM-2)", async () => {
+    const { event, officer } = await fixture();
+    await approve({
+      scanId: randomUUID(),
+      eventId: event.id,
+      mode: "time_in_am",
+      qrPayload: qr(officer),
+      scannedAt: "2026-07-15T08:00:00.000Z",
+    }).expect(403);
+    expect(await db.query.attendanceSessions.findFirst()).toBeUndefined();
+  });
+
   it("rolls back Scan and Attendance when Penalty persistence fails", async () => {
     const { event, student } = await fixture();
     await db.execute(sql`create function fail_penalty_insert() returns trigger language plpgsql as $$ begin raise exception 'forced penalty failure'; end; $$`);

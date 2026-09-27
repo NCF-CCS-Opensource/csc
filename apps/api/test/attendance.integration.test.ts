@@ -56,8 +56,8 @@ describe("Attendance, Penalty and Payment (e2e)", () => {
   beforeEach(async () => { verify.mockReset(); await clear(); });
   afterEach(clear);
 
-  async function fixture(role: "officer" | "student" = "officer", type: "half_day" | "whole_day" = "half_day") {
-    const [semester] = await db.insert(semesters).values({ startDate: "2026-01-01", endDate: "2026-12-31", closedAt: new Date() }).returning();
+  async function fixture(role: "officer" | "student" = "officer", type: "half_day" | "whole_day" = "half_day", closed = true) {
+    const [semester] = await db.insert(semesters).values({ startDate: "2026-01-01", endDate: "2026-12-31", closedAt: closed ? new Date() : null }).returning();
     const [event] = await db.insert(events).values({ name: "Foundation Day", semesterId: semester.id, date: "2026-07-15", type, halfDayPenaltyAmount: "50.00" }).returning();
     const [student, actor] = await db.insert(students).values([
       { email: "student@example.com", authUserId: "student", name: "Grace Hopper", program: "Computer Science", studentId: "24-001" },
@@ -106,6 +106,72 @@ describe("Attendance, Penalty and Payment (e2e)", () => {
     const penalty = await db.query.penalties.findFirst();
     await post("/attendance/payments", { penaltyIds: [penalty!.id] }).expect(201);
     expect(await db.query.payments.findFirst()).toBeDefined();
+  });
+
+  it("refuses an Officer correcting their own Attendance Session (TM-2)", async () => {
+    const { event, actor } = await fixture();
+    const [session] = await db.insert(attendanceSessions).values({ eventId: event.id, studentId: actor.id, half: "am" }).returning();
+    await post("/attendance/correct", { sessionId: session.id, field: "timeIn", present: true }).expect(403);
+    expect(await db.query.attendanceSessions.findFirst({ where: eq(attendanceSessions.id, session.id) })).toMatchObject({ timeIn: null });
+  });
+
+  it("refuses an Officer recording a payment against their own Penalty (TM-2)", async () => {
+    const { event, actor } = await fixture();
+    const [session] = await db.insert(attendanceSessions).values({ eventId: event.id, studentId: actor.id, half: "am" }).returning();
+    const [penalty] = await db.insert(penalties).values({ studentId: actor.id, attendanceSessionId: session.id, amount: "50.00" }).returning();
+    await post("/attendance/payments", { penaltyIds: [penalty.id] }).expect(403);
+    expect(await db.query.payments.findFirst()).toBeUndefined();
+  });
+
+  async function absentPenalty(eventId: string, studentId: string) {
+    const [session] = await db.insert(attendanceSessions).values({ eventId, studentId, half: "am" }).returning();
+    await post("/attendance/correct", { sessionId: session.id, field: "timeIn", present: false }).expect(201);
+    return (await db.query.penalties.findFirst())!;
+  }
+
+  async function gridRow(eventId: string, studentId: string) {
+    const { body } = await post("/attendance/grid", { eventId }).expect(201);
+    return body.rows.find((row: { studentId: string }) => row.studentId === studentId);
+  }
+
+  it.each([["open", false], ["closed", true]])("voids a Payment in a %s Semester, keeps it for audit, and lets the Penalty be paid again", async (_label, closed) => {
+    const { event, student, actor } = await fixture("officer", "half_day", closed);
+    const penalty = await absentPenalty(event.id, student.id);
+    await post("/attendance/payments", { penaltyIds: [penalty.id] }).expect(201);
+    const payment = (await db.query.payments.findFirst())!;
+    expect(await gridRow(event.id, student.id)).toMatchObject({ settled: true, unpaidPenaltyIds: [], paidPaymentIds: [payment.id] });
+
+    await post("/attendance/payments/void", { paymentId: payment.id }).expect(201);
+    expect(await db.query.payments.findFirst({ where: eq(payments.id, payment.id) })).toMatchObject({ voidedBy: actor.id, voidedAt: expect.any(Date) });
+    expect(await gridRow(event.id, student.id)).toMatchObject({ settled: false, outstanding: 50, unpaidPenaltyIds: [penalty.id], paidPaymentIds: [] });
+
+    await post("/attendance/payments", { penaltyIds: [penalty.id] }).expect(201);
+    await post("/attendance/payments", { penaltyIds: [penalty.id] }).expect(201);
+    const rows = await db.query.payments.findMany();
+    expect(rows).toHaveLength(2);
+    expect(rows.filter((row) => !row.voidedAt)).toHaveLength(1);
+    expect(await gridRow(event.id, student.id)).toMatchObject({ settled: true, unpaidPenaltyIds: [] });
+  });
+
+  it("rejects voiding an already-voided Payment with 409 and an unknown one with 404", async () => {
+    const { event, student } = await fixture();
+    const penalty = await absentPenalty(event.id, student.id);
+    await post("/attendance/payments", { penaltyIds: [penalty.id] }).expect(201);
+    const payment = (await db.query.payments.findFirst())!;
+    await post("/attendance/payments/void", { paymentId: payment.id }).expect(201);
+    const alreadyVoided = await post("/attendance/payments/void", { paymentId: payment.id });
+    expect(alreadyVoided.status).toBe(409);
+    const unknown = await post("/attendance/payments/void", { paymentId: "00000000-0000-0000-0000-000000000000" });
+    expect(unknown.status).toBe(404);
+  });
+
+  it("refuses to let a Student void a Payment", async () => {
+    const { event, student, actor } = await fixture("student");
+    const [session] = await db.insert(attendanceSessions).values({ eventId: event.id, studentId: student.id, half: "am" }).returning();
+    const [penalty] = await db.insert(penalties).values({ attendanceSessionId: session.id, studentId: student.id, amount: "50.00" }).returning();
+    const [payment] = await db.insert(payments).values({ penaltyId: penalty.id, amount: "50.00", officerId: actor.id }).returning();
+    await post("/attendance/payments/void", { paymentId: payment.id }).expect(403);
+    expect(await db.query.payments.findFirst()).toMatchObject({ voidedAt: null });
   });
 
   it("refuses a Student actor", async () => {

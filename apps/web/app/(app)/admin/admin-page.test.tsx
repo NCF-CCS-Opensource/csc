@@ -27,6 +27,7 @@ const mockSemesters = {
       startDate: "2026-08-01",
       endDate: "2026-12-15",
       closedAt: null,
+      safFeeAmount: "450.00",
     },
   ],
 };
@@ -35,6 +36,13 @@ const mockPrograms = {
   programs: [
     { id: "prog-1", name: "Computer Science" },
     { id: "prog-2", name: "Information Technology" },
+  ],
+};
+
+const mockCategories = {
+  categories: [
+    { id: "cat-1", name: "Supplies" },
+    { id: "cat-2", name: "Honoraria" },
   ],
 };
 
@@ -60,6 +68,7 @@ beforeEach(() => {
     if (endpoint === "semester/list") return Promise.resolve(mockSemesters);
     if (endpoint === "program/list-detailed") return Promise.resolve(mockPrograms);
     if (endpoint === "student/list") return Promise.resolve(mockStudents);
+    if (endpoint === "expense-category/list-detailed") return Promise.resolve(mockCategories);
     return Promise.resolve({});
   });
 });
@@ -121,6 +130,14 @@ describe("AdminPage Bento Grid & Lifecycle Management (Issue #206)", () => {
     expect(endDateInput).toBeInTheDocument();
   });
 
+  it("shows each Semester's SAF Fee and prefills a new Semester with ₱500", async () => {
+    const page = await AdminPage({ searchParams: Promise.resolve({}) });
+    renderAdmin(page);
+
+    expect(screen.getByDisplayValue("450.00")).toHaveAttribute("name", "safFeeAmount");
+    expect(screen.getByLabelText("SAF Fee (₱)")).toHaveValue(500);
+  });
+
   it("displays program rosters inside the Academic Rosters Bento card", async () => {
     const page = await AdminPage({ searchParams: Promise.resolve({}) });
     renderAdmin(page);
@@ -133,6 +150,20 @@ describe("AdminPage Bento Grid & Lifecycle Management (Issue #206)", () => {
 
     expect(screen.getByText("Computer Science")).toBeInTheDocument();
     expect(screen.getByText("Information Technology")).toBeInTheDocument();
+  });
+
+  it("displays expense categories with rename inputs inside the Expense Categories Bento card", async () => {
+    const page = await AdminPage({ searchParams: Promise.resolve({}) });
+    renderAdmin(page);
+
+    const cell = screen.getByTestId("expense-categories-cell");
+    expect(cell).toBeInTheDocument();
+    expect(cell).toHaveAttribute("data-slot", "bento-cell");
+
+    // Each Category is rendered as a pre-filled rename input (not plain text),
+    // so a Governor can edit it in place.
+    expect(screen.getByDisplayValue("Supplies")).toHaveAttribute("name", "name");
+    expect(screen.getByDisplayValue("Honoraria")).toHaveAttribute("name", "name");
   });
 
   it("displays officer promotion search in the Officer Roster Bento card", async () => {

@@ -38,7 +38,14 @@ export class SemesterController {
   @Post("create")
   @RequireCapability("administer")
   async create(@Body() body: CreateSemesterRequest): Promise<SemesterResponse> {
-    const semester = await runLifecycle(() => this.createSemester.execute(body));
+    // Picked field by field so a body can't smuggle closedAt/id into the insert.
+    const semester = await runLifecycle(() =>
+      this.createSemester.execute({
+        startDate: body.startDate,
+        endDate: body.endDate,
+        safFeeAmount: body.safFeeAmount,
+      }),
+    );
     return presentSemester(semester);
   }
 
@@ -49,6 +56,7 @@ export class SemesterController {
       this.updateSemesterDates.execute(body.id, {
         startDate: body.startDate,
         endDate: body.endDate,
+        safFeeAmount: body.safFeeAmount,
       }),
     );
     return presentSemester(semester);

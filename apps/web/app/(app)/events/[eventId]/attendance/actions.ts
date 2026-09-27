@@ -5,8 +5,6 @@ import { revalidatePath } from "next/cache";
 import { requireOfficerOrGovernor } from "@/lib/auth";
 import { apiFetch } from "@/lib/api-client";
 
-export type { EventGridRow };
-
 // This Event's grid, called by the server shell for the first paint and by the
 // client cache's queryFn afterwards (ADR 0013). apiFetch forwards the browser
 // session's identity token; the API remains the authorization and data owner.
@@ -39,9 +37,19 @@ export async function setScanField(
 }
 
 // Settle every unpaid Penalty a Student has for this Event in one click.
-// Insert-only, guarded by payments.penaltyId's unique constraint — a
-// double-submit conflicts to nothing rather than creating a second Payment.
+// Guarded by the one-un-voided-Payment-per-Penalty index — a double-submit
+// conflicts to nothing rather than creating a second Payment.
 export async function markPaid(penaltyIds: string[], eventId: string) {
   await apiFetch("/v1/api/attendance/payments", { penaltyIds });
+  revalidatePath(`/events/${eventId}/attendance`);
+}
+
+// Undo a Student's Payments for this Event. Each is voided, never deleted —
+// the API keeps the row with the voiding Officer and time, and its Penalty
+// becomes unpaid (and payable) again.
+export async function voidPayments(paymentIds: string[], eventId: string) {
+  for (const paymentId of paymentIds) {
+    await apiFetch("/v1/api/attendance/payments/void", { paymentId });
+  }
   revalidatePath(`/events/${eventId}/attendance`);
 }

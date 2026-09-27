@@ -1,4 +1,5 @@
 export interface RosterRow {
+  email: string | null;
   studentId: string;
   firstName: string;
   lastName: string;

@@ -1,0 +1,2 @@
+ALTER TABLE "attendance_sessions" ADD COLUMN "corrected_by" uuid;--> statement-breakpoint
+ALTER TABLE "attendance_sessions" ADD CONSTRAINT "attendance_sessions_corrected_by_students_id_fk" FOREIGN KEY ("corrected_by") REFERENCES "public"."students"("id") ON DELETE no action ON UPDATE no action;

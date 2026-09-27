@@ -10,14 +10,20 @@ function fail(message: string): never {
   redirect(`/admin?error=${encodeURIComponent(message)}`);
 }
 
+function field(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : "";
+}
+
 export async function createSemester(formData: FormData) {
   await requireGovernor();
 
-  const startDate = String(formData.get("startDate") ?? "");
-  const endDate = String(formData.get("endDate") ?? "");
+  const startDate = field(formData, "startDate");
+  const endDate = field(formData, "endDate");
+  const safFeeAmount = field(formData, "safFeeAmount");
 
   try {
-    await apiPost("semester/create", { startDate, endDate });
+    await apiPost("semester/create", { startDate, endDate, safFeeAmount });
   } catch (error) {
     if (error instanceof ApiError) fail(error.message);
     throw error;
@@ -29,12 +35,13 @@ export async function createSemester(formData: FormData) {
 export async function editSemester(formData: FormData) {
   await requireGovernor();
 
-  const id = String(formData.get("id") ?? "");
-  const startDate = String(formData.get("startDate") ?? "");
-  const endDate = String(formData.get("endDate") ?? "");
+  const id = field(formData, "id");
+  const startDate = field(formData, "startDate");
+  const endDate = field(formData, "endDate");
+  const safFeeAmount = field(formData, "safFeeAmount");
 
   try {
-    await apiPost("semester/update", { id, startDate, endDate });
+    await apiPost("semester/update", { id, startDate, endDate, safFeeAmount });
   } catch (error) {
     if (error instanceof ApiError) fail(error.message);
     throw error;
@@ -46,7 +53,7 @@ export async function editSemester(formData: FormData) {
 export async function closeSemester(formData: FormData) {
   await requireGovernor();
 
-  const id = String(formData.get("id") ?? "");
+  const id = field(formData, "id");
   try {
     await apiPost("semester/close", { id });
   } catch (error) {
@@ -60,7 +67,7 @@ export async function closeSemester(formData: FormData) {
 export async function deleteSemester(formData: FormData) {
   await requireGovernor();
 
-  const id = String(formData.get("id") ?? "");
+  const id = field(formData, "id");
   try {
     await apiPost("semester/delete", { id });
   } catch (error) {
@@ -74,7 +81,7 @@ export async function deleteSemester(formData: FormData) {
 export async function addProgram(formData: FormData) {
   await requireGovernor();
 
-  const name = String(formData.get("name") ?? "").trim();
+  const name = field(formData, "name").trim();
   if (!name) fail("Program name is required");
 
   try {
@@ -89,9 +96,53 @@ export async function addProgram(formData: FormData) {
 export async function removeProgram(formData: FormData) {
   await requireGovernor();
 
-  const id = String(formData.get("id") ?? "");
+  const id = field(formData, "id");
   try {
     await apiPost("program/delete", { id });
+  } catch (error) {
+    if (error instanceof ApiError) fail(error.message);
+    throw error;
+  }
+  redirect("/admin");
+}
+
+export async function addExpenseCategory(formData: FormData) {
+  await requireGovernor();
+
+  const name = field(formData, "name").trim();
+  if (!name) fail("Expense Category name is required");
+
+  try {
+    await apiPost("expense-category/create", { name });
+  } catch (error) {
+    if (error instanceof ApiError) fail(error.message);
+    throw error;
+  }
+  redirect("/admin");
+}
+
+export async function renameExpenseCategory(formData: FormData) {
+  await requireGovernor();
+
+  const id = field(formData, "id");
+  const name = field(formData, "name").trim();
+  if (!name) fail("Expense Category name is required");
+
+  try {
+    await apiPost("expense-category/rename", { id, name });
+  } catch (error) {
+    if (error instanceof ApiError) fail(error.message);
+    throw error;
+  }
+  redirect("/admin");
+}
+
+export async function removeExpenseCategory(formData: FormData) {
+  await requireGovernor();
+
+  const id = field(formData, "id");
+  try {
+    await apiPost("expense-category/delete", { id });
   } catch (error) {
     if (error instanceof ApiError) fail(error.message);
     throw error;
@@ -102,7 +153,7 @@ export async function removeProgram(formData: FormData) {
 export async function promoteToOfficer(formData: FormData) {
   await requireGovernor();
 
-  const id = String(formData.get("id") ?? "");
+  const id = field(formData, "id");
   try {
     await apiPost(`student/promote/${id}`);
   } catch (error) {

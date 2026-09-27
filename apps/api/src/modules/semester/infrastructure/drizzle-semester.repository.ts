@@ -1,9 +1,9 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, desc, eq, gt, lt, or } from "drizzle-orm";
-import { events, semesters, type Database } from "@attendance/db";
+import { and, desc, eq, gt, isNull, lt, or } from "drizzle-orm";
+import { events, payments, semesters, type Database } from "@attendance/db";
 import { DB } from "../../../shared/infrastructure/db.module";
 import type { SemesterRepository } from "../domain/semester-repository";
-import { SemesterLifecycleError, type DateRange } from "../domain/semester-lifecycle";
+import { SemesterLifecycleError, type SemesterInput } from "../domain/semester-lifecycle";
 import type { Semester } from "../domain/semester";
 
 @Injectable()
@@ -30,9 +30,9 @@ export class DrizzleSemesterRepository implements SemesterRepository {
     });
   }
 
-  async create(dates: DateRange): Promise<Semester> {
+  async create(input: SemesterInput): Promise<Semester> {
     try {
-      const [created] = await this.db.insert(semesters).values(dates).returning();
+      const [created] = await this.db.insert(semesters).values(input).returning();
       return created;
     } catch (error) {
       if ((error as { code?: string }).code === "23505") {
@@ -45,7 +45,7 @@ export class DrizzleSemesterRepository implements SemesterRepository {
     }
   }
 
-  async updateDates(id: string, dates: DateRange): Promise<Semester> {
+  async updateDates(id: string, input: SemesterInput): Promise<Semester> {
     return this.db.transaction(async (transaction) => {
       const [semester] = await transaction
         .select()
@@ -58,7 +58,7 @@ export class DrizzleSemesterRepository implements SemesterRepository {
       const excludedEvent = await transaction.query.events.findFirst({
         where: and(
           eq(events.semesterId, id),
-          or(lt(events.date, dates.startDate), gt(events.date, dates.endDate)),
+          or(lt(events.date, input.startDate), gt(events.date, input.endDate)),
         ),
       });
       if (excludedEvent) {
@@ -68,9 +68,23 @@ export class DrizzleSemesterRepository implements SemesterRepository {
         );
       }
 
+      // A recorded SAF Fee Payment snapshotted the amount; changing it now
+      // would split Students across two prices. Voided Payments don't count.
+      if (Number(input.safFeeAmount) !== Number(semester.safFeeAmount)) {
+        const safFeePayment = await transaction.query.payments.findFirst({
+          where: and(eq(payments.semesterId, id), isNull(payments.voidedAt)),
+        });
+        if (safFeePayment) {
+          throw new SemesterLifecycleError(
+            "The SAF Fee amount can't change once a SAF Fee Payment is recorded",
+            409,
+          );
+        }
+      }
+
       const [updated] = await transaction
         .update(semesters)
-        .set(dates)
+        .set(input)
         .where(eq(semesters.id, id))
         .returning();
       return updated;

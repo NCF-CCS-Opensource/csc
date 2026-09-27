@@ -14,6 +14,8 @@ export interface EventGridRow {
   cells: EventGridCell[];
   outstanding: number;
   unpaidPenaltyIds: string[];
+  // Un-voided Payments for this Event's Penalties; Undo voids these.
+  paidPaymentIds: string[];
   settled: boolean;
 }
 
@@ -30,4 +32,14 @@ export interface CorrectAttendanceRequest {
 
 export interface RecordPaymentsRequest {
   penaltyIds: string[];
+}
+
+// One Student's SAF Fee for one Semester, paid in full at the Semester's amount.
+export interface RecordSafFeePaymentRequest {
+  studentId: string;
+  semesterId: string;
+}
+
+export interface VoidPaymentRequest {
+  paymentId: string;
 }

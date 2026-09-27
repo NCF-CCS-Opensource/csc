@@ -48,12 +48,23 @@ describe("matchesRedirectScheme", () => {
     expect(matchesRedirectScheme(redirectedUrl, "attendkita://")).toBe(true);
   });
 
-  it("matches the hierarchical form too", () => {
-    expect(matchesRedirectScheme("attendkita://sso-callback?x=1", "attendkita://")).toBe(true);
+  it("matches the hierarchical form when host/path line up with what was requested", () => {
+    expect(
+      matchesRedirectScheme("attendkita://sso-callback?x=1", "attendkita://sso-callback"),
+    ).toBe(true);
   });
 
   it("rejects a redirect for a different app scheme", () => {
     expect(matchesRedirectScheme("otherapp://callback", "attendkita://")).toBe(false);
+  });
+
+  it("rejects a same-scheme redirect whose host doesn't match the requested redirect (L-2: scheme squatting)", () => {
+    // A malicious app can register the same `attendkita://` scheme and race
+    // to receive the OS-delivered redirect. It can set any host/path it
+    // wants, so protocol-only matching would have accepted this.
+    expect(
+      matchesRedirectScheme("attendkita://evil-host/steal?rotating_token_nonce=x", "attendkita://"),
+    ).toBe(false);
   });
 
   it("rejects an unparseable url", () => {

@@ -54,7 +54,15 @@ export class ClaimRosterUseCase {
     }
 
     const byStudentId = await this.roster.findByStudentId(studentIdInput.trim());
-    if (!byStudentId || !rosterNameMatches(profile.name, byStudentId)) {
+    // M-1: a Student ID is printed on the owner's QR Card and the profile
+    // name is user-editable, so together they don't prove identity. A row
+    // with a roster email belongs to that address alone (the email path
+    // above claims it); refuse an ID claim from any other email, with the
+    // same uniform no-match so this isn't an oracle.
+    const ownedByOtherEmail =
+      byStudentId?.email != null &&
+      byStudentId.email.toLowerCase() !== profile.email.toLowerCase();
+    if (!byStudentId || ownedByOtherEmail || !rosterNameMatches(profile.name, byStudentId)) {
       throw new RosterClaimError(
         "no-match",
         "That Student ID could not be matched to your Google profile. Contact an Officer.",

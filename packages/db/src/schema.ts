@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   date,
+  index,
   numeric,
   pgEnum,
   pgTable,
@@ -16,6 +18,20 @@ export const roleEnum = pgEnum("role", ["student", "officer", "governor"]);
 // Governor-editable — see CONTEXT.md's Program entry. Seeded with the 4
 // defaults in the migration; students.program references this by name.
 export const programs = pgTable("programs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Governor-managed Expense Category vocabulary — see CONTEXT.md's Expense
+// Category entry (issue #345). Mirrors programs: seeded with defaults in the
+// migration. The future expenses table (#346) references this by name; that
+// FK must be ON UPDATE CASCADE ON DELETE RESTRICT, so a rename propagates to
+// existing Expenses (they never lose their classification, matching the admin
+// rename copy) while a Category still in use can't be removed. Without the
+// cascade, renaming an in-use Category would raise 23503 the rename path does
+// not map.
+export const expenseCategories = pgTable("expense_categories", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull().unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -68,6 +84,9 @@ export const semesters = pgTable(
     startDate: date("start_date").notNull(),
     endDate: date("end_date").notNull(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    // Null only for Semesters closed before SAF tracking began (ADR 0024);
+    // the API requires an amount above zero on create and edit.
+    safFeeAmount: numeric("saf_fee_amount", { precision: 10, scale: 2 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -120,9 +139,17 @@ export const attendanceSessions = pgTable(
     half: halfEnum("half").notNull(),
     timeIn: timestamp("time_in", { withTimezone: true }),
     timeOut: timestamp("time_out", { withTimezone: true }),
+    // TM-3: who made the most recent manual grid correction (Present/Absent
+    // override), if any. Null for a row that has only ever received booth
+    // scans, or predates this column. Not touched by scan writes — only by
+    // DrizzleAttendanceRepository#correct.
+    correctedBy: uuid("corrected_by").references(() => students.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [unique().on(table.eventId, table.studentId, table.half)],
+  (table) => [
+    unique().on(table.eventId, table.studentId, table.half),
+    index("attendance_sessions_student_id_idx").on(table.studentId),
+  ],
 );
 
 export const scanResultEnum = pgEnum("scan_result", ["approved", "rejected"]);
@@ -140,57 +167,131 @@ export const boothModeEnum = pgEnum("booth_mode", [
 // Rejections are logged here but never touch an Attendance Session.
 // studentId is null when the QR payload doesn't resolve to a registered
 // Student (e.g. tampered/forged QR).
-export const scans = pgTable("scans", {
-  id: uuid("id").primaryKey(),
-  eventId: uuid("event_id")
-    .notNull()
-    .references(() => events.id, { onDelete: "cascade" }),
-  studentId: uuid("student_id").references(() => students.id),
-  qrPayload: text("qr_payload").notNull(),
-  result: scanResultEnum("result").notNull(),
-  // Which booth mode was selected. Null for an explicit rejection; retained
-  // on invalid approval attempts so replay preserves the original decision.
-  mode: boothModeEnum("mode"),
-  officerId: uuid("officer_id")
-    .notNull()
-    .references(() => students.id),
-  // The Officer's device capture time — not server receipt time.
-  scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const scans = pgTable(
+  "scans",
+  {
+    id: uuid("id").primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id").references(() => students.id),
+    qrPayload: text("qr_payload").notNull(),
+    result: scanResultEnum("result").notNull(),
+    // Which booth mode was selected. Null for an explicit rejection; retained
+    // on invalid approval attempts so replay preserves the original decision.
+    mode: boothModeEnum("mode"),
+    officerId: uuid("officer_id")
+      .notNull()
+      .references(() => students.id),
+    // The Officer's device capture time — not server receipt time.
+    scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("scans_event_id_idx").on(table.eventId),
+    index("scans_student_id_idx").on(table.studentId),
+    index("scans_officer_id_idx").on(table.officerId),
+    // Backs the rejections log's filter-by-result + sort-by-scannedAt query.
+    index("scans_result_scanned_at_idx").on(table.result, table.scannedAt),
+  ],
+);
 
 // One row per absent Attendance Session — see CONTEXT.md's Penalty entry.
 // Auto-synced by lib/penalties.ts's computeSessionPenalty() whenever a
 // session is written, never set manually; deleted when the session becomes
 // present again. A whole-day absence is just the sum of both halves' rows —
 // no separate aggregate is stored.
-export const penalties = pgTable("penalties", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  attendanceSessionId: uuid("attendance_session_id")
-    .notNull()
-    .unique()
-    .references(() => attendanceSessions.id, { onDelete: "cascade" }),
-  studentId: uuid("student_id")
-    .notNull()
-    .references(() => students.id),
-  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const penalties = pgTable(
+  "penalties",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    attendanceSessionId: uuid("attendance_session_id")
+      .notNull()
+      .unique()
+      .references(() => attendanceSessions.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id),
+    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("penalties_student_id_idx").on(table.studentId)],
+);
 
-// One Payment per Penalty (unique on penaltyId — a Penalty is paid in full,
-// not partially) — see CONTEXT.md's Payment entry. Insert-only: there is no
-// update/delete path anywhere in the app. A correction is a new row, not an
-// edit to this one. amount is snapshotted at payment time rather than
-// re-read from the Penalty, so the transaction record can't drift later.
-export const payments = pgTable("payments", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  penaltyId: uuid("penalty_id")
-    .notNull()
-    .unique()
-    .references(() => penalties.id, { onDelete: "cascade" }),
-  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
-  officerId: uuid("officer_id")
-    .notNull()
-    .references(() => students.id),
-  paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
-});
+// Settles exactly one thing: a Penalty (penaltyId) or one Student's SAF Fee
+// for one Semester (studentId + semesterId) — enforced by payments_one_target.
+// At most one un-voided Payment per Penalty and per (Student, Semester) SAF
+// Fee (partial unique indexes — both are paid in full, not partially) — see
+// CONTEXT.md's Payment entry. Insert-only except for the one void update:
+// voiding stamps voidedAt and voidedBy and keeps the row for audit; it is
+// never deleted. Paying again after a void is a new row. amount is
+// snapshotted at payment time rather than re-read from the Penalty or
+// Semester, so the transaction record can't drift later.
+export const payments = pgTable(
+  "payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    penaltyId: uuid("penalty_id").references(() => penalties.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id").references(() => students.id),
+    semesterId: uuid("semester_id").references(() => semesters.id),
+    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+    officerId: uuid("officer_id")
+      .notNull()
+      .references(() => students.id),
+    paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: uuid("voided_by").references(() => students.id),
+  },
+  (table) => [
+    index("payments_officer_id_idx").on(table.officerId),
+    uniqueIndex("payments_one_unvoided_per_penalty")
+      .on(table.penaltyId)
+      .where(sql`${table.voidedAt} is null`),
+    uniqueIndex("payments_one_unvoided_saf_fee")
+      .on(table.studentId, table.semesterId)
+      .where(sql`${table.voidedAt} is null`),
+    index("payments_semester_id_idx").on(table.semesterId),
+    check(
+      "payments_one_target",
+      sql`(${table.penaltyId} is not null and ${table.studentId} is null and ${table.semesterId} is null) or (${table.penaltyId} is null and ${table.studentId} is not null and ${table.semesterId} is not null)`,
+    ),
+  ],
+);
+
+// The Department Fund's money-out (issue #346), mirroring payments' insert-only
+// + void shape. An Expense is recorded by an Officer against a Semester, carries
+// a description, an Officer-picked date it was incurred, and exactly one Expense
+// Category — see CONTEXT.md's Expense entry. category references
+// expense_categories.name ON UPDATE CASCADE ON DELETE RESTRICT (the FK the #345
+// schema note anticipated): a Category rename propagates so historical Expenses
+// never lose their classification, while a Category still referenced can't be
+// removed. Insert-only except the one void update — voiding stamps voidedAt and
+// voidedBy and keeps the row for audit; a voided Expense stops reducing the Fund
+// but is never edited or deleted. amount is snapshotted like a Payment's. Starts
+// empty: the record/void UI is a later slice, this ticket needs the table only
+// so computeDepartmentFund sums real rows rather than a faked zero.
+export const expenses = pgTable(
+  "expenses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    semesterId: uuid("semester_id")
+      .notNull()
+      .references(() => semesters.id),
+    category: text("category")
+      .notNull()
+      .references(() => expenseCategories.name, { onUpdate: "cascade", onDelete: "restrict" }),
+    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+    description: text("description").notNull(),
+    incurredOn: date("incurred_on").notNull(),
+    officerId: uuid("officer_id")
+      .notNull()
+      .references(() => students.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: uuid("voided_by").references(() => students.id),
+  },
+  (table) => [
+    index("expenses_semester_id_idx").on(table.semesterId),
+    index("expenses_category_idx").on(table.category),
+  ],
+);
