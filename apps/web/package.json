@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@attendance/contracts": "workspace:*",
-    "@clerk/nextjs": "^7.7.0",
+    "@clerk/nextjs": "^7.9.5",
     "@google/generative-ai": "^0.24.1",
     "@tanstack/query-async-storage-persister": "^5.101.4",
     "@tanstack/react-query-persist-client": "^5.101.4",
