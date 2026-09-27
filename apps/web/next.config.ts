@@ -25,7 +25,12 @@ const reportOnlyCsp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // "standalone" is for the Docker runner (apps/web/Dockerfile copies
+  // .next/standalone and runs server.js). On Vercel it breaks the build:
+  // Vercel's onBuildComplete looks for .next/next-server.js.nft.json, which
+  // standalone relocates (ENOENT). Vercel packages the output itself, so
+  // leave output at its default there. VERCEL=1 is set on every Vercel build.
+  output: process.env.VERCEL ? undefined : "standalone",
   async headers() {
     return [
       {
