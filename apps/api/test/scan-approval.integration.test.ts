@@ -188,6 +188,7 @@ describe("Scan Approval (e2e)", () => {
     const { officer } = await fixture();
     verify.mockResolvedValue({ authUserId: officer.authUserId });
 
-    await request(server()).post("/scan/rejections-log").set("Authorization", bearer).send({}).expect(403);
+    const res = await request(server()).post("/scan/rejections-log").set("Authorization", bearer).send({}).expect(403);
+    expect(res.status).toBe(403);
   });
 });

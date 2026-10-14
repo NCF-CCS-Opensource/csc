@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
-export function BlockedEmail({ email }: { email: string }) {
+export function BlockedEmail({ email }: Readonly<{ email: string }>) {
   return (
     <main className="relative flex flex-1 items-center justify-center overflow-hidden p-8">
       <DecorativeAccents />

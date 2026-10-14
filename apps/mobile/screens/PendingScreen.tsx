@@ -57,10 +57,10 @@ export function PendingScreen({
   const [syncing, setSyncing] = useState(false);
 
   const load = useCallback(() => {
-    needsReviewScans(officerId).then(setNeedsReview);
-    pendingScans(officerId).then(setPending);
-    deliveredScans(officerId).then(setDelivered);
-    legacyScans().then(setLegacy);
+    void needsReviewScans(officerId).then(setNeedsReview);
+    void pendingScans(officerId).then(setPending);
+    void deliveredScans(officerId).then(setDelivered);
+    void legacyScans().then(setLegacy);
   }, [officerId]);
 
   useEffect(() => {
@@ -131,11 +131,9 @@ export function PendingScreen({
   }, [onQueueChanged, load]);
 
   const online = status === "online";
-  const connectionLabel = status === "unknown"
-    ? "Checking connection…"
-    : online
-      ? "Online"
-      : "Offline — scans stay queued";
+  let connectionLabel = "Checking connection…";
+  if (status !== "unknown")
+    connectionLabel = online ? "Online" : "Offline — scans stay queued";
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

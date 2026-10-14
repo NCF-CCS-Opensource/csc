@@ -11,7 +11,7 @@ export class DrizzleExpenseRepository implements ExpenseRepository {
   constructor(@Inject(DB) private readonly db: Database) {}
 
   async listForFund(): Promise<{ amount: string; voidedAt: Date | null; semesterId: string }[]> {
-    return this.db
+    return await this.db
       .select({ amount: expenses.amount, voidedAt: expenses.voidedAt, semesterId: expenses.semesterId })
       .from(expenses);
   }

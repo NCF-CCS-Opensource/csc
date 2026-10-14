@@ -17,7 +17,7 @@ import { claimEnrollmentRoster, type OnboardingState } from "./actions";
 
 const initialState: OnboardingState = { errors: [] };
 
-export function OnboardingForm({ name, email }: { name: string; email: string }) {
+export function OnboardingForm({ name, email }: Readonly<{ name: string; email: string }>) {
   const [state, formAction, pending] = useActionState(claimEnrollmentRoster, initialState);
   const studentIdError = state.errors.find((error) => error.field === "studentId")?.message;
   const emailError = state.errors.find((error) => error.field === "email")?.message;

@@ -13,7 +13,7 @@ export class DrizzleEventRepository implements EventRepository {
   constructor(@Inject(DB) private readonly db: Database) {}
 
   async list(): Promise<Event[]> {
-    return this.db.query.events.findMany({ orderBy: desc(events.createdAt) });
+    return await this.db.query.events.findMany({ orderBy: desc(events.createdAt) });
   }
 
   async findById(id: string): Promise<Event | null> {
@@ -56,7 +56,7 @@ export class DrizzleEventRepository implements EventRepository {
   }
 
   async create(input: EventInput): Promise<Event> {
-    return this.db.transaction(async (transaction) => {
+    return await this.db.transaction(async (transaction) => {
       const [openSemester] = await transaction
         .select()
         .from(semesters)
@@ -82,7 +82,7 @@ export class DrizzleEventRepository implements EventRepository {
   }
 
   async update(id: string, input: EventInput): Promise<Event> {
-    return this.db.transaction(async (transaction) => {
+    return await this.db.transaction(async (transaction) => {
       const { existing, semester } = await this.lockEventAndSemester(transaction, id);
       if (!semester) throw new EventLifecycleError("Semester not found", 404);
       if (semester.closedAt) {

@@ -19,35 +19,40 @@ export function RejectionsScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { data = [], isLoading, isError, refetch } = useRejectedScans();
 
+  let content;
+  if (isLoading) {
+    content = <ActivityIndicator color={colors.text} style={styles.center} />;
+  } else if (isError) {
+    content = (
+      <View style={styles.center}>
+        <Text style={styles.message}>Could not load rejected scans.</Text>
+        <Text style={styles.retry} onPress={() => refetch()}>
+          Tap to retry
+        </Text>
+      </View>
+    );
+  } else if (data.length === 0) {
+    content = <Text style={styles.empty}>No rejected scans.</Text>;
+  } else {
+    content = (
+      <FlatList
+        data={data}
+        keyExtractor={(row) => row.id}
+        contentContainerStyle={styles.list}
+        renderItem={({ item }) => <RejectionRow row={item} styles={styles} />}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Rejected scans</Text>
-
-      {isLoading ? (
-        <ActivityIndicator color={colors.text} style={styles.center} />
-      ) : isError ? (
-        <View style={styles.center}>
-          <Text style={styles.message}>Could not load rejected scans.</Text>
-          <Text style={styles.retry} onPress={() => refetch()}>
-            Tap to retry
-          </Text>
-        </View>
-      ) : data.length === 0 ? (
-        <Text style={styles.empty}>No rejected scans.</Text>
-      ) : (
-        <FlatList
-          data={data}
-          keyExtractor={(row) => row.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => <RejectionRow row={item} styles={styles} />}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-        />
-      )}
+      {content}
     </View>
   );
 }
 
-function RejectionRow({ row, styles }: { row: RejectedScanRow; styles: Styles }) {
+function RejectionRow({ row, styles }: Readonly<{ row: RejectedScanRow; styles: Styles }>) {
   const { colors } = useTheme();
   return (
     <View style={styles.row}>
@@ -105,7 +110,6 @@ function makeStyles(c: ThemeColors) {
     retry: { fontSize: 14, color: c.neoPrimary, fontFamily: "DMSans_700Bold" },
     empty: { fontSize: 14, color: c.textMuted, paddingHorizontal: 20, marginTop: 8, fontFamily: "DMSans_500Medium" },
     list: { paddingHorizontal: 20, paddingBottom: 24, gap: 12 },
-    separator: { height: 0 },
     row: {
       flexDirection: "row",
       alignItems: "flex-start",

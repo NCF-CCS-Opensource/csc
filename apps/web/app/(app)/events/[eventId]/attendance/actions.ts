@@ -48,8 +48,10 @@ export async function markPaid(penaltyIds: string[], eventId: string) {
 // the API keeps the row with the voiding Officer and time, and its Penalty
 // becomes unpaid (and payable) again.
 export async function voidPayments(paymentIds: string[], eventId: string) {
-  for (const paymentId of paymentIds) {
-    await apiFetch("/v1/api/attendance/payments/void", { paymentId });
-  }
+  await Promise.all(
+    paymentIds.map((paymentId) =>
+      apiFetch("/v1/api/attendance/payments/void", { paymentId }),
+    ),
+  );
   revalidatePath(`/events/${eventId}/attendance`);
 }

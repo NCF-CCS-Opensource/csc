@@ -90,7 +90,7 @@ export class DrizzleAttendanceRepository {
   }
 
   async correct(input: CorrectAttendanceRequest, actorId: string): Promise<{ eventId: string }> {
-    return this.db.transaction(async (transaction) => {
+    return await this.db.transaction(async (transaction) => {
       const session = await transaction.query.attendanceSessions.findFirst({ where: eq(attendanceSessions.id, input.sessionId) });
       if (!session) throw new HttpException("Attendance Session not found", 404);
       // TM-2: no separation of duties on money — an Officer must not be able

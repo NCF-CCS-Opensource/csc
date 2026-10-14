@@ -14,7 +14,7 @@ const PAGE_SIZES = [10, 15, 20];
 
 export function usePagination<T>(items: T[], initialPageSize = 20) {
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSizeState] = useState(initialPageSize);
+  const [pageSize, setPageSize] = useState(initialPageSize);
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   const currentPage = Math.min(page, totalPages);
 
@@ -31,7 +31,7 @@ export function usePagination<T>(items: T[], initialPageSize = 20) {
     totalPages,
     setPage,
     setPageSize: (nextPageSize: number) => {
-      setPageSizeState(nextPageSize);
+      setPageSize(nextPageSize);
       setPage(1);
     },
   };

@@ -218,7 +218,7 @@ describe("Neobrutalist table styling and search filtering (Issue #206)", () => {
 
     // 1px row dividers
     const rows = container.querySelectorAll("tbody tr");
-    expect(rows.length).toBe(3);
+    expect(rows).toHaveLength(3);
     rows.forEach((row) => {
       expect(row.className).toMatch(/border-b.*border-border\/20/);
     });
