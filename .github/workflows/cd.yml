@@ -1,27 +1,43 @@
 name: CD
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  deploy-production:
-    name: Deploy to Production
-    if: github.ref == 'refs/heads/main'
+  deploy-api:
+    name: Deploy API to Heroku
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: production-api
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      # Heroku's build output (buildpack install, build, release) streams
+      # into this step's log, so it shows live in the Actions UI.
+      - name: Push to Heroku (build + release)
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP: ${{ vars.HEROKU_APP }}
+        run: git push --force "https://heroku:${HEROKU_API_KEY}@git.heroku.com/${HEROKU_APP}.git" ${{ github.event.workflow_run.head_sha }}:refs/heads/main
+
+  deploy-web:
+    name: Deploy Web (Vercel)
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment:
       name: production
       url: https://attendance.ncfccs.org
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Production Deployment Notification
-        run: |
-          echo "🚀 Production deployment triggered for commit ${{ github.sha }} on main branch."
-          echo "Vercel automatically builds and deploys production for main branch."
+      - run: echo "Vercel builds and deploys main automatically (commit ${{ github.event.workflow_run.head_sha }})."
