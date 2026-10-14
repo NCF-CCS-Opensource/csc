@@ -31,8 +31,8 @@ const nextConfig: NextConfig = {
   // standalone relocates (ENOENT). Vercel packages the output itself, so
   // leave output at its default there. VERCEL=1 is set on every Vercel build.
   output: process.env.VERCEL ? undefined : "standalone",
-  async headers() {
-    return [
+  headers() {
+    return Promise.resolve([
       {
         source: "/(.*)",
         headers: [
@@ -49,7 +49,7 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-    ];
+    ]);
   },
   env: {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:

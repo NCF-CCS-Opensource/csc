@@ -68,7 +68,7 @@ export class DrizzleStudentRepository implements StudentRepository {
   }
 
   async listAll(): Promise<StudentSummary[]> {
-    return this.db
+    return await this.db
       .select({
         id: students.id,
         name: students.name,

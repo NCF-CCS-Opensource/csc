@@ -22,7 +22,7 @@ import {
   View,
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ApiError,
   apiFetch,
@@ -72,6 +72,18 @@ function TabIcon({ route, color }: { route: string; color: string }) {
 }
 
 
+// Android draws edge-to-edge, so every screen needs the status-bar inset.
+function TopInset({ children }: { children: React.ReactNode }) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.neoBgPage }]}>
+      <StatusBar style={colors.mode === "dark" ? "light" : "dark"} />
+      {children}
+    </View>
+  );
+}
+
 function AuthenticatedApp({
   officerId,
   pendingCount,
@@ -86,6 +98,7 @@ function AuthenticatedApp({
   refreshQueue: () => void;
 }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -96,8 +109,8 @@ function AuthenticatedApp({
           backgroundColor: colors.neoBgSurface,
           borderTopColor: colors.neoBorder,
           borderTopWidth: 2,
-          height: 64,
-          paddingBottom: 10,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom + 10,
           paddingTop: 8,
         },
         tabBarLabelStyle: {
@@ -187,7 +200,9 @@ export default function App() {
           <ThemeProvider>
             <FontGate>
               <BoothQueryProvider>
-                <BoothApp />
+                <TopInset>
+                  <BoothApp />
+                </TopInset>
               </BoothQueryProvider>
             </FontGate>
           </ThemeProvider>

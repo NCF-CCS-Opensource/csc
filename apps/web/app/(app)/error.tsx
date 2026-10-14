@@ -7,10 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 export default function AppError({
   error,
   reset,
-}: {
+}: Readonly<{
   error: Error & { digest?: string };
   reset: () => void;
-}) {
+}>) {
   useEffect(() => {
     // Server-side detail (stack, digest) is already logged by Next.js before
     // this redacted error reaches the client — this call is browser-console

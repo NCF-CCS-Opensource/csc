@@ -31,9 +31,9 @@ export default function ClearanceLoading() {
             <Skeleton className="h-3 w-24" />
             <Skeleton className="h-3 w-20 justify-self-end" />
           </div>
-          {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
+          {Array.from({ length: SKELETON_ROWS }, (_, i) => `clearance-loading-row-${i}`).map((key) => (
             <div
-              key={`clearance-loading-row-${i}`}
+              key={key}
               data-testid="clearance-loading-row"
               className="grid grid-cols-4 items-center gap-4 border-b border-border/20 px-6 py-3"
             >

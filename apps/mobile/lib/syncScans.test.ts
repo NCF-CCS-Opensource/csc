@@ -160,7 +160,7 @@ describe("flushQueue", () => {
     );
 
     await vi.advanceTimersByTimeAsync(1_000);
-    expect((await loadQueue("officer-a")).length).toBe(0);
+    expect(await loadQueue("officer-a")).toHaveLength(0);
     expect((await loadRecentScans("officer-a"))[0].deliveryState).toBe(
       "delivered",
     );

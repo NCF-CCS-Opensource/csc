@@ -29,6 +29,8 @@ type StudentQuery = Pick<Database, "query">;
 type ScanResult =
   | { outcome: "approved"; alreadyScanned: boolean; student: ScannedStudent }
   | { outcome: "rejected"; error?: RejectionReason };
+type ScanRow = NonNullable<Awaited<ReturnType<Database["query"]["scans"]["findFirst"]>>>;
+type AttendanceSessionRow = typeof attendanceSessions.$inferSelect;
 
 @Injectable()
 export class DrizzleScanRepository {
@@ -65,6 +67,64 @@ export class DrizzleScanRepository {
     return this.apply(actor.id, decision, "reject");
   }
 
+  // A redelivered decision for a scan UUID we already stored. Replays the
+  // original outcome when the fields match, or rejects a genuine conflict —
+  // kept out of apply() so its transaction body stays within complexity bounds.
+  private async replayExistingScan(
+    transaction: Transaction,
+    existing: ScanRow,
+    decision: ScanDecisionRequest,
+    actorId: string,
+    capturedAt: Date,
+    mode: BoothMode | null,
+  ): Promise<ScanResult> {
+    if (
+      existing.eventId !== decision.eventId ||
+      existing.officerId !== actorId ||
+      existing.qrPayload !== decision.qrPayload ||
+      existing.mode !== mode ||
+      existing.scannedAt.getTime() !== capturedAt.getTime()
+    ) {
+      throw new ScanError("Scan UUID conflicts with a different decision", 409);
+    }
+    if (existing.result === "rejected") {
+      return {
+        outcome: "rejected" as const,
+        ...(existing.mode
+          ? { error: qrRejectionReason(decodeQrPayload(existing.qrPayload), undefined)! }
+          : {}),
+      };
+    }
+    const student = await transaction.query.students.findFirst({ where: eq(students.id, existing.studentId!) });
+    if (!student) throw new ScanError("Student not found", 404);
+    return { outcome: "approved" as const, alreadyScanned: true, student: this.publicStudent(student) };
+  }
+
+  // Keep the Student's Penalty in step with the just-upserted Session: a
+  // complete half (both time-in and time-out) clears any unpaid Penalty; an
+  // incomplete one (re)charges the half-day amount.
+  private async reconcilePenalty(
+    transaction: Transaction,
+    session: AttendanceSessionRow,
+    event: { halfDayPenaltyAmount: string },
+  ): Promise<void> {
+    const amount = session.timeIn && session.timeOut ? null : event.halfDayPenaltyAmount;
+    if (amount === null) {
+      const existingPenalty = await transaction.query.penalties.findFirst({
+        where: eq(penalties.attendanceSessionId, session.id),
+      });
+      if (existingPenalty) {
+        const paid = await transaction.query.payments.findFirst({
+          where: eq(payments.penaltyId, existingPenalty.id),
+        });
+        if (!paid) await transaction.delete(penalties).where(eq(penalties.id, existingPenalty.id));
+      }
+    } else {
+      await transaction.insert(penalties).values({ attendanceSessionId: session.id, studentId: session.studentId, amount })
+        .onConflictDoUpdate({ target: penalties.attendanceSessionId, set: { amount } });
+    }
+  }
+
   private async apply(
     actorId: string,
     decision: ScanDecisionRequest,
@@ -78,26 +138,7 @@ export class DrizzleScanRepository {
       const existing = await transaction.query.scans.findFirst({ where: eq(scans.id, decision.scanId) });
       const mode = type === "approve" ? decision.mode! : null;
       if (existing) {
-        if (
-          existing.eventId !== decision.eventId ||
-          existing.officerId !== actorId ||
-          existing.qrPayload !== decision.qrPayload ||
-          existing.mode !== mode ||
-          existing.scannedAt.getTime() !== capturedAt.getTime()
-        ) {
-          throw new ScanError("Scan UUID conflicts with a different decision", 409);
-        }
-        if (existing.result === "rejected") {
-          return {
-            outcome: "rejected" as const,
-            ...(existing.mode
-              ? { error: qrRejectionReason(decodeQrPayload(existing.qrPayload), undefined)! }
-              : {}),
-          };
-        }
-        const student = await transaction.query.students.findFirst({ where: eq(students.id, existing.studentId!) });
-        if (!student) throw new ScanError("Student not found", 404);
-        return { outcome: "approved" as const, alreadyScanned: true, student: this.publicStudent(student) };
+        return this.replayExistingScan(transaction, existing, decision, actorId, capturedAt, mode);
       }
 
       const event = await transaction.query.events.findFirst({ where: eq(events.id, decision.eventId) });
@@ -137,7 +178,7 @@ export class DrizzleScanRepository {
       // own Attendance Session and clears their own Penalty. (Reaching here
       // means `type === "approve"`: the reject branch above already returned.)
       if (student!.id === actorId) {
-        throw new ScanError("Officers cannot approve their own scan", 403);
+        throw new ScanError("You cannot accept your own QR code", 403);
       }
 
       // Different decision UUIDs need the same lock too: this preserves the
@@ -171,21 +212,7 @@ export class DrizzleScanRepository {
             : { timeOut: sql`greatest(${attendanceSessions.timeOut}, excluded.time_out)` },
         })
         .returning();
-      const amount = session.timeIn && session.timeOut ? null : event.halfDayPenaltyAmount;
-      if (amount === null) {
-        const existingPenalty = await transaction.query.penalties.findFirst({
-          where: eq(penalties.attendanceSessionId, session.id),
-        });
-        if (existingPenalty) {
-          const paid = await transaction.query.payments.findFirst({
-            where: eq(payments.penaltyId, existingPenalty.id),
-          });
-          if (!paid) await transaction.delete(penalties).where(eq(penalties.id, existingPenalty.id));
-        }
-      } else {
-        await transaction.insert(penalties).values({ attendanceSessionId: session.id, studentId: session.studentId, amount })
-          .onConflictDoUpdate({ target: penalties.attendanceSessionId, set: { amount } });
-      }
+      await this.reconcilePenalty(transaction, session, event);
       return { outcome: "approved" as const, alreadyScanned, student: this.publicStudent(student!) };
     });
     if ("error" in result && result.error) throw new ScanError(result.error, 422);

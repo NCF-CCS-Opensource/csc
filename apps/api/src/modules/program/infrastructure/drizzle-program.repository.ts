@@ -22,7 +22,7 @@ export class DrizzleProgramRepository implements ProgramRepository {
   }
 
   async listAll(): Promise<Program[]> {
-    return this.db.select().from(programs).orderBy(asc(programs.name));
+    return await this.db.select().from(programs).orderBy(asc(programs.name));
   }
 
   async create(name: string): Promise<Program> {

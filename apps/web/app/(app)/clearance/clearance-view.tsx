@@ -123,16 +123,15 @@ export function ClearanceView({
       </header>
 
       {!openSemester && (
-        <div
-          role="status"
-          className="rounded-[10px] border-2 border-border bg-card p-4 shadow-[var(--shadow-sm)]"
+        <output
+          className="block rounded-[10px] border-2 border-border bg-card p-4 shadow-[var(--shadow-sm)]"
         >
           <p className="text-muted-foreground text-sm font-medium">
             {ledgerSemester
               ? `No open Semester — showing unpaid balances from the most recent Semester (${ledgerSemester.startDate} – ${ledgerSemester.endDate}).`
               : "No open Semester — nothing to clear."}
           </p>
-        </div>
+        </output>
       )}
 
 {/* Tactile Search Card */}

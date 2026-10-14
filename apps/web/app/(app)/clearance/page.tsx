@@ -34,13 +34,11 @@ export default async function ClearancePage({
   // of every Student reading as ₱0 (TM-1).
   // ponytail: only the latest Semester is checked; debt left in older
   // Semesters needs a cross-Semester Ledger read if that ever matters.
-  const ledgerSemesterPromise = semesterPromise.then(
-    (semester) =>
-      semester ??
-      apiPost<SemesterListResponse>("semester/list").then(
-        ({ semesters }) => semesters[0] ?? null,
-      ),
-  );
+  const ledgerSemesterPromise = semesterPromise.then(async (semester) => {
+    if (semester) return semester;
+    const { semesters } = await apiPost<SemesterListResponse>("semester/list");
+    return semesters[0] ?? null;
+  });
 
   // One batched Ledger request for every enrolled Student instead of one
   // request per Student (issue #282; batched endpoint added in #278).

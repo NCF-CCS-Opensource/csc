@@ -25,7 +25,7 @@ export class DrizzleSemesterRepository implements SemesterRepository {
   }
 
   async findAll(): Promise<Semester[]> {
-    return this.db.query.semesters.findMany({
+    return await this.db.query.semesters.findMany({
       orderBy: desc(semesters.createdAt),
     });
   }
@@ -46,7 +46,7 @@ export class DrizzleSemesterRepository implements SemesterRepository {
   }
 
   async updateDates(id: string, input: SemesterInput): Promise<Semester> {
-    return this.db.transaction(async (transaction) => {
+    return await this.db.transaction(async (transaction) => {
       const [semester] = await transaction
         .select()
         .from(semesters)
