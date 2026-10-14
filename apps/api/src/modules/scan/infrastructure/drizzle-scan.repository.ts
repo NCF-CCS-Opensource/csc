@@ -178,7 +178,7 @@ export class DrizzleScanRepository {
       // own Attendance Session and clears their own Penalty. (Reaching here
       // means `type === "approve"`: the reject branch above already returned.)
       if (student!.id === actorId) {
-        throw new ScanError("Officers cannot approve their own scan", 403);
+        throw new ScanError("You cannot accept your own QR code", 403);
       }
 
       // Different decision UUIDs need the same lock too: this preserves the

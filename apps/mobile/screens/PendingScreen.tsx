@@ -449,7 +449,7 @@ function makeStyles(c: ThemeColors) {
       marginTop: 8,
       fontFamily: "DMSans_500Medium",
     },
-    cardActions: { flexDirection: "row", gap: 10, marginTop: 12 },
+    cardActions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12 },
     retryButton: {
       flexDirection: "row",
       alignItems: "center",
