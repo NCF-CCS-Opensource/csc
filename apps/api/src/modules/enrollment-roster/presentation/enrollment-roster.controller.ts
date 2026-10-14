@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Inject,
   NotFoundException,
@@ -14,6 +15,7 @@ import { CallerAuthUserId } from "../../../shared/presentation/caller-auth-user-
 import { IdentityThrottlerGuard } from "../../../shared/presentation/identity-throttler.guard";
 import { ClaimRosterUseCase } from "../application/claim-roster.use-case";
 import { RosterClaimError } from "../domain/roster-claim-error";
+import { DuplicateStudentIdError } from "../../student/domain/student-errors";
 import { presentIdentity } from "../../student/presentation/identity.presenter";
 
 // Single-action controller, one-to-one with ClaimRosterUseCase (ADR-0017).
@@ -40,6 +42,11 @@ export class EnrollmentRosterController {
       const actor = await this.claimRoster.execute(authUserId, body.studentId);
       return presentIdentity(actor);
     } catch (error) {
+      // The roster entry matched, but its email/studentId is already bound to
+      // another account (e.g. onboarded under a previous Clerk instance).
+      if (error instanceof DuplicateStudentIdError) {
+        throw new ConflictException({ message: error.message, field: "studentId" });
+      }
       if (error instanceof RosterClaimError) {
         // field threaded through so the onboarding form can blame the
         // right input, same as StudentController#correct.

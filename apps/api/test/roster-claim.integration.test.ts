@@ -5,6 +5,7 @@ import { ClaimRosterUseCase } from "../src/modules/enrollment-roster/application
 import { DrizzleEnrollmentRosterRepository } from "../src/modules/enrollment-roster/infrastructure/drizzle-enrollment-roster.repository";
 import { DrizzleStudentRepository } from "../src/modules/student/infrastructure/drizzle-student.repository";
 import { RosterClaimError } from "../src/modules/enrollment-roster/domain/roster-claim-error";
+import { DuplicateStudentIdError } from "../src/modules/student/domain/student-errors";
 import type { IdentityProfileProvider } from "../src/modules/enrollment-roster/domain/identity-profile-provider";
 
 // Seam 1 (parent issue #157): the ClaimRosterUseCase invoked directly
@@ -104,6 +105,19 @@ describe("Roster Claim", () => {
       RosterClaimError,
     );
     expect(await studentRepository.findByAuthUserId("user_grace")).toBeNull();
+  });
+
+  // Regression: same person, new Clerk authUserId (e.g. a test->live instance
+  // switch). The email/studentId row already exists, so the insert hits a
+  // unique conflict that onConflictDoNothing swallows; the claim must reject
+  // cleanly instead of toActor(undefined) throwing a raw 500.
+  it("rejects cleanly when the roster email is already bound to a different account", async () => {
+    const first = useCaseWithProfile({ email: "grace@gbox.ncf.edu.ph", name: "Grace Hopper" });
+    await first.execute("user_grace_old");
+
+    const again = useCaseWithProfile({ email: "grace@gbox.ncf.edu.ph", name: "Grace Hopper" });
+
+    await expect(again.execute("user_grace_new")).rejects.toBeInstanceOf(DuplicateStudentIdError);
   });
 
   it("is idempotent for an already-claimed Student", async () => {

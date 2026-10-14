@@ -39,7 +39,12 @@ export class DrizzleStudentRepository implements StudentRepository {
       .returning();
     // A concurrent duplicate claim raced this one — the row already exists.
     const created = row ?? (await this.findRowByAuthUserId(input.authUserId));
-    return toActor(created!);
+    // No row returned AND none under this authUserId means the conflict was on
+    // the unique email/studentId held by a *different* account (e.g. the same
+    // person onboarded under a previous Clerk instance). Fail with a clean
+    // domain error instead of toActor(undefined) throwing a raw 500.
+    if (!created) throw new DuplicateStudentIdError();
+    return toActor(created);
   }
 
   async updateIdAndProgram(id: string, input: StudentCorrection): Promise<Actor> {
