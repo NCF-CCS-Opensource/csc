@@ -19,7 +19,7 @@ jobs:
       url: https://attendance.ncfccs.org
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Production Deployment Notification
         run: |
