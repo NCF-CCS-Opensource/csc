@@ -539,7 +539,7 @@ function makeStyles(c: ThemeColors) {
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
     hint: { fontSize: 13, color: c.textMuted, fontFamily: "DMSans_400Regular" },
     messageHint: { fontSize: 13, color: c.textMuted, paddingHorizontal: 16, marginTop: 4, fontFamily: "DMSans_400Regular" },
-    cameraWrap: { flex: 0.85, maxHeight: 310, backgroundColor: "#000000" },
+    cameraWrap: { flex: 0.85, maxHeight: 310, backgroundColor: "#000000", overflow: "hidden" },
     camera: { flex: 1 },
     cameraOverlay: {
       ...StyleSheet.absoluteFill,

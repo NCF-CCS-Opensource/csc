@@ -3,7 +3,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Pressable,
+  ScrollView,
   RefreshControl,
   StyleSheet,
   Text,
@@ -11,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar, MapPin, Pencil, Plus, Trash2 } from "lucide-react-native";
 import { CalendarGrid } from "../components/CalendarGrid";
 import { useTheme } from "../lib/theme-context";
@@ -185,6 +189,7 @@ function DeleteEventModal({
   colors: ThemeColors;
   styles: Styles;
 }) {
+  const insets = useSafeAreaInsets();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -203,9 +208,10 @@ function DeleteEventModal({
   }
 
   return (
-    <Modal visible={!!event} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={styles.deleteModalCard} onPress={(e) => e.stopPropagation()}>
+    <Modal visible={!!event} transparent animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[styles.deleteModalCard, { paddingBottom: 24 + insets.bottom }]}>
           <View style={styles.modalHandle} />
 
           <View style={styles.deleteIconBadge}>
@@ -235,8 +241,8 @@ function DeleteEventModal({
               )}
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -258,6 +264,7 @@ function EventFormModal({
   colors: ThemeColors;
   styles: Styles;
 }) {
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [venue, setVenue] = useState("");
   const [date, setDate] = useState<string | null>(null);
@@ -295,14 +302,22 @@ function EventFormModal({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior="padding" style={styles.modalBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[styles.modalCard, { maxHeight: "90%", marginTop: insets.top + 16 }]}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>{mode === "create" ? "New event" : "Edit event"}</Text>
           <Text style={styles.modalSubtitle}>
             {mode === "create" ? "Fill in the details below." : `Editing: "${event?.name}"`}
           </Text>
+
+          <ScrollView
+            style={styles.modalScroll}
+            contentContainerStyle={styles.modalScrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
 
           <Text style={styles.fieldLabel}>Event name</Text>
           <View style={styles.inputWrap}>
@@ -369,8 +384,9 @@ function EventFormModal({
           </View>
 
           {error && <Text style={styles.error}>{error}</Text>}
+          </ScrollView>
 
-          <View style={styles.modalActions}>
+          <View style={[styles.modalActions, { paddingBottom: insets.bottom + 12 }]}>
             <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -390,8 +406,8 @@ function EventFormModal({
               )}
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -469,10 +485,10 @@ function makeStyles(c: ThemeColors) {
       borderTopRightRadius: 24,
       paddingHorizontal: 20,
       paddingTop: 12,
-      paddingBottom: 24,
       gap: 8,
-      maxHeight: "90%",
     },
+    modalScroll: { flexShrink: 1 },
+    modalScrollContent: { gap: 8, paddingBottom: 8 },
     deleteModalCard: {
       backgroundColor: c.neoBgSurface,
       borderTopWidth: 2,
@@ -555,7 +571,7 @@ function makeStyles(c: ThemeColors) {
     calendarContainer: {
       marginTop: 8,
     },
-    modalActions: { flexDirection: "row", gap: 12, marginTop: 16, width: "100%" },
+    modalActions: { flexDirection: "row", gap: 12, marginTop: 8, width: "100%" },
     button: { flex: 1, borderRadius: 10, paddingVertical: 14, alignItems: "center", borderWidth: 2, borderColor: c.neoBorder },
     cancelButton: { backgroundColor: c.neoBgSurface },
     cancelButtonText: { fontFamily: "DMSans_700Bold", color: c.text },
