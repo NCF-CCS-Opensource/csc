@@ -7,7 +7,7 @@ export type LinkingLike = {
     event: "url",
     handler: (e: { url: string }) => void,
   ) => { remove: () => void };
-  getInitialURL: () => Promise<string | null>;
+  getInitialURL: () => Promise<string | null | undefined>;
 };
 
 /**
@@ -30,7 +30,7 @@ export function watchForRedirectUrl(linking: LinkingLike) {
   });
   return {
     async resolve(): Promise<string | null> {
-      return capturedUrl ?? (await linking.getInitialURL());
+      return capturedUrl ?? (await linking.getInitialURL()) ?? null;
     },
     stop() {
       subscription.remove();
