@@ -22,7 +22,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Attendance",
+  title: "NCF-CCS",
   description: "QR-based attendance and penalty tracking",
 };
 
