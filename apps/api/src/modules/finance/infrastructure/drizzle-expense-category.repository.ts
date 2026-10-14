@@ -23,7 +23,7 @@ export class DrizzleExpenseCategoryRepository implements ExpenseCategoryReposito
   }
 
   async listAll(): Promise<ExpenseCategory[]> {
-    return this.db
+    return await this.db
       .select({ id: expenseCategories.id, name: expenseCategories.name })
       .from(expenseCategories)
       .orderBy(asc(expenseCategories.name));

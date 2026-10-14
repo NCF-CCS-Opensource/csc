@@ -312,6 +312,50 @@ function attendedHalvesForStudentEvent(
   return (amAttended ? 1 : 0) + (pmAttended ? 1 : 0);
 }
 
+type AmountByStudent = { studentId: string; amount: string };
+
+// Shared pre-aggregation for computePerSemesterReport — each kept out of the
+// main function so its control flow stays under the cognitive-complexity bar.
+function sumAmountByStudent(rows: AmountByStudent[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    map.set(r.studentId, (map.get(r.studentId) ?? 0) + Number(r.amount));
+  }
+  return map;
+}
+
+function mapPenaltyToStudent(
+  penalties: PerSemesterReportInput["penalties"],
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const p of penalties) map.set(p.id, p.studentId);
+  return map;
+}
+
+function sumPaymentsByStudent(
+  payments: PerSemesterReportInput["payments"],
+  penaltyToStudent: Map<string, string>,
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const pay of payments) {
+    const studentId = penaltyToStudent.get(pay.penaltyId);
+    if (studentId) {
+      map.set(studentId, (map.get(studentId) ?? 0) + Number(pay.amount));
+    }
+  }
+  return map;
+}
+
+function attendedSessionSet(
+  sessions: PerSemesterReportInput["sessions"],
+): Set<string> {
+  const set = new Set<string>();
+  for (const s of sessions) {
+    if (!isSessionAbsent(s)) set.add(`${s.studentId}:${s.eventId}:${s.half}`);
+  }
+  return set;
+}
+
 export function computePerSemesterReport(input: PerSemesterReportInput): PerSemesterReportData {
   const { semester, students, events, sessions, penalties, payments, programs, asOfTimestamp } = input;
 
@@ -319,30 +363,10 @@ export function computePerSemesterReport(input: PerSemesterReportInput): PerSeme
   const totalCollected = payments.reduce((sum, p) => sum + Number(p.amount), 0);
   const totalOutstanding = Math.max(0, totalPenaltiesCharged - totalCollected);
 
-  const studentPenaltiesMap = new Map<string, number>();
-  for (const p of penalties) {
-    studentPenaltiesMap.set(p.studentId, (studentPenaltiesMap.get(p.studentId) ?? 0) + Number(p.amount));
-  }
-
-  const penaltyToStudentMap = new Map<string, string>();
-  for (const p of penalties) {
-    penaltyToStudentMap.set(p.id, p.studentId);
-  }
-
-  const studentPaymentsMap = new Map<string, number>();
-  for (const pay of payments) {
-    const studentId = penaltyToStudentMap.get(pay.penaltyId);
-    if (studentId) {
-      studentPaymentsMap.set(studentId, (studentPaymentsMap.get(studentId) ?? 0) + Number(pay.amount));
-    }
-  }
-
-  const sessionByStudentEventHalf = new Set<string>();
-  for (const s of sessions) {
-    if (!isSessionAbsent(s)) {
-      sessionByStudentEventHalf.add(`${s.studentId}:${s.eventId}:${s.half}`);
-    }
-  }
+  const studentPenaltiesMap = sumAmountByStudent(penalties);
+  const penaltyToStudentMap = mapPenaltyToStudent(penalties);
+  const studentPaymentsMap = sumPaymentsByStudent(payments, penaltyToStudentMap);
+  const sessionByStudentEventHalf = attendedSessionSet(sessions);
 
   let totalAttended = 0;
   let totalResolvedHalves = 0;

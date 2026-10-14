@@ -15,6 +15,6 @@ export class IdentityThrottlerGuard extends ThrottlerGuard {
     const actor = req.actor as { id?: string } | undefined;
     if (actor?.id) return actor.id;
     if (typeof req.authUserId === "string") return req.authUserId;
-    return super.getTracker(req);
+    return await super.getTracker(req);
   }
 }

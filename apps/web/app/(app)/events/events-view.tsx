@@ -203,10 +203,10 @@ export function EventsView({
 function EventActions({
   event,
   eventTypes,
-}: {
+}: Readonly<{
   event: EventRow;
   eventTypes: EventsSnapshot["eventTypes"];
-}) {
+}>) {
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);

@@ -35,7 +35,7 @@ export class DrizzleLedgerRepository implements LedgerRepository {
   }
 
   async paymentHistory(studentId: string): Promise<{ id: string; amount: string; paidAt: Date }[]> {
-    return this.db
+    return await this.db
       .select({ id: payments.id, amount: payments.amount, paidAt: payments.paidAt })
       .from(payments)
       .leftJoin(penalties, eq(payments.penaltyId, penalties.id))

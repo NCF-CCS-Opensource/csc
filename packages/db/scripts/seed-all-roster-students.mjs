@@ -14,7 +14,7 @@ if (!dbUrl) {
   process.exit(1);
 }
 
-const governorList = GOVERNOR_EMAILS.split(",").map((e) => e.trim().toLowerCase());
+const governorList = new Set(GOVERNOR_EMAILS.split(",").map((e) => e.trim().toLowerCase()));
 const sql = postgres(dbUrl);
 
 const roster = await sql`select * from enrollment_roster order by student_id`;
@@ -33,7 +33,7 @@ await sql.begin(async (tx) => {
     const email = (r.email || `student.${r.student_id.replace(/[^a-zA-Z0-9]/g, "")}@gbox.ncf.edu.ph`).toLowerCase();
     const name = [r.first_name, r.middle_name, r.last_name].filter(Boolean).join(" ");
     const authUserId = `seed_${r.student_id}`;
-    const role = governorList.includes(email) ? "governor" : "student";
+    const role = governorList.has(email) ? "governor" : "student";
 
     await tx`
       insert into students (auth_user_id, email, name, program, section, student_id, role)

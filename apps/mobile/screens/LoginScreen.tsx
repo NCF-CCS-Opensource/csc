@@ -136,7 +136,7 @@ export function LoginScreen() {
         <View style={styles.brandSpacer} />
 
         <View style={styles.form}>
-          {Boolean(error) ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <TouchableOpacity
             style={styles.button}
@@ -151,7 +151,7 @@ export function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {Boolean(error || isSignedIn) ? (
+          {error || isSignedIn ? (
             <TouchableOpacity
               style={styles.secondaryButton}
               accessibilityRole="button"

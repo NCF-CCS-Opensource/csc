@@ -60,7 +60,7 @@ function fail(message: string): never {
 function parseEventForm(formData: FormData) {
   return {
     name: String(formData.get("name") ?? "").trim(),
-    type: String(formData.get("type") ?? "") as EventType,
+    type: ((formData.get("type") as string | null) ?? "") as EventType,
     halfDayPenaltyAmount: String(formData.get("halfDayPenaltyAmount") ?? ""),
     date: String(formData.get("date") ?? ""),
     venue: String(formData.get("venue") ?? "").trim() || undefined,

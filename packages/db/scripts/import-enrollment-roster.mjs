@@ -21,11 +21,11 @@ const workbook = resolve(source);
 const readZipEntry = (entry) => execFileSync("/usr/bin/unzip", ["-p", workbook, entry], { encoding: "utf8" });
 const decodeXml = (value) =>
   value
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'");
 
 const sharedStrings = [...readZipEntry("xl/sharedStrings.xml").matchAll(/<si>([\s\S]*?)<\/si>/g)].map(
   ([, string]) =>

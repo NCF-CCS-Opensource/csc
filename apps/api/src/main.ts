@@ -73,4 +73,4 @@ async function bootstrap() {
   logger.log(`Listening on ${host}:${port}`);
 }
 
-bootstrap();
+void bootstrap();

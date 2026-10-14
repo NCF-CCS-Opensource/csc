@@ -486,6 +486,10 @@ function RecentScanRow({
 
   const canReview = isNeedsReviewActionable(scan);
 
+  let outcomeLabelStyle = styles.rejectedLabel;
+  if (isAlreadyScanned(scan)) outcomeLabelStyle = styles.alreadyScannedLabel;
+  else if (scan.decision === "accepted") outcomeLabelStyle = styles.acceptedLabel;
+
   return (
     <TouchableOpacity
       style={styles.recentRow}
@@ -508,15 +512,7 @@ function RecentScanRow({
         </Text>
       </View>
       <View style={styles.recentState}>
-        <Text
-          style={
-            isAlreadyScanned(scan)
-              ? styles.alreadyScannedLabel
-              : scan.decision === "accepted"
-                ? styles.acceptedLabel
-                : styles.rejectedLabel
-          }
-        >
+        <Text style={outcomeLabelStyle}>
           {outcome}
         </Text>
         <View style={styles.statusLabelRow}>

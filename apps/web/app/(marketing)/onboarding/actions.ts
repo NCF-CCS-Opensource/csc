@@ -37,7 +37,7 @@ export async function claimEnrollmentRoster(
   if (!name) {
     return { errors: [{ field: "studentId", message: "Your Google account has no name set." }] };
   }
-  const studentId = String(formData.get("studentId") ?? "").trim();
+  const studentId = ((formData.get("studentId") as string | null) ?? "").trim();
   if (!studentId) return { errors: [{ field: "studentId", message: "Student ID is required" }] };
 
   try {
