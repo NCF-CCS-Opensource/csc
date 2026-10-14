@@ -105,7 +105,7 @@ export function EventsScreen() {
         data={events}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={() => void refetch()} />}
         ListEmptyComponent={<Text style={styles.hint}>No Events yet.</Text>}
         renderItem={({ item }) => {
           const status = deriveStatus(item.date);
