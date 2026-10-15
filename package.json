@@ -23,7 +23,7 @@
     "docker:db": "docker compose up -d db"
   },
   "devDependencies": {
-    "turbo": "^2.3.0",
+    "turbo": "^2.11.7",
     "typescript": "^6.0.3"
   },
   "packageManager": "pnpm@11.13.1",
