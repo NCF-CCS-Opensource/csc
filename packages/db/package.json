@@ -17,7 +17,7 @@
     "db:seed-all-roster": "node --env-file=../../.env scripts/seed-all-roster-students.mjs"
   },
   "dependencies": {
-    "drizzle-orm": "^0.38.3",
+    "drizzle-orm": "^0.45.4",
     "postgres": "^3.4.5"
   },
   "devDependencies": {
