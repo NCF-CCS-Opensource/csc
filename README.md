@@ -17,6 +17,8 @@ QR-based attendance and penalty tracking for the College of Computer Studies.
 
 ## User flows
 
+- [User manual](docs/user-manual.md) — role-based guide for Students, Officers, and Governors
+
 - [Student](docs/flows/student-user-flow.md)
 - [Officer](docs/flows/officer-flow.md)
 - [Governor](docs/flows/governor-flow.md)
